@@ -1,16 +1,19 @@
 <?php
+
 // app/Models/User.php
 
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    // SoftDeletes conserve l'historique d'un vendeur supprime par l'admin.
+    use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
 
     protected $fillable = [
         'name',
@@ -32,17 +35,17 @@ class User extends Authenticatable
 
     public function client()
     {
-       return $this->hasOne(Client::class);
+        return $this->hasOne(Client::class);
     }
 
     public function vendeur()
     {
-       return $this->hasOne(Vendeur::class);
+        return $this->hasOne(Vendeur::class);
     }
 
     public function admin()
     {
-      return $this->hasOne(Admin::class);
+        return $this->hasOne(Admin::class);
     }
 
     public function isAdmin()

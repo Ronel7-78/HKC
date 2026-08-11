@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Admin\ComplementController;
 use App\Http\Controllers\Api\Admin\ProduitController as AdminProduitController;
+use App\Http\Controllers\Api\Admin\VendeurController as AdminVendeurController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ClientController;
@@ -23,14 +24,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
 
-    // Routes du client
-    Route::prefix('client')->group(function () {
+    // Routes reservees au client
+    Route::middleware('role:client')->prefix('client')->group(function () {
         Route::get('/profile', [ClientController::class, 'show']);
         Route::put('/profile', [ClientController::class, 'update']);
     });
 
-    // Routes du vendeur
-    Route::prefix('vendeur')->group(function () {
+    // Routes reservees au vendeur
+    Route::middleware('role:vendeur')->prefix('vendeur')->group(function () {
         Route::get('/profile', [VendeurController::class, 'show']);
         Route::put('/profile', [VendeurController::class, 'update']);
         Route::patch('/disponibilite', [VendeurController::class, 'updateDisponibilite']);
@@ -40,8 +41,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/produits/{produitId}/statut', [VendeurProduitController::class, 'updateStatut']);
     });
 
-    // Routes des commandes
-    Route::prefix('commandes')->group(function () {
+    // Routes de commande reservees au client
+    Route::middleware('role:client')->prefix('commandes')->group(function () {
         Route::post('/preview', [CommandeController::class, 'preview']);
         Route::post('/', [CommandeController::class, 'store']);
         Route::get('/', [CommandeController::class, 'index']);
@@ -52,6 +53,9 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::middleware(['auth:sanctum', 'isAdmin'])->prefix('admin')->group(function () {
     Route::get('/profile', [AdminController::class, 'show']);
     Route::put('/profile', [AdminController::class, 'update']);
+
+    // Gestion des vendeurs par l'administrateur uniquement
+    Route::apiResource('vendeurs', AdminVendeurController::class);
 
     // Catalogue (admin uniquement)
     Route::apiResource('produits', AdminProduitController::class);
