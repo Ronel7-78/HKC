@@ -1,4 +1,5 @@
 <?php
+
 // app/Http/Controllers/Api/CommandeController.php
 
 namespace App\Http\Controllers\Api;
@@ -19,7 +20,9 @@ class CommandeController extends Controller
         return Validator::make($request->all(), [
             'items' => 'required|array|min:1',
             'items.*.produit_id' => 'required|exists:produits,id',
-            'items.*.complements' => 'required|array|min:1',
+            // Un complement peut representer un accompagnement simple ou mixte,
+            // mais une ligne de commande doit toujours en contenir exactement un.
+            'items.*.complements' => 'required|array|size:1',
             'items.*.complements.*' => 'exists:complements,id',
             'adresse_livraison' => 'required|string',
             'latitude_client' => 'required|numeric',
@@ -31,14 +34,18 @@ class CommandeController extends Controller
     {
         $produitIds = collect($items)->pluck('produit_id')->unique();
 
+        // Formule de Haversine utilisee pour calculer la distance en kilometres.
+        // La condition WHERE fonctionne avec MySQL et avec SQLite pendant les tests.
+        $calculDistance = '( 6371 * acos( cos( radians(?) ) * cos( radians(latitude) ) * cos( radians(longitude) - radians(?) ) + sin( radians(?) ) * sin( radians(latitude) ) ) )';
+
         return Vendeur::where('statut_compte', 'actif')
             ->where('statut_dispo', 'disponible')
             ->whereHas('produits', function ($q) use ($produitIds) {
                 $q->whereIn('produits.id', $produitIds)
-                  ->where('vendeur_produits.statut', 'disponible');
+                    ->where('vendeur_produits.statut', 'disponible');
             }, '=', $produitIds->count())
-            ->selectRaw("vendeurs.*, ( 6371 * acos( cos( radians(?) ) * cos( radians(latitude) ) * cos( radians(longitude) - radians(?) ) + sin( radians(?) ) * sin( radians(latitude) ) ) ) AS distance", [$lat, $lng, $lat])
-            ->having('distance', '<', 5)
+            ->selectRaw("vendeurs.*, {$calculDistance} AS distance", [$lat, $lng, $lat])
+            ->whereRaw("{$calculDistance} < ?", [$lat, $lng, $lat, 5])
             ->orderBy('distance')
             ->first();
     }
@@ -51,9 +58,10 @@ class CommandeController extends Controller
         foreach ($items as $item) {
             $produit = Produit::findOrFail($item['produit_id']);
 
+            // Le complement doit exister dans la liste autorisee du produit.
             $complementsAutorises = $produit->complements()->pluck('complements.id')->toArray();
             foreach ($item['complements'] as $compId) {
-                if (!in_array($compId, $complementsAutorises)) {
+                if (! in_array($compId, $complementsAutorises)) {
                     abort(422, "Le complément choisi n'est pas disponible pour {$produit->nom}");
                 }
             }
@@ -81,7 +89,7 @@ class CommandeController extends Controller
             $request->items, $request->latitude_client, $request->longitude_client
         );
 
-        if (!$vendeur) {
+        if (! $vendeur) {
             return response()->json(['message' => 'Aucun vendeur disponible ne peut honorer cette commande actuellement'], 422);
         }
 
@@ -109,7 +117,7 @@ class CommandeController extends Controller
 
         $client = $request->user()->client;
 
-        if (!$client) {
+        if (! $client) {
             return response()->json([
                 'message' => 'Seul un compte client peut passer une commande. Ce compte n\'a pas de profil client associé.',
             ], 403);
@@ -119,7 +127,7 @@ class CommandeController extends Controller
             $request->items, $request->latitude_client, $request->longitude_client
         );
 
-        if (!$vendeur) {
+        if (! $vendeur) {
             return response()->json(['message' => "Le vendeur proposé n'est plus disponible, relance une recherche"], 422);
         }
 
@@ -162,6 +170,7 @@ class CommandeController extends Controller
     public function index(Request $request)
     {
         $client = $request->user()->client;
+
         return response()->json(
             $client->commandes()->with('items.complements', 'vendeur')->latest()->get()
         );
