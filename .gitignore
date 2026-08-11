@@ -1,0 +1,20 @@
+# Laravel (hot-koki-api)
+hot-koki-api/vendor/
+hot-koki-api/.env
+hot-koki-api/storage/*.key
+hot-koki-api/node_modules/
+hot-koki-api/public/hot
+hot-koki-api/public/storage
+hot-koki-api/.phpunit.result.cache
+
+# Flutter (à venir)
+**/build/
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/android/.gradle/
+**/ios/Pods/
+
+# Général
+.DS_Store
+*.log
