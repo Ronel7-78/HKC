@@ -12,7 +12,7 @@ class Vendeur extends Model
 
     protected $fillable = [
         'user_id', 'nom_boutique', 'description', 'adresse_texte',
-        'latitude', 'longitude', 'statut_dispo', 'statut_compte', 'note_moyenne',
+        'latitude', 'longitude', 'statut_dispo', 'statut_compte', 'note_moyenne', 
     ];
 
     public function user()
