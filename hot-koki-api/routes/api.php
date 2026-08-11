@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\ClientController;
 use App\Http\Controllers\Api\VendeurController;
 
 use App\Http\Controllers\Api\Admin\ProduitController as AdminProduitController;
+use App\Http\Controllers\Api\CommandeController;
 use App\Http\Controllers\Api\VendeurProduitController;
 
 Route::get('/user', function (Request $request) {
@@ -63,4 +64,11 @@ Route::middleware(['auth:sanctum', 'isAdmin'])->prefix('admin')->group(function 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/vendeur/produits', [VendeurProduitController::class, 'index']);
     Route::patch('/vendeur/produits/{produitId}/statut', [VendeurProduitController::class, 'updateStatut']);
+});
+
+//commandes
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/commandes/preview', [CommandeController::class, 'preview']);
+    Route::post('/commandes', [CommandeController::class, 'store']);
+    Route::get('/commandes', [CommandeController::class, 'index']);
 });

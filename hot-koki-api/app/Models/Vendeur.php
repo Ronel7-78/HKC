@@ -25,4 +25,9 @@ class Vendeur extends Model
                      ->withPivot('statut')
                      ->withTimestamps();
     }
+
+    public function commandes() 
+    { 
+        return $this->hasMany(Commande::class);
+    }
 }
