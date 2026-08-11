@@ -15,14 +15,12 @@ class Vendeur extends Model
         'latitude', 'longitude', 'statut_dispo', 'statut_compte', 'note_moyenne',
     ];
 
-    public function user()
-    {
+    public function user(){
         return $this->belongsTo(User::class);
     }
 
     // Relation avec les produits (via la table pivot vendeur_produits)
-    public function produits()
-    {
+    public function produits(){
         return $this->belongsToMany(Produit::class, 'vendeur_produits')
                      ->withPivot('statut')
                      ->withTimestamps();
