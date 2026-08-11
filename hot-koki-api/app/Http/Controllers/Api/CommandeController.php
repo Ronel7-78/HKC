@@ -109,6 +109,12 @@ class CommandeController extends Controller
 
         $client = $request->user()->client;
 
+        if (!$client) {
+            return response()->json([
+                'message' => 'Seul un compte client peut passer une commande. Ce compte n\'a pas de profil client associé.',
+            ], 403);
+        }
+
         $vendeur = $this->trouverVendeurEligible(
             $request->items, $request->latitude_client, $request->longitude_client
         );
