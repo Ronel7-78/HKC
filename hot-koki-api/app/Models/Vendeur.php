@@ -12,7 +12,7 @@ class Vendeur extends Model
 
     protected $fillable = [
         'user_id', 'nom_boutique', 'description', 'adresse_texte',
-        'latitude', 'longitude', 'statut_dispo', 'statut_compte', 'note_moyenne', 
+        'latitude', 'longitude', 'statut_dispo', 'statut_compte', 'note_moyenne',
     ];
 
     public function user()
@@ -20,8 +20,11 @@ class Vendeur extends Model
         return $this->belongsTo(User::class);
     }
 
+    // Relation avec les produits (via la table pivot vendeur_produits)
     public function produits()
     {
-       // return $this->hasMany(Produit::class);
+        return $this->belongsToMany(Produit::class, 'vendeur_produits')
+                     ->withPivot('statut')
+                     ->withTimestamps();
     }
 }

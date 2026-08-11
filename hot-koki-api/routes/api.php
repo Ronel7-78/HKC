@@ -1,11 +1,15 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\ComplementController;
 use App\Http\Controllers\Api\AdminController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ClientController;
 use App\Http\Controllers\Api\VendeurController;
+
+use App\Http\Controllers\Api\Admin\ProduitController as AdminProduitController;
+use App\Http\Controllers\Api\VendeurProduitController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -44,4 +48,19 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::middleware(['auth:sanctum', 'isAdmin'])->group(function () {
     Route::get('/admin/profile', [AdminController::class, 'show']);
     Route::put('/admin/profile', [AdminController::class, 'update']);
+});
+
+// --- Catalogue (admin uniquement) ---
+
+Route::middleware(['auth:sanctum', 'isAdmin'])->prefix('admin')->group(function () {
+    Route::apiResource('produits', AdminProduitController::class);
+    Route::get('complements', [ComplementController::class, 'index']);
+    Route::post('complements', [ComplementController::class, 'store']);
+    Route::delete('complements/{id}', [ComplementController::class, 'destroy']);
+});
+
+// --- Stock du vendeur ---
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/vendeur/produits', [VendeurProduitController::class, 'index']);
+    Route::patch('/vendeur/produits/{produitId}/statut', [VendeurProduitController::class, 'updateStatut']);
 });
