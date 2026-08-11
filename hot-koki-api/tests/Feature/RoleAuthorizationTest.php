@@ -14,6 +14,16 @@ class RoleAuthorizationTest extends TestCase
     use RefreshDatabase;
 
     /**
+     * Une API sans token doit retourner 401 meme sans en-tete Accept JSON.
+     */
+    public function test_api_returns_unauthorized_instead_of_redirecting_to_login(): void
+    {
+        $this->get('/api/client/profile')
+            ->assertUnauthorized()
+            ->assertJsonPath('message', 'Unauthenticated.');
+    }
+
+    /**
      * Un client ne doit pas pouvoir acceder a l'espace vendeur.
      */
     public function test_client_cannot_access_vendeur_routes(): void

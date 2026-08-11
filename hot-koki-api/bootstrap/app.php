@@ -16,6 +16,12 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     // Middlewares utilises pour proteger les routes selon le role.
     ->withMiddleware(function (Middleware $middleware): void {
+        // Une requete API non authentifiee doit recevoir une erreur JSON 401.
+        // La redirection vers une page de connexion reste reservee aux routes web.
+        $middleware->redirectGuestsTo(
+            fn (Request $request) => $request->is('api/*') ? null : route('login'),
+        );
+
         $middleware->alias([
             // Protege les routes d'administration deja existantes.
             'isAdmin' => IsAdmin::class,
