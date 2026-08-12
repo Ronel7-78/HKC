@@ -27,10 +27,13 @@ class CommandeController extends Controller
             'adresse_livraison' => 'required|string',
             'latitude_client' => 'required|numeric',
             'longitude_client' => 'required|numeric',
+            // Facultatif pour conserver les anciens clients. Lorsqu'il est fourni,
+            // il doit correspondre au vendeur retourne par l'apercu.
+            'vendeur_id' => 'sometimes|integer|exists:vendeurs,id',
         ]);
     }
 
-    private function trouverVendeurEligible(array $items, $lat, $lng)
+    private function trouverVendeurEligible(array $items, $lat, $lng, ?int $vendeurId = null)
     {
         $produitIds = collect($items)->pluck('produit_id')->unique();
 
@@ -38,7 +41,10 @@ class CommandeController extends Controller
         // La condition WHERE fonctionne avec MySQL et avec SQLite pendant les tests.
         $calculDistance = '( 6371 * acos( cos( radians(?) ) * cos( radians(latitude) ) * cos( radians(longitude) - radians(?) ) + sin( radians(?) ) * sin( radians(latitude) ) ) )';
 
-        return Vendeur::where('statut_compte', 'actif')
+        return Vendeur::when($vendeurId, fn ($query) => $query->whereKey($vendeurId))
+            ->whereNotNull('latitude')
+            ->whereNotNull('longitude')
+            ->where('statut_compte', 'actif')
             ->where('statut_dispo', 'disponible')
             ->whereHas('produits', function ($q) use ($produitIds) {
                 $q->whereIn('produits.id', $produitIds)
@@ -48,6 +54,23 @@ class CommandeController extends Controller
             ->whereRaw("{$calculDistance} < ?", [$lat, $lng, $lat, 5])
             ->orderBy('distance')
             ->first();
+    }
+
+    /**
+     * Reverifie l'eligibilite sous verrou pour qu'un changement de disponibilite
+     * entre l'apercu et la creation ne produise pas une mauvaise affectation.
+     */
+    private function verrouillerVendeurEligible(array $items, $lat, $lng, ?int $vendeurId = null)
+    {
+        $vendeur = $this->trouverVendeurEligible($items, $lat, $lng, $vendeurId);
+
+        if (! $vendeur) {
+            return null;
+        }
+
+        Vendeur::whereKey($vendeur->id)->lockForUpdate()->first();
+
+        return $this->trouverVendeurEligible($items, $lat, $lng, $vendeur->id);
     }
 
     private function calculerTotaux(array $items)
@@ -90,7 +113,10 @@ class CommandeController extends Controller
         );
 
         if (! $vendeur) {
-            return response()->json(['message' => 'Aucun vendeur disponible ne peut honorer cette commande actuellement'], 422);
+            return response()->json([
+                'message' => 'Aucun vendeur actif et disponible à moins de 5 km ne propose actuellement tous les produits demandés.',
+                'code' => 'AUCUN_VENDEUR_ELIGIBLE',
+            ], 422);
         }
 
         [$sousTotal, $lignes] = $this->calculerTotaux($request->items);
@@ -123,18 +149,21 @@ class CommandeController extends Controller
             ], 403);
         }
 
-        $vendeur = $this->trouverVendeurEligible(
-            $request->items, $request->latitude_client, $request->longitude_client
-        );
+        $commande = DB::transaction(function () use ($client, $request) {
+            $vendeur = $this->verrouillerVendeurEligible(
+                $request->items,
+                $request->latitude_client,
+                $request->longitude_client,
+                $request->integer('vendeur_id') ?: null,
+            );
 
-        if (! $vendeur) {
-            return response()->json(['message' => "Le vendeur proposé n'est plus disponible, relance une recherche"], 422);
-        }
+            if (! $vendeur) {
+                return null;
+            }
 
-        [$sousTotal, $lignes] = $this->calculerTotaux($request->items);
-        $fraisLivraison = 300;
+            [$sousTotal, $lignes] = $this->calculerTotaux($request->items);
+            $fraisLivraison = 300;
 
-        $commande = DB::transaction(function () use ($client, $vendeur, $lignes, $sousTotal, $fraisLivraison, $request) {
             $commande = Commande::create([
                 'client_id' => $client->id,
                 'vendeur_id' => $vendeur->id,
@@ -160,6 +189,17 @@ class CommandeController extends Controller
             return $commande;
         });
 
+        if (! $commande) {
+            $vendeurPropose = $request->filled('vendeur_id');
+
+            return response()->json([
+                'message' => $vendeurPropose
+                    ? 'Le vendeur sélectionné n’est plus éligible. Relancez l’aperçu de la commande.'
+                    : 'Aucun vendeur actif et disponible à moins de 5 km ne propose actuellement tous les produits demandés.',
+                'code' => $vendeurPropose ? 'VENDEUR_DEVENU_INELIGIBLE' : 'AUCUN_VENDEUR_ELIGIBLE',
+            ], 422);
+        }
+
         return response()->json([
             'message' => 'Commande créée, en attente de paiement',
             'commande' => $commande->load('items.complements', 'vendeur'),
@@ -171,8 +211,72 @@ class CommandeController extends Controller
     {
         $client = $request->user()->client;
 
+        if (! $client) {
+            return response()->json([
+                'message' => 'Ce compte n\'a pas de profil client associé.',
+            ], 403);
+        }
+
         return response()->json(
             $client->commandes()->with('items.complements', 'vendeur')->latest()->get()
         );
+    }
+
+    /**
+     * Affiche uniquement une commande appartenant au client authentifie.
+     */
+    public function show(Request $request, Commande $commande)
+    {
+        $client = $request->user()->client;
+
+        if (! $client) {
+            return response()->json([
+                'message' => 'Ce compte n\'a pas de profil client associé.',
+            ], 403);
+        }
+
+        if ($commande->client_id !== $client->id) {
+            return response()->json([
+                'message' => 'Cette commande n\'appartient pas à ce client.',
+            ], 403);
+        }
+
+        return response()->json(
+            $commande->load('items.produit', 'items.complements', 'vendeur')
+        );
+    }
+
+    /**
+     * Annule une commande du client avant le debut de sa preparation.
+     */
+    public function annuler(Request $request, Commande $commande)
+    {
+        $client = $request->user()->client;
+
+        if (! $client) {
+            return response()->json([
+                'message' => 'Ce compte n\'a pas de profil client associé.',
+            ], 403);
+        }
+
+        if ($commande->client_id !== $client->id) {
+            return response()->json([
+                'message' => 'Cette commande n\'appartient pas à ce client.',
+            ], 403);
+        }
+
+        if (! $commande->peutEtreAnnuleeParClient()) {
+            return response()->json([
+                'message' => "La commande ne peut plus être annulée par le client depuis le statut {$commande->statut}.",
+                'code' => 'ANNULATION_CLIENT_IMPOSSIBLE',
+            ], 422);
+        }
+
+        $commande->update(['statut' => Commande::STATUT_ANNULEE]);
+
+        return response()->json([
+            'message' => 'Commande annulée.',
+            'commande' => $commande->fresh()->load('items.produit', 'items.complements', 'vendeur'),
+        ]);
     }
 }

@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ClientController;
 use App\Http\Controllers\Api\CommandeController;
+use App\Http\Controllers\Api\VendeurCommandeController;
 use App\Http\Controllers\Api\VendeurController;
 use App\Http\Controllers\Api\VendeurProduitController;
 use Illuminate\Http\Request;
@@ -39,6 +40,11 @@ Route::middleware('auth:sanctum')->group(function () {
         // Stock du vendeur
         Route::get('/produits', [VendeurProduitController::class, 'index']);
         Route::patch('/produits/{produitId}/statut', [VendeurProduitController::class, 'updateStatut']);
+
+        // Commandes affectees au vendeur authentifie
+        Route::get('/commandes', [VendeurCommandeController::class, 'index']);
+        Route::get('/commandes/{commande}', [VendeurCommandeController::class, 'show']);
+        Route::patch('/commandes/{commande}/statut', [VendeurCommandeController::class, 'updateStatut']);
     });
 
     // Routes de commande reservees au client
@@ -46,6 +52,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/preview', [CommandeController::class, 'preview']);
         Route::post('/', [CommandeController::class, 'store']);
         Route::get('/', [CommandeController::class, 'index']);
+        Route::get('/{commande}', [CommandeController::class, 'show']);
+        Route::patch('/{commande}/annuler', [CommandeController::class, 'annuler']);
     });
 });
 
