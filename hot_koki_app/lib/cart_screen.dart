@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'client_screens.dart';
+
 const _leaf900 = Color(0xFF1F3524);
 const _leaf100 = Color(0xFFE7EEE4);
-const _cream = Color(0xFFFBF4E1);
 const _flame600 = Color(0xFFC9491E);
 const _inkSoft = Color(0xFF6B5F4E);
 
@@ -38,7 +39,8 @@ class CartStore extends ChangeNotifier {
   final List<CartItem> _items = [];
 
   List<CartItem> get items => List.unmodifiable(_items);
-  int get total => _items.fold(0, (sum, item) => sum + item.unitPrice * item.quantity);
+  int get total =>
+      _items.fold(0, (sum, item) => sum + item.unitPrice * item.quantity);
   int get count => _items.fold(0, (sum, item) => sum + item.quantity);
 
   bool add(CartItem incoming) {
@@ -112,7 +114,8 @@ class CartScreen extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       itemCount: cart.items.length,
                       separatorBuilder: (_, _) => const SizedBox(height: 10),
-                      itemBuilder: (_, index) => _CartLine(item: cart.items[index]),
+                      itemBuilder: (_, index) =>
+                          _CartLine(item: cart.items[index]),
                     ),
             ),
             if (cart.items.isNotEmpty) _CartSummary(cart: cart),
@@ -130,7 +133,10 @@ class _CartLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+    ),
     child: Row(
       children: [
         ClipRRect(
@@ -151,21 +157,39 @@ class _CartLine extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(item.productName, style: const TextStyle(fontWeight: FontWeight.w700)),
-              Text(item.complementName, style: const TextStyle(color: _inkSoft, fontSize: 11)),
+              Text(
+                item.productName,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              Text(
+                item.complementName,
+                style: const TextStyle(color: _inkSoft, fontSize: 11),
+              ),
               Text(
                 '${item.unitPrice * item.quantity} F CFA',
-                style: const TextStyle(color: _flame600, fontWeight: FontWeight.w800),
+                style: const TextStyle(
+                  color: _flame600,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ],
           ),
         ),
-        _QuantityButton(icon: Icons.remove, onPressed: () => CartStore.instance.changeQuantity(item.key, -1)),
+        _QuantityButton(
+          icon: Icons.remove,
+          onPressed: () => CartStore.instance.changeQuantity(item.key, -1),
+        ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 9),
-          child: Text('${item.quantity}', style: const TextStyle(fontWeight: FontWeight.w800)),
+          child: Text(
+            '${item.quantity}',
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
         ),
-        _QuantityButton(icon: Icons.add, onPressed: () => CartStore.instance.changeQuantity(item.key, 1)),
+        _QuantityButton(
+          icon: Icons.add,
+          onPressed: () => CartStore.instance.changeQuantity(item.key, 1),
+        ),
       ],
     ),
   );
@@ -199,15 +223,19 @@ class _CartSummary extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text('${cart.count} article${cart.count > 1 ? 's' : ''}'),
-            Text('${cart.total} F CFA', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            Text(
+              '${cart.total} F CFA',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            ),
           ],
         ),
         const SizedBox(height: 12),
         SizedBox(
           width: double.infinity,
           child: FilledButton(
-            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Validation et paiement : prochaine étape.')),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CheckoutScreen()),
             ),
             style: FilledButton.styleFrom(
               backgroundColor: _flame600,
@@ -231,6 +259,263 @@ class _EmptyCart extends StatelessWidget {
         Icon(Icons.shopping_basket_outlined, size: 54, color: _inkSoft),
         SizedBox(height: 10),
         Text('Votre panier est vide.', style: TextStyle(color: _inkSoft)),
+      ],
+    ),
+  );
+}
+
+class CheckoutScreen extends StatefulWidget {
+  const CheckoutScreen({super.key});
+  @override
+  State<CheckoutScreen> createState() => _CheckoutScreenState();
+}
+
+class _CheckoutScreenState extends State<CheckoutScreen> {
+  final _phone = TextEditingController();
+  Map<String, dynamic>? _profile;
+  Map<String, dynamic>? _preview;
+  String? _error;
+  bool _loading = true;
+  bool _submitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _phone.dispose();
+    super.dispose();
+  }
+
+  Map<String, dynamic> _payload() {
+    final client = _profile!['client'] as Map<String, dynamic>;
+    final items = CartStore.instance.items;
+    return {
+      'items': items
+          .map(
+            (item) => {
+              'produit_id': item.productId,
+              'quantite': item.quantity,
+              'complements': [item.complementId],
+            },
+          )
+          .toList(),
+      'vendeur_id': items.first.vendorId,
+      'adresse_livraison': client['adresse_texte'],
+      'latitude_client': client['latitude'],
+      'longitude_client': client['longitude'],
+    };
+  }
+
+  Future<void> _load() async {
+    try {
+      _profile =
+          await ClientApi.request('GET', '/client/profile')
+              as Map<String, dynamic>;
+      final preview = await ClientApi.request(
+        'POST',
+        '/commandes/preview',
+        body: _payload(),
+      );
+      if (mounted) {
+        setState(() {
+          _preview = preview as Map<String, dynamic>;
+          _loading = false;
+        });
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _error = error.toString().replaceFirst('Exception: ', '');
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _confirm() async {
+    if (_phone.text.trim().isEmpty) {
+      setState(() => _error = 'Renseignez le numéro MTN MoMo à débiter.');
+      return;
+    }
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+    try {
+      final created =
+          await ClientApi.request('POST', '/commandes', body: _payload())
+              as Map<String, dynamic>;
+      final order = created['commande'] as Map<String, dynamic>;
+      CartStore.instance.clear();
+      final result =
+          await ClientApi.request(
+                'POST',
+                '/commandes/${order['id']}/paiements',
+                body: {
+                  'fournisseur': 'mtn_momo',
+                  'telephone': _phone.text.trim(),
+                },
+              )
+              as Map<String, dynamic>;
+      if (!mounted) return;
+      await Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PaymentStatusScreen(
+            payment: result['paiement'] as Map<String, dynamic>,
+          ),
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _error = error.toString().replaceFirst('Exception: ', '');
+          _submitting = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: const Color(0xFFFBF4E1),
+    appBar: AppBar(title: const Text('Valider la commande')),
+    body: _loading
+        ? const Center(child: CircularProgressIndicator(color: _flame600))
+        : _preview == null
+        ? Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Text(
+                    _error ?? 'Aperçu indisponible',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                TextButton(onPressed: _load, child: const Text('Réessayer')),
+              ],
+            ),
+          )
+        : ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              const Text(
+                'Livraison',
+                style: TextStyle(
+                  color: _leaf900,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.location_on, color: _flame600),
+                  title: Text(
+                    (_profile!['client'] as Map)['adresse_texte'].toString(),
+                  ),
+                  subtitle: Text(
+                    '${(_preview!['vendeur'] as Map)['nom_boutique']} · ${(_preview!['vendeur'] as Map)['distance_km']} km',
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Paiement MTN MoMo',
+                style: TextStyle(
+                  color: _leaf900,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              TextField(
+                controller: _phone,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'Numéro à débiter',
+                  hintText: '6XXXXXXXX',
+                  prefixIcon: Icon(Icons.phone_android),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 20),
+              _AmountLine(label: 'Sous-total', value: _preview!['sous_total']),
+              _AmountLine(
+                label: 'Livraison',
+                value: _preview!['frais_livraison'],
+              ),
+              const Divider(),
+              _AmountLine(
+                label: 'Total',
+                value: _preview!['total'],
+                strong: true,
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 12),
+                Text(_error!, style: const TextStyle(color: Colors.red)),
+              ],
+              const SizedBox(height: 18),
+              FilledButton(
+                onPressed: _submitting ? null : _confirm,
+                style: FilledButton.styleFrom(
+                  backgroundColor: _flame600,
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                ),
+                child: _submitting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('Commander et payer'),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Le paiement n’est confirmé qu’après le statut final de MTN.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: _inkSoft, fontSize: 11),
+              ),
+            ],
+          ),
+  );
+}
+
+class _AmountLine extends StatelessWidget {
+  const _AmountLine({
+    required this.label,
+    required this.value,
+    this.strong = false,
+  });
+  final String label;
+  final dynamic value;
+  final bool strong;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 5),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(fontWeight: strong ? FontWeight.w800 : null),
+        ),
+        Text(
+          '${double.tryParse(value.toString())?.round() ?? value} F CFA',
+          style: TextStyle(
+            color: strong ? _flame600 : _leaf900,
+            fontSize: strong ? 18 : 14,
+            fontWeight: strong ? FontWeight.w800 : FontWeight.w600,
+          ),
+        ),
       ],
     ),
   );

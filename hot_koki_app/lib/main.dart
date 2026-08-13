@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 
 import 'api_config.dart';
 import 'auth_screen.dart';
+import 'cart_screen.dart';
+import 'client_screens.dart';
 import 'vendor_screens.dart';
 
 void main() => runApp(const HotKokiApp());
@@ -87,12 +89,44 @@ class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
   UserRole? _role;
   String? _userName;
+  bool _restoringSession = true;
 
   @override
   void initState() {
     super.initState();
     _role = widget.role;
+    CartCleanup.clear = CartStore.instance.clear;
+    _restoreSession();
   }
+
+  Future<void> _restoreSession() async {
+    try {
+      final token = await ClientApi.storage.read(key: 'auth_token');
+      if (token != null && _role == null) {
+        final user =
+            await ClientApi.request('GET', '/me') as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _role = UserRole.values.firstWhere(
+              (role) => role.name == user['role'],
+            );
+            _userName = user['name']?.toString();
+          });
+        }
+      }
+    } catch (_) {
+      try {
+        await ClientApi.storage.delete(key: 'auth_token');
+      } catch (_) {}
+    }
+    if (mounted) setState(() => _restoringSession = false);
+  }
+
+  void _logout() => setState(() {
+    _role = null;
+    _userName = null;
+    _currentIndex = 0;
+  });
 
   Future<void> _openAuth(bool register) async {
     final result = await Navigator.push<AuthResult>(
@@ -130,17 +164,17 @@ class _MainShellState extends State<MainShell> {
             Icons.home_outlined,
             ClientHomeScreen(userName: _userName),
           ),
-          AppTab('Menu', Icons.restaurant_menu, PlaceholderScreen('Menu')),
+          const AppTab('Panier', Icons.shopping_basket_outlined, CartScreen()),
           const AppTab('Recherche', Icons.search, VendorSearchScreen()),
           AppTab(
             'Commandes',
             Icons.receipt_long_outlined,
-            PlaceholderScreen('Mes commandes'),
+            const ClientOrdersScreen(),
           ),
           AppTab(
             'Compte',
             Icons.person_outline,
-            PlaceholderScreen('Mon compte'),
+            ClientAccountScreen(onLogout: _logout),
           ),
         ];
       case UserRole.vendeur:
@@ -195,6 +229,9 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
+    if (_restoringSession) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
     final tabs = _tabs;
 
     return Scaffold(

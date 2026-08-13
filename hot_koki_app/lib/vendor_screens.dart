@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
 import 'api_config.dart';
+import 'cart_screen.dart';
 
 const _leaf900 = Color(0xFF1F3524);
 const _leaf700 = Color(0xFF2E4E36);
@@ -49,12 +50,14 @@ class VendorProduct {
     required this.description,
     required this.price,
     required this.photo,
+    required this.complements,
   });
   final int id;
   final String name;
   final String description;
   final int price;
   final String? photo;
+  final List<ProductComplement> complements;
 
   factory VendorProduct.fromJson(Map<String, dynamic> json) => VendorProduct(
     id: int.parse(json['id'].toString()),
@@ -64,7 +67,22 @@ class VendorProduct {
     photo: json['photo'] == null
         ? null
         : ApiConfig.resolveMediaUrl(json['photo'].toString()),
+    complements: (json['complements'] as List<dynamic>? ?? [])
+        .map((item) => ProductComplement.fromJson(item as Map<String, dynamic>))
+        .toList(),
   );
+}
+
+class ProductComplement {
+  const ProductComplement({required this.id, required this.name});
+  final int id;
+  final String name;
+
+  factory ProductComplement.fromJson(Map<String, dynamic> json) =>
+      ProductComplement(
+        id: int.parse(json['id'].toString()),
+        name: json['nom'].toString(),
+      );
 }
 
 class VendorApi {
@@ -386,7 +404,8 @@ class VendorDetailScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
                     ...vendor.products.map(
-                      (product) => _VendorProductCard(product: product),
+                      (product) =>
+                          _VendorProductCard(vendor: vendor, product: product),
                     ),
                   ],
                 ),
@@ -400,8 +419,76 @@ class VendorDetailScreen extends StatelessWidget {
 }
 
 class _VendorProductCard extends StatelessWidget {
-  const _VendorProductCard({required this.product});
+  const _VendorProductCard({required this.vendor, required this.product});
+  final VendorData vendor;
   final VendorProduct product;
+
+  Future<void> _addToCart(BuildContext context) async {
+    if (product.complements.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Aucun complément disponible pour ce produit.'),
+        ),
+      );
+      return;
+    }
+    final complement = await showModalBottomSheet<ProductComplement>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Choisissez un complément',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: _leaf900,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ...product.complements.map(
+                (item) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(
+                    Icons.radio_button_unchecked,
+                    color: _flame600,
+                  ),
+                  title: Text(item.name),
+                  onTap: () => Navigator.pop(context, item),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (complement == null || !context.mounted) return;
+    final added = CartStore.instance.add(
+      CartItem(
+        vendorId: vendor.id,
+        vendorName: vendor.name,
+        productId: product.id,
+        productName: product.name,
+        unitPrice: product.price,
+        complementId: complement.id,
+        complementName: complement.name,
+        photo: product.photo,
+      ),
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          added
+              ? '${product.name} ajouté au panier.'
+              : 'Terminez d’abord le panier du vendeur actuel.',
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) => Container(
@@ -447,6 +534,11 @@ class _VendorProductCard extends StatelessWidget {
         Text(
           '${product.price} F',
           style: const TextStyle(color: _flame600, fontWeight: FontWeight.w800),
+        ),
+        IconButton(
+          tooltip: 'Ajouter au panier',
+          onPressed: () => _addToCart(context),
+          icon: const Icon(Icons.add_circle, color: _flame600),
         ),
       ],
     ),

@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Admin\ProduitController as AdminProduitController;
 use App\Http\Controllers\Api\Admin\VendeurController as AdminVendeurController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\AvisController;
 use App\Http\Controllers\Api\CatalogueController;
 use App\Http\Controllers\Api\ClientController;
 use App\Http\Controllers\Api\ClientVendeurController;
@@ -38,6 +39,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/profile', [ClientController::class, 'update']);
         Route::get('/vendeurs', [ClientVendeurController::class, 'index']);
         Route::get('/vendeurs/{vendeur}', [ClientVendeurController::class, 'show']);
+        Route::get('/avis', [AvisController::class, 'index']);
     });
 
     // Routes reservees au vendeur
@@ -64,6 +66,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{commande}', [CommandeController::class, 'show']);
         Route::patch('/{commande}/annuler', [CommandeController::class, 'annuler']);
         Route::post('/{commande}/paiements', [PaiementController::class, 'store']);
+        Route::post('/{commande}/avis', [AvisController::class, 'store']);
     });
 
     Route::middleware('role:client')->get('/paiements/{paiement}', [PaiementController::class, 'show']);

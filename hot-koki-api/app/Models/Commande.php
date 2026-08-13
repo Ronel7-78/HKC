@@ -84,4 +84,9 @@ class Commande extends Model
     {
         return $this->hasMany(Paiement::class);
     }
+
+    public function avis()
+    {
+        return $this->hasOne(Avis::class);
+    }
 }

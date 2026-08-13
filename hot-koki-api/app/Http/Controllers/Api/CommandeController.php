@@ -221,7 +221,10 @@ class CommandeController extends Controller
         }
 
         return response()->json(
-            $client->commandes()->with('items.complements', 'vendeur')->latest()->get()
+            $client->commandes()
+                ->with('items.produit', 'items.complements', 'vendeur', 'paiements', 'avis')
+                ->latest()
+                ->get()
         );
     }
 
