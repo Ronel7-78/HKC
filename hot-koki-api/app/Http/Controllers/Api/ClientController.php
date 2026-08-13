@@ -48,6 +48,19 @@ class ClientController extends Controller
             'longitude' => 'sometimes|nullable|numeric',
             'current_password' => 'required_with:password|string',
             'password' => 'sometimes|string|min:8|confirmed',
+        ], [
+            'name.required' => 'Le nom est obligatoire.',
+            'email.required' => 'L’adresse email est obligatoire.',
+            'email.email' => 'L’adresse email n’est pas valide.',
+            'email.unique' => 'Cette adresse email est déjà utilisée.',
+            'telephone.required' => 'Le numéro de téléphone est obligatoire.',
+            'telephone.unique' => 'Ce numéro de téléphone est déjà utilisé.',
+            'adresse_texte.required' => 'L’adresse de livraison est obligatoire.',
+            'latitude.required' => 'La position actuelle doit être renseignée.',
+            'longitude.required' => 'La position actuelle doit être renseignée.',
+            'password.min' => 'Le nouveau mot de passe doit contenir au moins 8 caractères.',
+            'password.confirmed' => 'La confirmation du mot de passe ne correspond pas.',
+            'current_password.required_with' => 'Le mot de passe actuel est obligatoire.',
         ]);
 
         if ($validator->fails()) {

@@ -17,6 +17,14 @@ const _flame600 = Color(0xFFC9491E);
 const _flame500 = Color(0xFFE0672F);
 const _inkSoft = Color(0xFF6B5F4E);
 
+class ApiException implements Exception {
+  const ApiException(this.message, [this.fields = const {}]);
+  final String message;
+  final Map<String, String> fields;
+  @override
+  String toString() => message;
+}
+
 class ClientApi {
   static const storage = FlutterSecureStorage();
 
@@ -48,8 +56,20 @@ class ClientApi {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       final message = data is Map ? data['message'] : null;
       final errors = data is Map ? data['errors'] : null;
-      throw Exception(
-        message ?? _firstError(errors) ?? 'Une erreur est survenue.',
+      final fieldErrors = <String, String>{};
+      if (errors is Map) {
+        for (final entry in errors.entries) {
+          final value = entry.value;
+          fieldErrors[entry.key.toString()] = value is List && value.isNotEmpty
+              ? value.first.toString()
+              : value.toString();
+        }
+      }
+      throw ApiException(
+        message?.toString() ??
+            _firstError(errors) ??
+            'Impossible de terminer l’opération.',
+        fieldErrors,
       );
     }
     return data;
@@ -84,7 +104,9 @@ class _ClientOrdersScreenState extends State<ClientOrdersScreen> {
   ).then((data) => data as List<dynamic>);
 
   Future<void> _refresh() async {
-    setState(_reload);
+    setState(() {
+      _reload();
+    });
     await _orders;
   }
 
@@ -116,7 +138,9 @@ class _ClientOrdersScreenState extends State<ClientOrdersScreen> {
               if (snapshot.hasError) {
                 return _ErrorState(
                   error: snapshot.error!,
-                  retry: () => setState(_reload),
+                  retry: () => setState(() {
+                    _reload();
+                  }),
                 );
               }
               final orders = snapshot.data ?? [];
@@ -595,7 +619,9 @@ class _ClientAccountScreenState extends State<ClientAccountScreen> {
           return snapshot.hasError
               ? _ErrorState(
                   error: snapshot.error!,
-                  retry: () => setState(_reload),
+                  retry: () => setState(() {
+                    _reload();
+                  }),
                 )
               : const Center(
                   child: CircularProgressIndicator(color: _flame500),
@@ -725,93 +751,135 @@ class _ClientAccountScreenState extends State<ClientAccountScreen> {
     var address = client['adresse_texte']?.toString() ?? '';
     double? latitude = double.tryParse(client['latitude']?.toString() ?? '');
     double? longitude = double.tryParse(client['longitude']?.toString() ?? '');
+    final formKey = GlobalKey<FormState>();
+    String? locationError;
     bool locating = false;
     final saved = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: const Text('Modifier mon profil'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: name,
-                  decoration: const InputDecoration(labelText: 'Nom'),
-                ),
-                TextField(
-                  controller: email,
-                  decoration: const InputDecoration(labelText: 'Email'),
-                ),
-                TextField(
-                  controller: phone,
-                  decoration: const InputDecoration(labelText: 'Téléphone'),
-                ),
-                const SizedBox(height: 12),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.location_on),
-                  title: Text(
-                    address.isEmpty ? 'Adresse non renseignée' : address,
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: name,
+                    decoration: const InputDecoration(labelText: 'Nom *'),
+                    validator: (value) => value == null || value.trim().isEmpty
+                        ? 'Renseignez votre nom.'
+                        : null,
                   ),
-                  subtitle: const Text('Les coordonnées restent privées.'),
-                  trailing: locating
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(),
-                        )
-                      : null,
-                ),
-                OutlinedButton.icon(
-                  onPressed: locating
-                      ? null
-                      : () async {
-                          setDialogState(() => locating = true);
-                          try {
-                            var permission = await Geolocator.checkPermission();
-                            if (permission == LocationPermission.denied) {
-                              permission = await Geolocator.requestPermission();
-                            }
-                            if (permission == LocationPermission.denied ||
-                                permission ==
-                                    LocationPermission.deniedForever) {
-                              throw Exception(
-                                'Permission de localisation refusée.',
+                  TextFormField(
+                    controller: email,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(labelText: 'Email *'),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Renseignez votre adresse email.';
+                      }
+                      if (!RegExp(
+                        r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                      ).hasMatch(value.trim())) {
+                        return 'Saisissez une adresse email valide.';
+                      }
+                      return null;
+                    },
+                  ),
+                  TextFormField(
+                    controller: phone,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(labelText: 'Téléphone *'),
+                    validator: (value) {
+                      final digits = value?.replaceAll(RegExp(r'\D'), '') ?? '';
+                      if (digits.isEmpty) {
+                        return 'Renseignez votre numéro de téléphone.';
+                      }
+                      if (!RegExp(r'^(237)?6\d{8}$').hasMatch(digits)) {
+                        return 'Saisissez un numéro camerounais valide.';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.location_on),
+                    title: Text(
+                      address.isEmpty ? 'Adresse non renseignée' : address,
+                    ),
+                    subtitle: const Text('Les coordonnées restent privées.'),
+                    trailing: locating
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(),
+                          )
+                        : null,
+                  ),
+                  if (locationError != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        locationError!,
+                        style: const TextStyle(color: Colors.red, fontSize: 12),
+                      ),
+                    ),
+                  OutlinedButton.icon(
+                    onPressed: locating
+                        ? null
+                        : () async {
+                            setDialogState(() => locating = true);
+                            try {
+                              var permission =
+                                  await Geolocator.checkPermission();
+                              if (permission == LocationPermission.denied) {
+                                permission =
+                                    await Geolocator.requestPermission();
+                              }
+                              if (permission == LocationPermission.denied ||
+                                  permission ==
+                                      LocationPermission.deniedForever) {
+                                throw Exception(
+                                  'Permission de localisation refusée.',
+                                );
+                              }
+                              final position =
+                                  await Geolocator.getCurrentPosition();
+                              final places = await placemarkFromCoordinates(
+                                position.latitude,
+                                position.longitude,
                               );
+                              final place = places.firstOrNull;
+                              setDialogState(() {
+                                latitude = position.latitude;
+                                longitude = position.longitude;
+                                address =
+                                    [
+                                          place?.street,
+                                          place?.subLocality,
+                                          place?.locality,
+                                          place?.administrativeArea,
+                                        ]
+                                        .whereType<String>()
+                                        .where((e) => e.trim().isNotEmpty)
+                                        .toSet()
+                                        .join(', ');
+                                locating = false;
+                                locationError = null;
+                              });
+                            } catch (error) {
+                              setDialogState(() => locating = false);
+                              if (context.mounted) _snack(context, error);
                             }
-                            final position =
-                                await Geolocator.getCurrentPosition();
-                            final places = await placemarkFromCoordinates(
-                              position.latitude,
-                              position.longitude,
-                            );
-                            final place = places.firstOrNull;
-                            setDialogState(() {
-                              latitude = position.latitude;
-                              longitude = position.longitude;
-                              address =
-                                  [
-                                        place?.street,
-                                        place?.subLocality,
-                                        place?.locality,
-                                        place?.administrativeArea,
-                                      ]
-                                      .whereType<String>()
-                                      .where((e) => e.trim().isNotEmpty)
-                                      .toSet()
-                                      .join(', ');
-                              locating = false;
-                            });
-                          } catch (error) {
-                            setDialogState(() => locating = false);
-                            if (context.mounted) _snack(context, error);
-                          }
-                        },
-                  icon: const Icon(Icons.my_location),
-                  label: const Text('Utiliser ma position actuelle'),
-                ),
-              ],
+                          },
+                    icon: const Icon(Icons.my_location),
+                    label: const Text('Utiliser ma position actuelle'),
+                  ),
+                ],
+              ),
             ),
           ),
           actions: [
@@ -820,7 +888,19 @@ class _ClientAccountScreenState extends State<ClientAccountScreen> {
               child: const Text('Annuler'),
             ),
             FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
+              onPressed: () {
+                final fieldsValid = formKey.currentState?.validate() ?? false;
+                if (address.trim().isEmpty ||
+                    latitude == null ||
+                    longitude == null) {
+                  setDialogState(
+                    () => locationError =
+                        'Utilisez votre position actuelle pour renseigner l’adresse.',
+                  );
+                  return;
+                }
+                if (fieldsValid) Navigator.pop(dialogContext, true);
+              },
               child: const Text('Enregistrer'),
             ),
           ],
@@ -836,15 +916,32 @@ class _ClientAccountScreenState extends State<ClientAccountScreen> {
           'name': name.text.trim(),
           'nom': name.text.trim(),
           'email': email.text.trim(),
-          'telephone': phone.text.trim(),
+          'telephone': _normalizeCameroonPhone(phone.text),
           'adresse_texte': address,
           'latitude': latitude,
           'longitude': longitude,
         },
       );
-      setState(_reload);
+      setState(() {
+        _reload();
+      });
+      if (mounted) {
+        await _showFeedback(
+          context,
+          success: true,
+          title: 'Profil mis à jour',
+          message: 'Vos informations ont bien été enregistrées.',
+        );
+      }
     } catch (error) {
-      if (mounted) _snack(context, error);
+      if (mounted) {
+        await _showFeedback(
+          context,
+          success: false,
+          title: 'Modification impossible',
+          message: error.toString().replaceFirst('ApiException: ', ''),
+        );
+      }
     }
     name.dispose();
     email.dispose();
@@ -855,33 +952,52 @@ class _ClientAccountScreenState extends State<ClientAccountScreen> {
     final current = TextEditingController();
     final password = TextEditingController();
     final confirmation = TextEditingController();
+    final formKey = GlobalKey<FormState>();
     final save = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Modifier le mot de passe'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: current,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Mot de passe actuel',
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: current,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Mot de passe actuel',
+                ),
+                validator: (value) => value == null || value.isEmpty
+                    ? 'Renseignez votre mot de passe actuel.'
+                    : null,
               ),
-            ),
-            TextField(
-              controller: password,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Nouveau mot de passe',
+              TextFormField(
+                controller: password,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Nouveau mot de passe',
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Renseignez le nouveau mot de passe.';
+                  }
+                  if (value.length < 8) {
+                    return 'Utilisez au moins 8 caractères.';
+                  }
+                  return null;
+                },
               ),
-            ),
-            TextField(
-              controller: confirmation,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: 'Confirmation'),
-            ),
-          ],
+              TextFormField(
+                controller: confirmation,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'Confirmation'),
+                validator: (value) => value != password.text
+                    ? 'La confirmation ne correspond pas.'
+                    : null,
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -889,7 +1005,11 @@ class _ClientAccountScreenState extends State<ClientAccountScreen> {
             child: const Text('Annuler'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () {
+              if (formKey.currentState?.validate() ?? false) {
+                Navigator.pop(context, true);
+              }
+            },
             child: const Text('Enregistrer'),
           ),
         ],
@@ -906,9 +1026,23 @@ class _ClientAccountScreenState extends State<ClientAccountScreen> {
             'password_confirmation': confirmation.text,
           },
         );
-        if (mounted) _snack(context, 'Mot de passe modifié.');
+        if (mounted) {
+          await _showFeedback(
+            context,
+            success: true,
+            title: 'Mot de passe modifié',
+            message: 'Votre nouveau mot de passe est maintenant actif.',
+          );
+        }
       } catch (error) {
-        if (mounted) _snack(context, error);
+        if (mounted) {
+          await _showFeedback(
+            context,
+            success: false,
+            title: 'Modification impossible',
+            message: error.toString(),
+          );
+        }
       }
     }
     current.dispose();
@@ -1047,3 +1181,36 @@ void _snack(BuildContext context, Object message) =>
         content: Text(message.toString().replaceFirst('Exception: ', '')),
       ),
     );
+
+String _normalizeCameroonPhone(String value) {
+  final digits = value.replaceAll(RegExp(r'\D'), '');
+  return digits.startsWith('237') ? digits : '237$digits';
+}
+
+Future<void> _showFeedback(
+  BuildContext context, {
+  required bool success,
+  required String title,
+  required String message,
+}) => showDialog<void>(
+  context: context,
+  builder: (context) => AlertDialog(
+    icon: Icon(
+      success ? Icons.check_circle_rounded : Icons.error_rounded,
+      color: success ? _leaf700 : Colors.red.shade700,
+      size: 58,
+    ),
+    title: Text(title, textAlign: TextAlign.center),
+    content: Text(message, textAlign: TextAlign.center),
+    actionsAlignment: MainAxisAlignment.center,
+    actions: [
+      FilledButton(
+        onPressed: () => Navigator.pop(context),
+        style: FilledButton.styleFrom(
+          backgroundColor: success ? _leaf700 : Colors.red.shade700,
+        ),
+        child: const Text('D’accord'),
+      ),
+    ],
+  ),
+);
