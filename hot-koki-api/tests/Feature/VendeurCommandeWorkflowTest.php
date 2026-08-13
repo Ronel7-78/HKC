@@ -10,12 +10,34 @@ use App\Models\Produit;
 use App\Models\User;
 use App\Models\Vendeur;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Http;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class VendeurCommandeWorkflowTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config([
+            'services.mtn_momo.subscription_key' => 'subscription-test',
+            'services.mtn_momo.api_user' => 'api-user-test',
+            'services.mtn_momo.api_key' => 'api-key-test',
+            'services.mtn_momo.callback_base_url' => 'https://api.hot-koki.test',
+        ]);
+
+        Http::fake(function (Request $request) {
+            if (str_ends_with($request->url(), '/collection/token/')) {
+                return Http::response(['access_token' => 'token-test']);
+            }
+
+            return Http::response([], 202);
+        });
+    }
 
     public function test_vendeur_affecte_fait_evoluer_la_commande_dans_lordre(): void
     {
@@ -84,7 +106,7 @@ class VendeurCommandeWorkflowTest extends TestCase
             'telephone' => '677123456',
         ])
             ->assertCreated()
-            ->assertJsonPath('paiement.statut', Paiement::STATUT_INITIE)
+            ->assertJsonPath('paiement.statut', Paiement::STATUT_EN_ATTENTE)
             ->assertJsonPath('paiement.montant', '1300.00');
 
         $this->getJson('/api/commandes')

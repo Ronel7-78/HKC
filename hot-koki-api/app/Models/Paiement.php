@@ -26,21 +26,27 @@ class Paiement extends Model
 
     protected $fillable = [
         'commande_id', 'reference_interne', 'reference_operateur', 'fournisseur',
-        'telephone', 'montant', 'devise', 'statut', 'code_erreur',
+        'telephone', 'telephone_masque', 'montant', 'devise', 'statut', 'code_erreur',
         'message_erreur', 'donnees_operateur', 'initie_le', 'confirme_le',
+        'callback_hash', 'tentatives_statut', 'prochaine_verification_le',
     ];
 
     protected $casts = [
         'montant' => 'decimal:2',
+        'telephone' => 'encrypted',
         'donnees_operateur' => 'array',
         'initie_le' => 'datetime',
         'confirme_le' => 'datetime',
+        'prochaine_verification_le' => 'datetime',
     ];
+
+    protected $hidden = ['telephone', 'callback_hash', 'donnees_operateur'];
 
     protected static function booted(): void
     {
         static::creating(function (Paiement $paiement) {
             $paiement->reference_interne ??= (string) Str::uuid();
+            $paiement->telephone_masque ??= substr($paiement->telephone, 0, 5).'****'.substr($paiement->telephone, -3);
         });
     }
 
@@ -76,9 +82,26 @@ class Paiement extends Model
                 'reference_operateur' => $referenceOperateur ?? $paiement->reference_operateur,
                 'donnees_operateur' => $donnees ?: $paiement->donnees_operateur,
                 'confirme_le' => now(),
+                'prochaine_verification_le' => null,
             ]);
 
             $commande->update(['statut' => Commande::STATUT_RECUE]);
         });
+    }
+
+    public function terminer(string $statut, ?string $code = null, ?string $message = null, array $donnees = []): void
+    {
+        if (! in_array($statut, [self::STATUT_ECHOUE, self::STATUT_EXPIRE, self::STATUT_ANNULE], true)) {
+            throw new \InvalidArgumentException('Statut terminal de paiement invalide.');
+        }
+
+        $this->update([
+            'statut' => $statut,
+            'code_erreur' => $code,
+            'message_erreur' => $message,
+            'donnees_operateur' => $donnees ?: $this->donnees_operateur,
+            'confirme_le' => now(),
+            'prochaine_verification_le' => null,
+        ]);
     }
 }

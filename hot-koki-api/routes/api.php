@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ClientController;
 use App\Http\Controllers\Api\CommandeController;
+use App\Http\Controllers\Api\MtnMomoWebhookController;
 use App\Http\Controllers\Api\PaiementController;
 use App\Http\Controllers\Api\VendeurCommandeController;
 use App\Http\Controllers\Api\VendeurController;
@@ -17,6 +18,8 @@ use Illuminate\Support\Facades\Route;
 // Routes publiques
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/webhooks/mtn-momo/{transactionHash}', MtnMomoWebhookController::class)
+    ->where('transactionHash', '[A-Za-z0-9]{64}');
 
 // Routes de l'utilisateur authentifie
 Route::middleware('auth:sanctum')->group(function () {
@@ -59,6 +62,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::middleware('role:client')->get('/paiements/{paiement}', [PaiementController::class, 'show']);
+    Route::middleware('role:client')->post('/paiements/{paiement}/synchroniser', [PaiementController::class, 'synchroniser']);
 });
 
 // Routes de l'admin
