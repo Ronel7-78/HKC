@@ -25,6 +25,9 @@ class AdminVendeurManagementTest extends TestCase
             'telephone' => '690000001',
             'password' => 'password',
             'password_confirmation' => 'password',
+            'adresse_texte' => 'Mokolo, Bertoua',
+            'latitude' => 4.5763,
+            'longitude' => 13.6845,
             'role' => 'admin',
         ]);
 

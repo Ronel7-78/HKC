@@ -23,6 +23,9 @@ class AuthController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'telephone' => 'required|string|unique:users',
             'password' => 'required|string|min:8|confirmed',
+            'adresse_texte' => 'required|string|max:255',
+            'latitude' => 'required|numeric|between:-90,90',
+            'longitude' => 'required|numeric|between:-180,180',
         ]);
 
         if ($validator->fails()) {
@@ -42,6 +45,9 @@ class AuthController extends Controller
         Client::create([
             'user_id' => $user->id,
             'nom' => $request->name,
+            'adresse_texte' => $request->adresse_texte,
+            'latitude' => $request->latitude,
+            'longitude' => $request->longitude,
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;

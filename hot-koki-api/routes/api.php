@@ -5,7 +5,9 @@ use App\Http\Controllers\Api\Admin\ProduitController as AdminProduitController;
 use App\Http\Controllers\Api\Admin\VendeurController as AdminVendeurController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CatalogueController;
 use App\Http\Controllers\Api\ClientController;
+use App\Http\Controllers\Api\ClientVendeurController;
 use App\Http\Controllers\Api\CommandeController;
 use App\Http\Controllers\Api\MtnMomoWebhookController;
 use App\Http\Controllers\Api\PaiementController;
@@ -18,6 +20,7 @@ use Illuminate\Support\Facades\Route;
 // Routes publiques
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::get('/catalogue', [CatalogueController::class, 'index']);
 Route::post('/webhooks/mtn-momo/{transactionHash}', MtnMomoWebhookController::class)
     ->where('transactionHash', '[A-Za-z0-9]{64}');
 
@@ -33,6 +36,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('role:client')->prefix('client')->group(function () {
         Route::get('/profile', [ClientController::class, 'show']);
         Route::put('/profile', [ClientController::class, 'update']);
+        Route::get('/vendeurs', [ClientVendeurController::class, 'index']);
+        Route::get('/vendeurs/{vendeur}', [ClientVendeurController::class, 'show']);
     });
 
     // Routes reservees au vendeur

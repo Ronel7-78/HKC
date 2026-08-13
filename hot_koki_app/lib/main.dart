@@ -1,4 +1,11 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+
+import 'api_config.dart';
+import 'auth_screen.dart';
+import 'vendor_screens.dart';
 
 void main() => runApp(const HotKokiApp());
 
@@ -11,7 +18,7 @@ class HotKokiApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Hot Koki Chaud',
       theme: HotKokiTheme.light,
-      home: const MainShell(role: UserRole.client),
+      home: const MainShell(),
     );
   }
 }
@@ -68,9 +75,9 @@ class AppTab {
 }
 
 class MainShell extends StatefulWidget {
-  const MainShell({super.key, required this.role});
+  const MainShell({super.key, this.role});
 
-  final UserRole role;
+  final UserRole? role;
 
   @override
   State<MainShell> createState() => _MainShellState();
@@ -78,14 +85,53 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
+  UserRole? _role;
+  String? _userName;
+
+  @override
+  void initState() {
+    super.initState();
+    _role = widget.role;
+  }
+
+  Future<void> _openAuth(bool register) async {
+    final result = await Navigator.push<AuthResult>(
+      context,
+      MaterialPageRoute(builder: (_) => AuthScreen(initialRegister: register)),
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      _role = UserRole.values.firstWhere((role) => role.name == result.role);
+      _userName = result.name;
+      _currentIndex = 0;
+    });
+  }
 
   List<AppTab> get _tabs {
-    switch (widget.role) {
+    if (_role == null) {
+      return [
+        AppTab(
+          'Accueil',
+          Icons.home_outlined,
+          ClientHomeScreen(
+            userName: null,
+            onLogin: () => _openAuth(false),
+            onRegister: () => _openAuth(true),
+          ),
+        ),
+      ];
+    }
+
+    switch (_role!) {
       case UserRole.client:
-        return const [
-          AppTab('Accueil', Icons.home_outlined, ClientHomeScreen()),
+        return [
+          AppTab(
+            'Accueil',
+            Icons.home_outlined,
+            ClientHomeScreen(userName: _userName),
+          ),
           AppTab('Menu', Icons.restaurant_menu, PlaceholderScreen('Menu')),
-          AppTab('Recherche', Icons.search, PlaceholderScreen('Recherche')),
+          const AppTab('Recherche', Icons.search, VendorSearchScreen()),
           AppTab(
             'Commandes',
             Icons.receipt_long_outlined,
@@ -178,6 +224,8 @@ class _RoleNavigationBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (tabs.length == 1) return const SizedBox.shrink();
+
     return NavigationBar(
       height: 72,
       selectedIndex: selectedIndex,
@@ -198,12 +246,34 @@ class _RoleNavigationBar extends StatelessWidget {
   }
 }
 
-class ClientHomeScreen extends StatelessWidget {
-  const ClientHomeScreen({super.key});
+class ClientHomeScreen extends StatefulWidget {
+  const ClientHomeScreen({
+    super.key,
+    this.userName,
+    this.onLogin,
+    this.onRegister,
+  });
 
-  static const products = [
+  final String? userName;
+  final VoidCallback? onLogin;
+  final VoidCallback? onRegister;
+
+  @override
+  State<ClientHomeScreen> createState() => _ClientHomeScreenState();
+}
+
+class _ClientHomeScreenState extends State<ClientHomeScreen> {
+  late Future<List<ProductData>> _products;
+
+  @override
+  void initState() {
+    super.initState();
+    _products = CatalogueApi.fetchProducts();
+  }
+
+  static const fallbackProducts = [
     ProductData(
-      '🌽',
+      null,
       'Koki Pimenté',
       500,
       'Haricots de koki, huile rouge et épices',
@@ -212,7 +282,7 @@ class ClientHomeScreen extends StatelessWidget {
       '~15 min',
     ),
     ProductData(
-      '🌽',
+      null,
       'Koki Non Pimenté',
       500,
       'Koki doux préparé ce matin',
@@ -221,7 +291,7 @@ class ClientHomeScreen extends StatelessWidget {
       '~15 min',
     ),
     ProductData(
-      '🍠',
+      null,
       'Eru',
       200,
       'Water fufu, viande, crevettes et huile rouge',
@@ -230,7 +300,7 @@ class ClientHomeScreen extends StatelessWidget {
       '~10 min',
     ),
     ProductData(
-      '🍌',
+      null,
       'Ekwan',
       800,
       'Macabo, feuilles, huile rouge, viande et crevettes',
@@ -249,34 +319,79 @@ class ClientHomeScreen extends StatelessWidget {
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
             sliver: SliverList.list(
-              children: const [
-                _HomeTopBar(),
-                SizedBox(height: 18),
+              children: [
+                _HomeTopBar(
+                  isAuthenticated: widget.userName != null,
+                  onLogin: widget.onLogin,
+                  onRegister: widget.onRegister,
+                ),
+                const SizedBox(height: 18),
                 Text(
-                  'Bonjour Ronel 👋',
+                  widget.userName == null
+                      ? 'Bienvenue chez Hot Koki 👋'
+                      : 'Bonjour ${widget.userName} 👋',
                   style: TextStyle(
                     fontSize: 21,
                     fontWeight: FontWeight.w700,
                     color: HotKokiColors.leaf900,
                   ),
                 ),
-                SizedBox(height: 5),
-                _AddressRow(),
-                SizedBox(height: 16),
-                _PromoCard(),
-                SizedBox(height: 22),
-                _SectionHeader(title: 'Le menu du jour', action: '4 plats'),
-                SizedBox(height: 10),
+                const SizedBox(height: 5),
+                const _AddressRow(),
+                const SizedBox(height: 16),
+                const _PromoCard(),
+                const SizedBox(height: 22),
+                const _SectionHeader(
+                  title: 'Le menu du jour',
+                  action: 'Nos plats',
+                ),
+                const SizedBox(height: 10),
               ],
             ),
           ),
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            sliver: SliverList.separated(
-              itemCount: products.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 10),
-              itemBuilder: (context, index) =>
-                  ProductCard(product: products[index]),
+          SliverToBoxAdapter(
+            child: FutureBuilder<List<ProductData>>(
+              future: _products,
+              builder: (context, snapshot) {
+                final products = snapshot.data ?? fallbackProducts;
+                return Column(
+                  children: [
+                    if (snapshot.connectionState == ConnectionState.waiting)
+                      const LinearProgressIndicator(
+                        color: HotKokiColors.flame500,
+                      ),
+                    if (snapshot.hasError)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Row(
+                          children: [
+                            const Expanded(
+                              child: Text(
+                                'Catalogue hors ligne — aperçu local affiché.',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: HotKokiColors.inkSoft,
+                                ),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () => setState(
+                                () => _products = CatalogueApi.fetchProducts(),
+                              ),
+                              child: const Text('Réessayer'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ...products.map(
+                      (product) => Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                        child: ProductCard(product: product),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
           const SliverPadding(
@@ -294,38 +409,96 @@ class ClientHomeScreen extends StatelessWidget {
 }
 
 class _HomeTopBar extends StatelessWidget {
-  const _HomeTopBar();
+  const _HomeTopBar({
+    required this.isAuthenticated,
+    this.onLogin,
+    this.onRegister,
+  });
+
+  final bool isAuthenticated;
+  final VoidCallback? onLogin;
+  final VoidCallback? onRegister;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Text.rich(
-          TextSpan(
-            children: [
-              TextSpan(
-                text: 'Hkc',
-                style: TextStyle(color: HotKokiColors.leaf900),
-              ),
-              TextSpan(
-                text: '.',
-                style: TextStyle(color: HotKokiColors.flame600),
+        Container(
+          width: 58,
+          height: 48,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x16000000),
+                blurRadius: 10,
+                offset: Offset(0, 3),
               ),
             ],
           ),
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
-        ),
-        Badge(
-          label: const Text('3'),
-          backgroundColor: HotKokiColors.flame600,
-          child: IconButton.filledTonal(
-            onPressed: () {},
-            style: IconButton.styleFrom(backgroundColor: Colors.white),
-            icon: const Icon(
-              Icons.shopping_cart_outlined,
-              color: HotKokiColors.leaf900,
+          child: Transform.scale(
+            scale: 2.15,
+            child: Image.asset(
+              'assets/images/hot_koki_logo.jpeg',
+              fit: BoxFit.cover,
             ),
+          ),
+        ),
+        if (!isAuthenticated)
+          _GuestActions(onLogin: onLogin, onRegister: onRegister)
+        else
+          Badge(
+            label: const Text('3'),
+            backgroundColor: HotKokiColors.flame600,
+            child: IconButton.filledTonal(
+              onPressed: () {},
+              style: IconButton.styleFrom(backgroundColor: Colors.white),
+              icon: const Icon(
+                Icons.shopping_cart_outlined,
+                color: HotKokiColors.leaf900,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _GuestActions extends StatelessWidget {
+  const _GuestActions({this.onLogin, this.onRegister});
+
+  final VoidCallback? onLogin;
+  final VoidCallback? onRegister;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        OutlinedButton(
+          onPressed: onLogin,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: HotKokiColors.leaf700,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            side: const BorderSide(color: HotKokiColors.leaf700),
+          ),
+          child: const Text(
+            'Connexion',
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+          ),
+        ),
+        const SizedBox(width: 7),
+        FilledButton(
+          onPressed: onRegister,
+          style: FilledButton.styleFrom(
+            backgroundColor: HotKokiColors.flame500,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+          ),
+          child: const Text(
+            'Inscription',
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
           ),
         ),
       ],
@@ -412,7 +585,11 @@ class _PromoCard extends StatelessWidget {
               ],
             ),
           ),
-          Text('🌽', style: TextStyle(fontSize: 58)),
+          Icon(
+            Icons.local_fire_department_rounded,
+            size: 58,
+            color: Colors.white24,
+          ),
         ],
       ),
     );
@@ -453,7 +630,7 @@ class _SectionHeader extends StatelessWidget {
 
 class ProductData {
   const ProductData(
-    this.emoji,
+    this.photoUrl,
     this.name,
     this.price,
     this.description,
@@ -462,13 +639,44 @@ class ProductData {
     this.eta,
   );
 
-  final String emoji;
+  final String? photoUrl;
   final String name;
   final int price;
   final String description;
   final List<String> sides;
   final bool available;
   final String eta;
+
+  factory ProductData.fromJson(Map<String, dynamic> json) {
+    final complements = (json['complements'] as List<dynamic>? ?? [])
+        .map((item) => (item as Map<String, dynamic>)['nom'].toString())
+        .toList();
+
+    return ProductData(
+      json['photo'] == null || json['photo'].toString().isEmpty
+          ? null
+          : ApiConfig.resolveMediaUrl(json['photo'].toString()),
+      json['nom'].toString(),
+      double.parse(json['prix'].toString()).round(),
+      (json['description'] ?? 'Préparé avec soin par nos vendeurs.').toString(),
+      complements,
+      json['disponible'] == true,
+      json['disponible'] == true ? 'Disponible' : 'Indisponible',
+    );
+  }
+}
+
+class CatalogueApi {
+  static Future<List<ProductData>> fetchProducts() async {
+    final response = await http
+        .get(Uri.parse('${ApiConfig.baseUrl}/catalogue'))
+        .timeout(const Duration(seconds: 8));
+    if (response.statusCode != 200) throw Exception('Catalogue indisponible');
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    return (body['produits'] as List<dynamic>)
+        .map((item) => ProductData.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
 }
 
 class ProductCard extends StatelessWidget {
@@ -492,12 +700,25 @@ class ProductCard extends StatelessWidget {
             Container(
               width: 60,
               height: 60,
-              alignment: Alignment.center,
+              clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
                 color: HotKokiColors.flame100,
                 borderRadius: BorderRadius.circular(15),
               ),
-              child: Text(product.emoji, style: const TextStyle(fontSize: 27)),
+              child: product.photoUrl == null
+                  ? const Icon(
+                      Icons.restaurant_rounded,
+                      color: HotKokiColors.flame600,
+                      size: 27,
+                    )
+                  : Image.network(
+                      product.photoUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => const Icon(
+                        Icons.broken_image_outlined,
+                        color: HotKokiColors.inkSoft,
+                      ),
+                    ),
             ),
             const SizedBox(width: 12),
             Expanded(

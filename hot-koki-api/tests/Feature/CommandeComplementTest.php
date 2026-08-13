@@ -42,6 +42,18 @@ class CommandeComplementTest extends TestCase
             ->assertJsonPath('total', 1300);
     }
 
+    public function test_commande_calculates_product_quantity(): void
+    {
+        [$produit, $complement] = $this->prepareCatalogue();
+        $panier = $this->panier($produit, [$complement->id]);
+        $panier['items'][0]['quantite'] = 3;
+
+        $this->postJson('/api/commandes/preview', $panier)
+            ->assertOk()
+            ->assertJsonPath('sous_total', 3000)
+            ->assertJsonPath('total', 3300);
+    }
+
     /**
      * Plusieurs complements sur la meme ligne doivent etre refuses.
      */

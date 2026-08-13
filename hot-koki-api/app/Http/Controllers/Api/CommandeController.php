@@ -20,6 +20,7 @@ class CommandeController extends Controller
         return Validator::make($request->all(), [
             'items' => 'required|array|min:1',
             'items.*.produit_id' => 'required|exists:produits,id',
+            'items.*.quantite' => 'sometimes|integer|min:1|max:20',
             // Un complement peut representer un accompagnement simple ou mixte,
             // mais une ligne de commande doit toujours en contenir exactement un.
             'items.*.complements' => 'required|array|size:1',
@@ -80,6 +81,7 @@ class CommandeController extends Controller
 
         foreach ($items as $item) {
             $produit = Produit::findOrFail($item['produit_id']);
+            $quantite = (int) ($item['quantite'] ?? 1);
 
             // Le complement doit exister dans la liste autorisee du produit.
             $complementsAutorises = $produit->complements()->pluck('complements.id')->toArray();
@@ -89,10 +91,11 @@ class CommandeController extends Controller
                 }
             }
 
-            $sousTotal += $produit->prix;
+            $sousTotal += $produit->prix * $quantite;
 
             $lignes[] = [
                 'produit_id' => $produit->id,
+                'quantite' => $quantite,
                 'prix_unitaire' => $produit->prix,
                 'complements' => $item['complements'],
             ];
@@ -180,7 +183,7 @@ class CommandeController extends Controller
                 $item = CommandeItem::create([
                     'commande_id' => $commande->id,
                     'produit_id' => $ligne['produit_id'],
-                    'quantite' => 1,
+                    'quantite' => $ligne['quantite'],
                     'prix_unitaire' => $ligne['prix_unitaire'],
                 ]);
                 $item->complements()->attach($ligne['complements']);
