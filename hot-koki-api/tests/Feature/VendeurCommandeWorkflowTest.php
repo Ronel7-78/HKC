@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Client;
 use App\Models\Commande;
 use App\Models\Complement;
+use App\Models\Paiement;
 use App\Models\Produit;
 use App\Models\User;
 use App\Models\Vendeur;
@@ -78,6 +79,14 @@ class VendeurCommandeWorkflowTest extends TestCase
 
         $commandeId = $creation->json('commande.id');
 
+        $paiement = $this->postJson("/api/commandes/{$commandeId}/paiements", [
+            'fournisseur' => Paiement::FOURNISSEUR_MTN_MOMO,
+            'telephone' => '677123456',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('paiement.statut', Paiement::STATUT_INITIE)
+            ->assertJsonPath('paiement.montant', '1300.00');
+
         $this->getJson('/api/commandes')
             ->assertOk()
             ->assertJsonPath('0.id', $commandeId);
@@ -100,7 +109,10 @@ class VendeurCommandeWorkflowTest extends TestCase
             ->assertOk()
             ->assertJsonPath('id', $commandeId);
 
-        $this->changerStatut($commandeId, Commande::STATUT_RECUE)->assertOk();
+        $this->changerStatut($commandeId, Commande::STATUT_RECUE)->assertUnprocessable();
+
+        // En production, seul le resultat verifie chez MTN appellera cette methode.
+        Paiement::findOrFail($paiement->json('paiement.id'))->confirmerReussite('mtn-test-1');
 
         $this->changerStatut($commandeId, Commande::STATUT_LIVREE)
             ->assertUnprocessable();

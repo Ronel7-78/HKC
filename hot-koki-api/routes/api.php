@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ClientController;
 use App\Http\Controllers\Api\CommandeController;
+use App\Http\Controllers\Api\PaiementController;
 use App\Http\Controllers\Api\VendeurCommandeController;
 use App\Http\Controllers\Api\VendeurController;
 use App\Http\Controllers\Api\VendeurProduitController;
@@ -54,7 +55,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/', [CommandeController::class, 'index']);
         Route::get('/{commande}', [CommandeController::class, 'show']);
         Route::patch('/{commande}/annuler', [CommandeController::class, 'annuler']);
+        Route::post('/{commande}/paiements', [PaiementController::class, 'store']);
     });
+
+    Route::middleware('role:client')->get('/paiements/{paiement}', [PaiementController::class, 'show']);
 });
 
 // Routes de l'admin

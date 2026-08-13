@@ -49,10 +49,7 @@ class Commande extends Model
         return $this->hasMany(CommandeItem::class);
     }
 
-    /**
-     * Verifie le cycle metier actuel. L'acceptation directe d'une commande en
-     * attente simule temporairement la confirmation qui viendra du paiement.
-     */
+    /** Verifie les transitions que le vendeur est autorise a effectuer. */
     public function peutPasserAuStatut(string $nouveauStatut): bool
     {
         if (in_array($this->statut, [self::STATUT_LIVREE, self::STATUT_ANNULEE], true)) {
@@ -64,7 +61,6 @@ class Commande extends Model
         }
 
         $transitionSuivante = [
-            self::STATUT_EN_ATTENTE_PAIEMENT => self::STATUT_RECUE,
             self::STATUT_RECUE => self::STATUT_PREPARATION,
             self::STATUT_PREPARATION => self::STATUT_EN_LIVRAISON,
             self::STATUT_EN_LIVRAISON => self::STATUT_LIVREE,
@@ -84,8 +80,8 @@ class Commande extends Model
         ], true);
     }
 
-    public function paiement()
+    public function paiements()
     {
-        // return $this->hasOne(Paiement::class);
+        return $this->hasMany(Paiement::class);
     }
 }
