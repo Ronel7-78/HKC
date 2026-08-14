@@ -5,15 +5,16 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
 import 'api_config.dart';
+import 'app_feedback.dart';
 import 'cart_screen.dart';
 
-const _leaf900 = Color(0xFF1F3524);
-const _leaf700 = Color(0xFF2E4E36);
-const _leaf100 = Color(0xFFE7EEE4);
-const _cream2 = Color(0xFFFBF4E1);
-const _flame600 = Color(0xFFC9491E);
-const _flame500 = Color(0xFFE0672F);
-const _inkSoft = Color(0xFF6B5F4E);
+const _leaf900 = Color(0xFF242424);
+const _leaf700 = Color(0xFF475467);
+const _leaf100 = Color(0xFFF2F4F7);
+const _cream2 = Color(0xFFFFFDFC);
+const _flame600 = Color(0xFFD92D20);
+const _flame500 = Color(0xFFE5483B);
+const _inkSoft = Color(0xFF667085);
 
 class VendorData {
   const VendorData({
@@ -222,7 +223,7 @@ class _VendorSearchScreenState extends State<VendorSearchScreen> {
                 final vendors = snapshot.data ?? [];
                 if (vendors.isEmpty) {
                   return const _MessageState(
-                    message: 'Aucun vendeur disponible à moins de 5 km.',
+                    message: 'Aucun vendeur disponible pour le moment.',
                   );
                 }
                 return RefreshIndicator(
@@ -425,10 +426,9 @@ class _VendorProductCard extends StatelessWidget {
 
   Future<void> _addToCart(BuildContext context) async {
     if (product.complements.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Aucun complément disponible pour ce produit.'),
-        ),
+      AppFeedback.error(
+        context,
+        message: 'Aucun complément disponible pour ce produit.',
       );
       return;
     }
@@ -479,15 +479,18 @@ class _VendorProductCard extends StatelessWidget {
         photo: product.photo,
       ),
     );
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          added
-              ? '${product.name} ajouté au panier.'
-              : 'Terminez d’abord le panier du vendeur actuel.',
-        ),
-      ),
-    );
+    if (added) {
+      await AppFeedback.success(
+        context,
+        title: 'Ajouté au panier',
+        message: '${product.name} a bien été ajouté.',
+      );
+    } else {
+      await AppFeedback.error(
+        context,
+        message: 'Terminez d’abord le panier du vendeur actuel.',
+      );
+    }
   }
 
   @override

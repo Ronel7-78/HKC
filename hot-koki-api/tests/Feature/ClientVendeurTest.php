@@ -29,11 +29,20 @@ class ClientVendeurTest extends TestCase
         ]);
         $produit = Produit::create(['nom' => 'Koki', 'prix' => 500]);
         $vendeur->produits()->attach($produit, ['statut' => 'disponible']);
+        $vendeurEloigne = Vendeur::create([
+            'user_id' => User::factory()->create(['role' => 'vendeur'])->id,
+            'nom_boutique' => 'Koki Douala',
+            'latitude' => 4.0511,
+            'longitude' => 9.7679,
+            'statut_compte' => 'actif',
+            'statut_dispo' => 'disponible',
+        ]);
+        $vendeurEloigne->produits()->attach($produit, ['statut' => 'disponible']);
         Sanctum::actingAs($clientUser);
 
         $this->getJson('/api/client/vendeurs?q=Koki')
             ->assertOk()
-            ->assertJsonCount(1, 'vendeurs')
+            ->assertJsonCount(2, 'vendeurs')
             ->assertJsonPath('vendeurs.0.nom_boutique', 'Koki Mokolo')
             ->assertJsonPath('vendeurs.0.produits.0.nom', 'Koki');
 

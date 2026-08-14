@@ -8,14 +8,15 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 
 import 'api_config.dart';
+import 'app_feedback.dart';
 
-const _leaf900 = Color(0xFF1F3524);
-const _leaf700 = Color(0xFF2E4E36);
-const _leaf100 = Color(0xFFE7EEE4);
-const _cream = Color(0xFFFBF4E1);
-const _flame600 = Color(0xFFC9491E);
-const _flame500 = Color(0xFFE0672F);
-const _inkSoft = Color(0xFF6B5F4E);
+const _leaf900 = Color(0xFF242424);
+const _leaf700 = Color(0xFF475467);
+const _leaf100 = Color(0xFFF2F4F7);
+const _cream = Color(0xFFFFFDFC);
+const _flame600 = Color(0xFFD92D20);
+const _flame500 = Color(0xFFE5483B);
+const _inkSoft = Color(0xFF667085);
 
 class ApiException implements Exception {
   const ApiException(this.message, [this.fields = const {}]);
@@ -418,7 +419,13 @@ class _OrderCard extends StatelessWidget {
         body: {'note': rating, 'commentaire': comment.text.trim()},
       );
       await onChanged();
-      if (context.mounted) _snack(context, 'Merci pour votre avis.');
+      if (context.mounted) {
+        await AppFeedback.success(
+          context,
+          title: 'Avis publié',
+          message: 'Merci, votre avis a bien été enregistré.',
+        );
+      }
     } catch (error) {
       if (context.mounted) _snack(context, error);
     } finally {
@@ -1175,12 +1182,10 @@ String _paymentLabel(String status) =>
       'annule': 'Paiement annulé',
     }[status] ??
     status;
-void _snack(BuildContext context, Object message) =>
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message.toString().replaceFirst('Exception: ', '')),
-      ),
-    );
+void _snack(BuildContext context, Object message) {
+  final text = message.toString().replaceFirst('Exception: ', '');
+  AppFeedback.error(context, message: text);
+}
 
 String _normalizeCameroonPhone(String value) {
   final digits = value.replaceAll(RegExp(r'\D'), '');

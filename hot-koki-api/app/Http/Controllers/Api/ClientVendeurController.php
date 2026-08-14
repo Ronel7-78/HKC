@@ -40,12 +40,6 @@ class ClientVendeurController extends Controller
                 $client->longitude,
                 $client->latitude,
             ])
-            ->whereRaw("{$distance} <= ?", [
-                $client->latitude,
-                $client->longitude,
-                $client->latitude,
-                5,
-            ])
             ->orderBy('distance_km')
             ->get();
 

@@ -52,7 +52,6 @@ class CommandeController extends Controller
                     ->where('vendeur_produits.statut', 'disponible');
             }, '=', $produitIds->count())
             ->selectRaw("vendeurs.*, {$calculDistance} AS distance", [$lat, $lng, $lat])
-            ->whereRaw("{$calculDistance} < ?", [$lat, $lng, $lat, 5])
             ->orderBy('distance')
             ->first();
     }
@@ -117,7 +116,7 @@ class CommandeController extends Controller
 
         if (! $vendeur) {
             return response()->json([
-                'message' => 'Aucun vendeur actif et disponible à moins de 5 km ne propose actuellement tous les produits demandés.',
+                'message' => 'Aucun vendeur actif et disponible ne propose actuellement tous les produits demandés.',
                 'code' => 'AUCUN_VENDEUR_ELIGIBLE',
             ], 422);
         }
@@ -198,7 +197,7 @@ class CommandeController extends Controller
             return response()->json([
                 'message' => $vendeurPropose
                     ? 'Le vendeur sélectionné n’est plus éligible. Relancez l’aperçu de la commande.'
-                    : 'Aucun vendeur actif et disponible à moins de 5 km ne propose actuellement tous les produits demandés.',
+                    : 'Aucun vendeur actif et disponible ne propose actuellement tous les produits demandés.',
                 'code' => $vendeurPropose ? 'VENDEUR_DEVENU_INELIGIBLE' : 'AUCUN_VENDEUR_ELIGIBLE',
             ], 422);
         }

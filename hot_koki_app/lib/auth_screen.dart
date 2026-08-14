@@ -7,6 +7,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 
 import 'api_config.dart';
+import 'app_feedback.dart';
 
 class AuthResult {
   const AuthResult({required this.role, required this.name});
@@ -23,11 +24,11 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
-  static const _leaf900 = Color(0xFF1F3524);
-  static const _leaf700 = Color(0xFF2E4E36);
-  static const _cream2 = Color(0xFFFBF4E1);
-  static const _flame500 = Color(0xFFE0672F);
-  static const _inkSoft = Color(0xFF6B5F4E);
+  static const _leaf900 = Color(0xFF242424);
+  static const _leaf700 = Color(0xFF475467);
+  static const _cream2 = Color(0xFFFFFDFC);
+  static const _flame500 = Color(0xFFE5483B);
+  static const _inkSoft = Color(0xFF667085);
   static const _storage = FlutterSecureStorage();
 
   final _formKey = GlobalKey<FormState>();
@@ -119,6 +120,14 @@ class _AuthScreenState extends State<AuthScreen> {
       final user = data['user'] as Map<String, dynamic>;
       await _storage.write(key: 'auth_token', value: data['token'].toString());
       if (!mounted) return;
+      await AppFeedback.success(
+        context,
+        title: _register ? 'Compte créé' : 'Connexion réussie',
+        message: _register
+            ? 'Bienvenue chez Hot Koki ! Votre compte est prêt.'
+            : 'Heureux de vous revoir.',
+      );
+      if (!mounted) return;
       Navigator.pop(
         context,
         AuthResult(
@@ -128,9 +137,9 @@ class _AuthScreenState extends State<AuthScreen> {
       );
     } catch (error) {
       if (mounted) {
-        setState(
-          () => _error = error.toString().replaceFirst('Exception: ', ''),
-        );
+        final message = error.toString().replaceFirst('Exception: ', '');
+        setState(() => _error = message);
+        await AppFeedback.error(context, message: message);
       }
     } finally {
       if (mounted) setState(() => _loading = false);

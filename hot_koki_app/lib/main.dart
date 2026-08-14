@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 
 import 'api_config.dart';
@@ -28,17 +29,17 @@ class HotKokiApp extends StatelessWidget {
 enum UserRole { client, vendeur, admin }
 
 class HotKokiColors {
-  static const leaf900 = Color(0xFF1F3524);
-  static const leaf700 = Color(0xFF2E4E36);
-  static const leaf100 = Color(0xFFE7EEE4);
-  static const cream = Color(0xFFF6EAC9);
-  static const cream2 = Color(0xFFFBF4E1);
-  static const flame600 = Color(0xFFC9491E);
-  static const flame500 = Color(0xFFE0672F);
-  static const flame100 = Color(0xFFFBD9C4);
-  static const muted100 = Color(0xFFECE7DA);
-  static const ink = Color(0xFF2A2117);
-  static const inkSoft = Color(0xFF6B5F4E);
+  static const leaf900 = Color(0xFF242424);
+  static const leaf700 = Color(0xFF475467);
+  static const leaf100 = Color(0xFFF2F4F7);
+  static const cream = Color(0xFFFFF8E1);
+  static const cream2 = Color(0xFFFFFDFC);
+  static const flame600 = Color(0xFFD92D20);
+  static const flame500 = Color(0xFFE5483B);
+  static const flame100 = Color(0xFFFFE8E5);
+  static const muted100 = Color(0xFFF7F4F1);
+  static const ink = Color(0xFF242424);
+  static const inkSoft = Color(0xFF667085);
 }
 
 class HotKokiTheme {
@@ -52,8 +53,7 @@ class HotKokiTheme {
         secondary: HotKokiColors.leaf700,
         surface: Colors.white,
       ),
-      fontFamily: 'sans-serif',
-      textTheme: const TextTheme(
+      textTheme: GoogleFonts.manropeTextTheme().copyWith(
         headlineSmall: TextStyle(
           color: HotKokiColors.leaf900,
           fontWeight: FontWeight.w700,
@@ -62,7 +62,23 @@ class HotKokiTheme {
           color: HotKokiColors.leaf900,
           fontWeight: FontWeight.w700,
         ),
-        bodyMedium: TextStyle(color: HotKokiColors.ink),
+        bodyMedium: GoogleFonts.manrope(color: HotKokiColors.ink),
+      ),
+      cardTheme: CardThemeData(
+        color: Colors.white,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: const BorderSide(color: Color(0xFFF0ECE8)),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: HotKokiColors.muted100,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
       ),
     );
   }
@@ -161,19 +177,24 @@ class _MainShellState extends State<MainShell> {
         return [
           AppTab(
             'Accueil',
-            Icons.home_outlined,
-            ClientHomeScreen(userName: _userName),
+            Icons.home_rounded,
+            ClientHomeScreen(
+              userName: _userName,
+              onCart: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CartScreen()),
+              ),
+            ),
           ),
-          const AppTab('Panier', Icons.shopping_basket_outlined, CartScreen()),
-          const AppTab('Recherche', Icons.search, VendorSearchScreen()),
+          const AppTab('Recherche', Icons.search_rounded, VendorSearchScreen()),
           AppTab(
             'Commandes',
-            Icons.receipt_long_outlined,
+            Icons.receipt_long_rounded,
             const ClientOrdersScreen(),
           ),
           AppTab(
             'Compte',
-            Icons.person_outline,
+            Icons.person_rounded,
             ClientAccountScreen(onLogout: _logout),
           ),
         ];
@@ -264,21 +285,47 @@ class _RoleNavigationBar extends StatelessWidget {
     if (tabs.length == 1) return const SizedBox.shrink();
 
     return NavigationBar(
-      height: 72,
+      height: 76,
       selectedIndex: selectedIndex,
       onDestinationSelected: onSelected,
       backgroundColor: Colors.white,
-      indicatorColor: HotKokiColors.leaf100,
+      indicatorColor: HotKokiColors.flame100,
       labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-      destinations: tabs
-          .map(
-            (tab) => NavigationDestination(
-              icon: Icon(tab.icon),
-              selectedIcon: Icon(tab.icon, color: HotKokiColors.flame600),
-              label: tab.label,
-            ),
-          )
-          .toList(),
+      destinations: tabs.map((tab) {
+        final primary = tab.label == 'Recherche';
+        return NavigationDestination(
+          icon: primary
+              ? Container(
+                  width: 52,
+                  height: 52,
+                  decoration: const BoxDecoration(
+                    color: HotKokiColors.flame600,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Color(0x33D92D20),
+                        blurRadius: 12,
+                        offset: Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: Icon(tab.icon, color: Colors.white, size: 29),
+                )
+              : Icon(tab.icon, size: 24),
+          selectedIcon: primary
+              ? Container(
+                  width: 52,
+                  height: 52,
+                  decoration: const BoxDecoration(
+                    color: HotKokiColors.flame600,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(tab.icon, color: Colors.white, size: 30),
+                )
+              : Icon(tab.icon, color: HotKokiColors.flame600, size: 26),
+          label: tab.label,
+        );
+      }).toList(),
     );
   }
 }
@@ -289,11 +336,13 @@ class ClientHomeScreen extends StatefulWidget {
     this.userName,
     this.onLogin,
     this.onRegister,
+    this.onCart,
   });
 
   final String? userName;
   final VoidCallback? onLogin;
   final VoidCallback? onRegister;
+  final VoidCallback? onCart;
 
   @override
   State<ClientHomeScreen> createState() => _ClientHomeScreenState();
@@ -361,6 +410,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   isAuthenticated: widget.userName != null,
                   onLogin: widget.onLogin,
                   onRegister: widget.onRegister,
+                  onCart: widget.onCart,
                 ),
                 const SizedBox(height: 18),
                 Text(
@@ -450,11 +500,13 @@ class _HomeTopBar extends StatelessWidget {
     required this.isAuthenticated,
     this.onLogin,
     this.onRegister,
+    this.onCart,
   });
 
   final bool isAuthenticated;
   final VoidCallback? onLogin;
   final VoidCallback? onRegister;
+  final VoidCallback? onCart;
 
   @override
   Widget build(BuildContext context) {
@@ -487,15 +539,19 @@ class _HomeTopBar extends StatelessWidget {
         if (!isAuthenticated)
           _GuestActions(onLogin: onLogin, onRegister: onRegister)
         else
-          Badge(
-            label: const Text('3'),
-            backgroundColor: HotKokiColors.flame600,
-            child: IconButton.filledTonal(
-              onPressed: () {},
-              style: IconButton.styleFrom(backgroundColor: Colors.white),
-              icon: const Icon(
-                Icons.shopping_cart_outlined,
-                color: HotKokiColors.leaf900,
+          AnimatedBuilder(
+            animation: CartStore.instance,
+            builder: (context, _) => Badge(
+              isLabelVisible: CartStore.instance.count > 0,
+              label: Text('${CartStore.instance.count}'),
+              backgroundColor: HotKokiColors.flame600,
+              child: IconButton.filledTonal(
+                onPressed: onCart,
+                style: IconButton.styleFrom(backgroundColor: Colors.white),
+                icon: const Icon(
+                  Icons.shopping_bag_outlined,
+                  color: HotKokiColors.leaf900,
+                ),
               ),
             ),
           ),
