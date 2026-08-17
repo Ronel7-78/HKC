@@ -74,55 +74,94 @@ class CartStore extends ChangeNotifier {
     _items.clear();
     notifyListeners();
   }
+
+  void remove(String key) {
+    _items.removeWhere((item) => item.key == key);
+    notifyListeners();
+  }
 }
 
 class CartScreen extends StatelessWidget {
   const CartScreen({super.key});
 
   @override
-  Widget build(BuildContext context) => SafeArea(
-    child: AnimatedBuilder(
-      animation: CartStore.instance,
-      builder: (context, _) {
-        final cart = CartStore.instance;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 20, 20, 4),
-              child: Text(
-                'Mon panier',
-                style: TextStyle(
-                  color: _leaf900,
-                  fontSize: 25,
-                  fontWeight: FontWeight.w800,
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: const Color(0xFFFFF8EE),
+    appBar: AppBar(
+      backgroundColor: const Color(0xFFFFF8EE),
+      surfaceTintColor: Colors.transparent,
+      title: const Text(
+        'Mon panier',
+        style: TextStyle(color: _leaf900, fontWeight: FontWeight.w800),
+      ),
+      actions: [
+        AnimatedBuilder(
+          animation: CartStore.instance,
+          builder: (context, _) => CartStore.instance.items.isEmpty
+              ? const SizedBox.shrink()
+              : TextButton(
+                  onPressed: () => CartStore.instance.clear(),
+                  child: const Text('Vider'),
                 ),
-              ),
-            ),
-            if (cart.items.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Text(
-                  cart.items.first.vendorName,
-                  style: const TextStyle(color: _inkSoft),
+        ),
+      ],
+    ),
+    body: SafeArea(
+      top: false,
+      child: AnimatedBuilder(
+        animation: CartStore.instance,
+        builder: (context, _) {
+          final cart = CartStore.instance;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (cart.items.isNotEmpty)
+                Container(
+                  margin: const EdgeInsets.fromLTRB(16, 6, 16, 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 11,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _leaf100,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.storefront_rounded, color: _leaf900),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Text(
+                          cart.items.first.vendorName,
+                          style: const TextStyle(
+                            color: _leaf900,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        '${cart.count} article${cart.count > 1 ? 's' : ''}',
+                        style: const TextStyle(color: _inkSoft, fontSize: 11),
+                      ),
+                    ],
+                  ),
                 ),
+              Expanded(
+                child: cart.items.isEmpty
+                    ? const _EmptyCart()
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        itemCount: cart.items.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 12),
+                        itemBuilder: (_, index) =>
+                            _CartLine(item: cart.items[index]),
+                      ),
               ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: cart.items.isEmpty
-                  ? const _EmptyCart()
-                  : ListView.separated(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      itemCount: cart.items.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 10),
-                      itemBuilder: (_, index) =>
-                          _CartLine(item: cart.items[index]),
-                    ),
-            ),
-            if (cart.items.isNotEmpty) _CartSummary(cart: cart),
-          ],
-        );
-      },
+              if (cart.items.isNotEmpty) _CartSummary(cart: cart),
+            ],
+          );
+        },
+      ),
     ),
   );
 }
@@ -136,15 +175,23 @@ class _CartLine extends StatelessWidget {
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: const Color(0xFFECE7DA)),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x0D1F3524),
+          blurRadius: 14,
+          offset: Offset(0, 5),
+        ),
+      ],
     ),
     child: Row(
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(11),
           child: SizedBox(
-            width: 52,
-            height: 52,
+            width: 72,
+            height: 72,
             child: item.photo == null
                 ? const ColoredBox(
                     color: _leaf100,
@@ -153,7 +200,7 @@ class _CartLine extends StatelessWidget {
                 : Image.network(item.photo!, fit: BoxFit.cover),
           ),
         ),
-        const SizedBox(width: 11),
+        const SizedBox(width: 13),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -166,30 +213,44 @@ class _CartLine extends StatelessWidget {
                 item.complementName,
                 style: const TextStyle(color: _inkSoft, fontSize: 11),
               ),
-              Text(
-                '${item.unitPrice * item.quantity} F CFA',
-                style: const TextStyle(
-                  color: _flame600,
-                  fontWeight: FontWeight.w800,
-                ),
+              const SizedBox(height: 7),
+              Row(
+                children: [
+                  Text(
+                    '${item.unitPrice * item.quantity} F CFA',
+                    style: const TextStyle(
+                      color: _flame600,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const Spacer(),
+                  _QuantityButton(
+                    icon: Icons.remove,
+                    onPressed: () =>
+                        CartStore.instance.changeQuantity(item.key, -1),
+                  ),
+                  SizedBox(
+                    width: 30,
+                    child: Text(
+                      '${item.quantity}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                  _QuantityButton(
+                    icon: Icons.add,
+                    onPressed: () =>
+                        CartStore.instance.changeQuantity(item.key, 1),
+                  ),
+                ],
               ),
             ],
           ),
         ),
-        _QuantityButton(
-          icon: Icons.remove,
-          onPressed: () => CartStore.instance.changeQuantity(item.key, -1),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 9),
-          child: Text(
-            '${item.quantity}',
-            style: const TextStyle(fontWeight: FontWeight.w800),
-          ),
-        ),
-        _QuantityButton(
-          icon: Icons.add,
-          onPressed: () => CartStore.instance.changeQuantity(item.key, 1),
+        IconButton(
+          tooltip: 'Retirer du panier',
+          onPressed: () => CartStore.instance.remove(item.key),
+          icon: const Icon(Icons.close_rounded, color: _inkSoft, size: 20),
         ),
       ],
     ),
@@ -203,6 +264,8 @@ class _QuantityButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => IconButton.filledTonal(
     visualDensity: VisualDensity.compact,
+    constraints: const BoxConstraints.tightFor(width: 30, height: 30),
+    padding: EdgeInsets.zero,
     onPressed: onPressed,
     icon: Icon(icon, size: 17),
   );
@@ -213,20 +276,57 @@ class _CartSummary extends StatelessWidget {
   final CartStore cart;
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.fromLTRB(20, 15, 20, 18),
-    decoration: const BoxDecoration(
+    margin: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+    padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+    decoration: BoxDecoration(
       color: Colors.white,
-      boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 12)],
+      borderRadius: BorderRadius.circular(22),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x1A1F3524),
+          blurRadius: 20,
+          offset: Offset(0, 8),
+        ),
+      ],
     ),
     child: Column(
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('${cart.count} article${cart.count > 1 ? 's' : ''}'),
+            const Text('Sous-total', style: TextStyle(color: _inkSoft)),
             Text(
               '${cart.total} F CFA',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ],
+        ),
+        const SizedBox(height: 7),
+        const Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Livraison', style: TextStyle(color: _inkSoft)),
+            Text('Calculée à l’étape suivante', style: TextStyle(fontSize: 11)),
+          ],
+        ),
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 11),
+          child: Divider(height: 1),
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Total provisoire',
+              style: TextStyle(color: _leaf900, fontWeight: FontWeight.w800),
+            ),
+            Text(
+              '${cart.total} F CFA',
+              style: const TextStyle(
+                color: _flame600,
+                fontSize: 19,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ],
         ),

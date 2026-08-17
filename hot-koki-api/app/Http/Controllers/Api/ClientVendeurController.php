@@ -29,12 +29,14 @@ class ClientVendeurController extends Controller
             ->whereNotNull('longitude')
             ->when($recherche, fn ($query) => $query->where(function ($query) use ($recherche) {
                 $query->where('nom_boutique', 'like', "%{$recherche}%")
-                    ->orWhere('adresse_texte', 'like', "%{$recherche}%")
                     ->orWhereHas('produits', fn ($query) => $query->where('nom', 'like', "%{$recherche}%"));
             }))
-            ->with(['produits' => fn ($query) => $query
-                ->where('vendeur_produits.statut', 'disponible')
-                ->with('complements')])
+            ->with([
+                'user:id,telephone',
+                'produits' => fn ($query) => $query
+                    ->where('vendeur_produits.statut', 'disponible')
+                    ->with('complements'),
+            ])
             ->selectRaw("vendeurs.*, {$distance} AS distance_km", [
                 $client->latitude,
                 $client->longitude,
@@ -53,9 +55,12 @@ class ClientVendeurController extends Controller
         }
 
         $client = $request->user()->client;
-        $vendeur->load(['produits' => fn ($query) => $query
-            ->where('vendeur_produits.statut', 'disponible')
-            ->with('complements')]);
+        $vendeur->load([
+            'user:id,telephone',
+            'produits' => fn ($query) => $query
+                ->where('vendeur_produits.statut', 'disponible')
+                ->with('complements'),
+        ]);
 
         $distanceKm = null;
         if ($client?->latitude && $client?->longitude && $vendeur->latitude && $vendeur->longitude) {

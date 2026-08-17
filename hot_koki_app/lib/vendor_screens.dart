@@ -1,8 +1,13 @@
+import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
+import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'api_config.dart';
 import 'app_feedback.dart';
@@ -24,6 +29,9 @@ class VendorData {
     required this.rating,
     required this.distance,
     required this.products,
+    required this.latitude,
+    required this.longitude,
+    required this.phone,
   });
   final int id;
   final String name;
@@ -31,6 +39,9 @@ class VendorData {
   final double rating;
   final double? distance;
   final List<VendorProduct> products;
+  final double latitude;
+  final double longitude;
+  final String? phone;
 
   factory VendorData.fromJson(Map<String, dynamic> json) => VendorData(
     id: int.parse(json['id'].toString()),
@@ -38,6 +49,9 @@ class VendorData {
     address: (json['adresse_texte'] ?? 'Adresse non renseignée').toString(),
     rating: double.tryParse(json['note_moyenne'].toString()) ?? 0,
     distance: double.tryParse(json['distance_km']?.toString() ?? ''),
+    latitude: double.parse(json['latitude'].toString()),
+    longitude: double.parse(json['longitude'].toString()),
+    phone: (json['user'] as Map<String, dynamic>?)?['telephone']?.toString(),
     products: (json['produits'] as List<dynamic>? ?? [])
         .map((item) => VendorProduct.fromJson(item as Map<String, dynamic>))
         .toList(),
@@ -126,14 +140,15 @@ class VendorApi {
   }
 }
 
-class VendorSearchScreen extends StatefulWidget {
-  const VendorSearchScreen({super.key});
+class _LegacyVendorSearchScreen extends StatefulWidget {
+  const _LegacyVendorSearchScreen();
 
   @override
-  State<VendorSearchScreen> createState() => _VendorSearchScreenState();
+  State<_LegacyVendorSearchScreen> createState() =>
+      _LegacyVendorSearchScreenState();
 }
 
-class _VendorSearchScreenState extends State<VendorSearchScreen> {
+class _LegacyVendorSearchScreenState extends State<_LegacyVendorSearchScreen> {
   final _search = TextEditingController();
   late Future<List<VendorData>> _vendors;
 
@@ -326,6 +341,356 @@ class _VendorCard extends StatelessWidget {
   }
 }
 
+class VendorSearchScreen extends StatefulWidget {
+  const VendorSearchScreen({super.key});
+
+  @override
+  State<VendorSearchScreen> createState() => _VendorMapScreenState();
+}
+
+class _VendorMapScreenState extends State<VendorSearchScreen> {
+  final _search = TextEditingController();
+  final _mapController = MapController();
+  List<VendorData> _vendors = const [];
+  Position? _position;
+  Timer? _refreshTimer;
+  Timer? _searchTimer;
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPosition();
+    _fetchVendors();
+    _refreshTimer = Timer.periodic(
+      const Duration(seconds: 15),
+      (_) => _fetchVendors(silent: true),
+    );
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    _searchTimer?.cancel();
+    _search.dispose();
+    _mapController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadPosition() async {
+    try {
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return;
+      }
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 12),
+        ),
+      );
+      if (!mounted) return;
+      setState(() => _position = position);
+      _mapController.move(LatLng(position.latitude, position.longitude), 13);
+    } catch (_) {
+      // La carte reste disponible même si la localisation du téléphone échoue.
+    }
+  }
+
+  Future<void> _fetchVendors({bool silent = false}) async {
+    if (!silent && mounted) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
+    try {
+      final vendors = await VendorApi.nearby(_search.text);
+      if (!mounted) return;
+      setState(() {
+        _vendors = vendors;
+        _loading = false;
+        _error = null;
+      });
+      if (vendors.isNotEmpty && _position == null) {
+        _mapController.move(
+          LatLng(vendors.first.latitude, vendors.first.longitude),
+          vendors.length == 1 ? 15 : 12,
+        );
+      }
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = error.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
+  void _onSearchChanged(String _) {
+    _searchTimer?.cancel();
+    _searchTimer = Timer(const Duration(milliseconds: 450), _fetchVendors);
+  }
+
+  LatLng get _initialCenter {
+    if (_position != null) {
+      return LatLng(_position!.latitude, _position!.longitude);
+    }
+    if (_vendors.isNotEmpty) {
+      return LatLng(_vendors.first.latitude, _vendors.first.longitude);
+    }
+    return const LatLng(4.0511, 9.7679);
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    body: Stack(
+      children: [
+        FlutterMap(
+          mapController: _mapController,
+          options: MapOptions(
+            initialCenter: _initialCenter,
+            initialZoom: 12,
+            minZoom: 4,
+            maxZoom: 19,
+          ),
+          children: [
+            TileLayer(
+              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              userAgentPackageName: 'com.hotkoki.hot_koki_app',
+            ),
+            MarkerLayer(
+              markers: [
+                if (_position != null)
+                  Marker(
+                    point: LatLng(_position!.latitude, _position!.longitude),
+                    width: 28,
+                    height: 28,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade600,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 4),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black26, blurRadius: 7),
+                        ],
+                      ),
+                    ),
+                  ),
+                ..._vendors.map(
+                  (vendor) => Marker(
+                    point: LatLng(vendor.latitude, vendor.longitude),
+                    width: 70,
+                    height: 70,
+                    child: _VendorMapAvatar(
+                      vendor: vendor,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              VendorDetailScreen(vendorId: vendor.id),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            RichAttributionWidget(
+              attributions: const [
+                TextSourceAttribution('OpenStreetMap contributors'),
+              ],
+            ),
+          ],
+        ),
+        SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Material(
+                  elevation: 5,
+                  shadowColor: Colors.black26,
+                  borderRadius: BorderRadius.circular(18),
+                  child: TextField(
+                    controller: _search,
+                    onChanged: _onSearchChanged,
+                    onSubmitted: (_) => _fetchVendors(),
+                    textInputAction: TextInputAction.search,
+                    decoration: InputDecoration(
+                      hintText: 'Nom du vendeur ou menu…',
+                      prefixIcon: const Icon(Icons.search, color: _leaf700),
+                      suffixIcon: _search.text.isEmpty
+                          ? null
+                          : IconButton(
+                              onPressed: () {
+                                _search.clear();
+                                _fetchVendors();
+                              },
+                              icon: const Icon(Icons.close),
+                            ),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(18),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 9),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 11,
+                      vertical: 7,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.94),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      _loading
+                          ? 'Recherche…'
+                          : '${_vendors.length} vendeur${_vendors.length > 1 ? 's' : ''} disponible${_vendors.length > 1 ? 's' : ''}',
+                      style: const TextStyle(
+                        color: _leaf900,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (_loading)
+          const Center(child: CircularProgressIndicator(color: _flame500)),
+        if (_error != null)
+          Positioned(
+            left: 16,
+            right: 16,
+            bottom: 24,
+            child: _MapMessage(
+              message: _error!,
+              onRetry: () => _fetchVendors(),
+            ),
+          )
+        else if (!_loading && _vendors.isEmpty)
+          const Positioned(
+            left: 16,
+            right: 16,
+            bottom: 24,
+            child: _MapMessage(
+              message: 'Aucun vendeur ne correspond à cette recherche.',
+            ),
+          ),
+        Positioned(
+          right: 16,
+          bottom: 22,
+          child: FloatingActionButton.small(
+            heroTag: 'map-location',
+            onPressed: _loadPosition,
+            backgroundColor: Colors.white,
+            foregroundColor: _leaf700,
+            child: const Icon(Icons.my_location),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _VendorMapAvatar extends StatelessWidget {
+  const _VendorMapAvatar({required this.vendor, required this.onTap});
+  final VendorData vendor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Column(
+      children: [
+        Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            color: _flame500,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 3),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 8,
+                offset: Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Center(
+            child: Text(
+              vendor.name.trim().isEmpty
+                  ? 'V'
+                  : vendor.name.trim()[0].toUpperCase(),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ),
+        Container(
+          constraints: const BoxConstraints(maxWidth: 70),
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+          decoration: BoxDecoration(
+            color: _leaf900,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            vendor.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Colors.white, fontSize: 8),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _MapMessage extends StatelessWidget {
+  const _MapMessage({required this.message, this.onRetry});
+  final String message;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    elevation: 6,
+    borderRadius: BorderRadius.circular(16),
+    color: Colors.white,
+    child: Padding(
+      padding: const EdgeInsets.all(13),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline, color: _flame600),
+          const SizedBox(width: 10),
+          Expanded(child: Text(message, style: const TextStyle(fontSize: 12))),
+          if (onRetry != null)
+            TextButton(onPressed: onRetry, child: const Text('Réessayer')),
+        ],
+      ),
+    ),
+  );
+}
+
 class VendorDetailScreen extends StatelessWidget {
   const VendorDetailScreen({super.key, required this.vendorId});
   final int vendorId;
@@ -394,6 +759,35 @@ class VendorDetailScreen extends StatelessWidget {
                       vendor.address,
                       style: const TextStyle(color: _inkSoft),
                     ),
+                    if (vendor.phone != null && vendor.phone!.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            final uri = Uri(
+                              scheme: 'tel',
+                              path: vendor.phone!.replaceAll(' ', ''),
+                            );
+                            if (!await launchUrl(uri)) {
+                              if (context.mounted) {
+                                await AppFeedback.error(
+                                  context,
+                                  message:
+                                      'Impossible d’ouvrir l’application Téléphone.',
+                                );
+                              }
+                            }
+                          },
+                          icon: const Icon(Icons.call_rounded),
+                          label: Text('Appeler ${vendor.name}'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: _leaf700,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 22),
                     const Text(
                       'Produits disponibles',
