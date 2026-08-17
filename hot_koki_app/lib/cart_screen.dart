@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
 
 import 'client_screens.dart';
 import 'app_feedback.dart';
@@ -373,11 +375,15 @@ class CheckoutScreen extends StatefulWidget {
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
   final _phone = TextEditingController();
+  final _deliveryAddress = TextEditingController();
   Map<String, dynamic>? _profile;
   Map<String, dynamic>? _preview;
   String? _error;
   bool _loading = true;
   bool _submitting = false;
+  bool _locating = false;
+  double? _deliveryLatitude;
+  double? _deliveryLongitude;
 
   @override
   void initState() {
@@ -388,11 +394,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   void dispose() {
     _phone.dispose();
+    _deliveryAddress.dispose();
     super.dispose();
   }
 
   Map<String, dynamic> _payload() {
-    final client = _profile!['client'] as Map<String, dynamic>;
     final items = CartStore.instance.items;
     return {
       'items': items
@@ -405,9 +411,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           )
           .toList(),
       'vendeur_id': items.first.vendorId,
-      'adresse_livraison': client['adresse_texte'],
-      'latitude_client': client['latitude'],
-      'longitude_client': client['longitude'],
+      'adresse_livraison': _deliveryAddress.text.trim(),
+      'latitude_client': _deliveryLatitude,
+      'longitude_client': _deliveryLongitude,
     };
   }
 
@@ -416,6 +422,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       _profile =
           await ClientApi.request('GET', '/client/profile')
               as Map<String, dynamic>;
+      final client = _profile!['client'] as Map<String, dynamic>;
+      _deliveryAddress.text = client['adresse_texte']?.toString() ?? '';
+      _deliveryLatitude = double.tryParse(client['latitude']?.toString() ?? '');
+      _deliveryLongitude = double.tryParse(
+        client['longitude']?.toString() ?? '',
+      );
       final preview = await ClientApi.request(
         'POST',
         '/commandes/preview',
@@ -438,6 +450,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Future<void> _confirm() async {
+    if (_deliveryAddress.text.trim().isEmpty ||
+        _deliveryLatitude == null ||
+        _deliveryLongitude == null) {
+      setState(
+        () => _error =
+            'Renseignez l’adresse de livraison et sa position avant de continuer.',
+      );
+      return;
+    }
     if (_phone.text.trim().isEmpty) {
       setState(() => _error = 'Renseignez le numéro MTN MoMo à débiter.');
       return;
@@ -487,6 +508,83 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
+  Future<void> _useCurrentLocation() async {
+    setState(() {
+      _locating = true;
+      _error = null;
+    });
+    try {
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        throw Exception('La permission de localisation a été refusée.');
+      }
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 15),
+        ),
+      );
+      var label = 'Position actuelle';
+      try {
+        final places = await placemarkFromCoordinates(
+          position.latitude,
+          position.longitude,
+        );
+        if (places.isNotEmpty) {
+          final place = places.first;
+          label =
+              [
+                    place.street,
+                    place.subLocality,
+                    place.locality,
+                    place.administrativeArea,
+                  ]
+                  .whereType<String>()
+                  .where((value) => value.trim().isNotEmpty)
+                  .toSet()
+                  .join(', ');
+        }
+      } catch (_) {
+        // Les coordonnées restent utilisables même sans adresse inversée.
+      }
+      if (!mounted) return;
+      setState(() {
+        _deliveryLatitude = position.latitude;
+        _deliveryLongitude = position.longitude;
+        _deliveryAddress.text = label;
+        _locating = false;
+      });
+      await _refreshPreview();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _locating = false;
+        _error = error.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
+  Future<void> _refreshPreview() async {
+    try {
+      final preview = await ClientApi.request(
+        'POST',
+        '/commandes/preview',
+        body: _payload(),
+      );
+      if (mounted) setState(() => _preview = preview as Map<String, dynamic>);
+    } catch (error) {
+      if (mounted) {
+        setState(
+          () => _error = error.toString().replaceFirst('Exception: ', ''),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: const Color(0xFFFFF8EE),
@@ -520,16 +618,38 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              Card(
-                child: ListTile(
-                  leading: const Icon(Icons.location_on, color: _flame600),
-                  title: Text(
-                    (_profile!['client'] as Map)['adresse_texte'].toString(),
-                  ),
-                  subtitle: Text(
-                    '${(_preview!['vendeur'] as Map)['nom_boutique']} · ${(_preview!['vendeur'] as Map)['distance_km']} km',
-                  ),
+              const SizedBox(height: 9),
+              TextField(
+                controller: _deliveryAddress,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: const InputDecoration(
+                  labelText: 'Adresse de livraison',
+                  helperText: 'Vous pouvez la modifier pour cette commande.',
+                  prefixIcon: Icon(Icons.location_on, color: _flame600),
+                  filled: true,
+                  fillColor: Colors.white,
                 ),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _locating ? null : _useCurrentLocation,
+                icon: _locating
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.my_location),
+                label: Text(
+                  _locating
+                      ? 'Localisation en cours…'
+                      : 'Utiliser ma position actuelle',
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                '${(_preview!['vendeur'] as Map)['nom_boutique']} · ${(_preview!['vendeur'] as Map)['distance_km']} km',
+                style: const TextStyle(color: _inkSoft, fontSize: 12),
               ),
               const SizedBox(height: 16),
               const Text(

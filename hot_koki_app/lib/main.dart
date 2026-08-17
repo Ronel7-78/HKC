@@ -334,11 +334,34 @@ class ClientHomeScreen extends StatefulWidget {
 
 class _ClientHomeScreenState extends State<ClientHomeScreen> {
   late Future<List<ProductData>> _products;
+  late Future<String?> _deliveryAddress;
 
   @override
   void initState() {
     super.initState();
     _products = CatalogueApi.fetchProducts();
+    _deliveryAddress = _loadDeliveryAddress();
+  }
+
+  @override
+  void didUpdateWidget(covariant ClientHomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.userName != widget.userName) {
+      _deliveryAddress = _loadDeliveryAddress();
+    }
+  }
+
+  Future<String?> _loadDeliveryAddress() async {
+    if (widget.userName == null) return null;
+    try {
+      final profile =
+          await ClientApi.request('GET', '/client/profile')
+              as Map<String, dynamic>;
+      final client = profile['client'] as Map<String, dynamic>;
+      return client['adresse_texte']?.toString();
+    } catch (_) {
+      return null;
+    }
   }
 
   static const fallbackProducts = [
@@ -408,7 +431,14 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 5),
-                const _AddressRow(),
+                FutureBuilder<String?>(
+                  future: _deliveryAddress,
+                  builder: (context, snapshot) => _AddressRow(
+                    address: snapshot.data,
+                    loading:
+                        snapshot.connectionState == ConnectionState.waiting,
+                  ),
+                ),
                 const SizedBox(height: 16),
                 const _PromoCard(),
                 const SizedBox(height: 22),
@@ -584,25 +614,32 @@ class _GuestActions extends StatelessWidget {
 }
 
 class _AddressRow extends StatelessWidget {
-  const _AddressRow();
+  const _AddressRow({required this.address, required this.loading});
+
+  final String? address;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
-    return const Row(
+    return Row(
       children: [
-        Icon(
+        const Icon(
           Icons.location_on_outlined,
           size: 16,
           color: HotKokiColors.inkSoft,
         ),
-        SizedBox(width: 5),
-        Text(
+        const SizedBox(width: 5),
+        const Text(
           'Livrer à ',
           style: TextStyle(color: HotKokiColors.inkSoft, fontSize: 13),
         ),
         Flexible(
           child: Text(
-            'Mokolo Safari, Bertoua',
+            loading
+                ? 'Chargement de l’adresse…'
+                : address?.trim().isNotEmpty == true
+                ? address!
+                : 'Adresse non renseignée',
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: HotKokiColors.leaf700,
@@ -611,7 +648,11 @@ class _AddressRow extends StatelessWidget {
             ),
           ),
         ),
-        Icon(Icons.keyboard_arrow_down, size: 18, color: HotKokiColors.inkSoft),
+        const Icon(
+          Icons.keyboard_arrow_down,
+          size: 18,
+          color: HotKokiColors.inkSoft,
+        ),
       ],
     );
   }

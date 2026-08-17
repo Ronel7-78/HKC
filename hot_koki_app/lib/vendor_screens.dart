@@ -417,11 +417,11 @@ class _VendorMapScreenState extends State<VendorSearchScreen> {
         _loading = false;
         _error = null;
       });
-      if (vendors.isNotEmpty && _position == null) {
-        _mapController.move(
-          LatLng(vendors.first.latitude, vendors.first.longitude),
-          vendors.length == 1 ? 15 : 12,
-        );
+      if (!silent && vendors.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          _focusOnVendors(vendors);
+        });
       }
     } catch (error) {
       if (!mounted) return;
@@ -430,6 +430,26 @@ class _VendorMapScreenState extends State<VendorSearchScreen> {
         _error = error.toString().replaceFirst('Exception: ', '');
       });
     }
+  }
+
+  void _focusOnVendors(List<VendorData> vendors) {
+    if (vendors.length == 1) {
+      _mapController.move(
+        LatLng(vendors.first.latitude, vendors.first.longitude),
+        15,
+      );
+      return;
+    }
+
+    _mapController.fitCamera(
+      CameraFit.coordinates(
+        coordinates: vendors
+            .map((vendor) => LatLng(vendor.latitude, vendor.longitude))
+            .toList(),
+        padding: const EdgeInsets.fromLTRB(48, 150, 48, 80),
+        maxZoom: 15,
+      ),
+    );
   }
 
   void _onSearchChanged(String _) {
