@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -24,11 +25,11 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
-  static const _leaf900 = Color(0xFF242424);
-  static const _leaf700 = Color(0xFF475467);
-  static const _cream2 = Color(0xFFFFFDFC);
-  static const _flame500 = Color(0xFFE5483B);
-  static const _inkSoft = Color(0xFF667085);
+  static const _leaf900 = Color(0xFF1F3524);
+  static const _leaf700 = Color(0xFF2E4E36);
+  static const _cream2 = Color(0xFFFFF8EE);
+  static const _flame500 = Color(0xFFE0672F);
+  static const _inkSoft = Color(0xFF6B5F4E);
   static const _storage = FlutterSecureStorage();
 
   final _formKey = GlobalKey<FormState>();
@@ -137,7 +138,9 @@ class _AuthScreenState extends State<AuthScreen> {
       );
     } catch (error) {
       if (mounted) {
-        final message = error.toString().replaceFirst('Exception: ', '');
+        final message = error is TimeoutException
+            ? 'Le serveur Hot Koki ne répond pas. Vérifiez que Laravel est démarré et que le téléphone utilise le même réseau.'
+            : error.toString().replaceFirst('Exception: ', '');
         setState(() => _error = message);
         await AppFeedback.error(context, message: message);
       }

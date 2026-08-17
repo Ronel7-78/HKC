@@ -26,6 +26,19 @@ class AuthController extends Controller
             'adresse_texte' => 'required|string|max:255',
             'latitude' => 'required|numeric|between:-90,90',
             'longitude' => 'required|numeric|between:-180,180',
+        ], [
+            'name.required' => 'Le nom est obligatoire.',
+            'email.required' => 'L’adresse email est obligatoire.',
+            'email.email' => 'L’adresse email n’est pas valide.',
+            'email.unique' => 'Cette adresse email est déjà utilisée.',
+            'telephone.required' => 'Le numéro de téléphone est obligatoire.',
+            'telephone.unique' => 'Ce numéro de téléphone est déjà utilisé.',
+            'password.required' => 'Le mot de passe est obligatoire.',
+            'password.min' => 'Le mot de passe doit contenir au moins 8 caractères.',
+            'password.confirmed' => 'La confirmation du mot de passe ne correspond pas.',
+            'adresse_texte.required' => 'La localisation est obligatoire.',
+            'latitude.required' => 'La latitude est obligatoire.',
+            'longitude.required' => 'La longitude est obligatoire.',
         ]);
 
         if ($validator->fails()) {
@@ -65,6 +78,10 @@ class AuthController extends Controller
         $validator = Validator::make($request->all(), [
             'email' => 'required|email',
             'password' => 'required',
+        ], [
+            'email.required' => 'L’adresse email est obligatoire.',
+            'email.email' => 'L’adresse email n’est pas valide.',
+            'password.required' => 'Le mot de passe est obligatoire.',
         ]);
 
         if ($validator->fails()) {

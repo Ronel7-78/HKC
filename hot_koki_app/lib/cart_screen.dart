@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import 'client_screens.dart';
 import 'app_feedback.dart';
 
-const _leaf900 = Color(0xFF242424);
-const _leaf100 = Color(0xFFF2F4F7);
-const _flame600 = Color(0xFFD92D20);
-const _inkSoft = Color(0xFF667085);
+const _leaf900 = Color(0xFF1F3524);
+const _leaf100 = Color(0xFFE7EEE4);
+const _flame600 = Color(0xFFC9491E);
+const _inkSoft = Color(0xFF6B5F4E);
 
 class CartItem {
   CartItem({
@@ -389,7 +389,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFFFFFDFC),
+    backgroundColor: const Color(0xFFFFF8EE),
     appBar: AppBar(title: const Text('Valider la commande')),
     body: _loading
         ? const Center(child: CircularProgressIndicator(color: _flame600))

@@ -29,17 +29,17 @@ class HotKokiApp extends StatelessWidget {
 enum UserRole { client, vendeur, admin }
 
 class HotKokiColors {
-  static const leaf900 = Color(0xFF242424);
-  static const leaf700 = Color(0xFF475467);
-  static const leaf100 = Color(0xFFF2F4F7);
+  static const leaf900 = Color(0xFF1F3524);
+  static const leaf700 = Color(0xFF2E4E36);
+  static const leaf100 = Color(0xFFE7EEE4);
   static const cream = Color(0xFFFFF8E1);
-  static const cream2 = Color(0xFFFFFDFC);
-  static const flame600 = Color(0xFFD92D20);
-  static const flame500 = Color(0xFFE5483B);
+  static const cream2 = Color(0xFFFFF8EE);
+  static const flame600 = Color(0xFFC9491E);
+  static const flame500 = Color(0xFFE0672F);
   static const flame100 = Color(0xFFFFE8E5);
-  static const muted100 = Color(0xFFF7F4F1);
-  static const ink = Color(0xFF242424);
-  static const inkSoft = Color(0xFF667085);
+  static const muted100 = Color(0xFFECE7DA);
+  static const ink = Color(0xFF2A2117);
+  static const inkSoft = Color(0xFF6B5F4E);
 }
 
 class HotKokiTheme {
@@ -63,22 +63,6 @@ class HotKokiTheme {
           fontWeight: FontWeight.w700,
         ),
         bodyMedium: GoogleFonts.manrope(color: HotKokiColors.ink),
-      ),
-      cardTheme: CardThemeData(
-        color: Colors.white,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-          side: const BorderSide(color: Color(0xFFF0ECE8)),
-        ),
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: HotKokiColors.muted100,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none,
-        ),
       ),
     );
   }
