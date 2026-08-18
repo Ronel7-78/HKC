@@ -4,6 +4,8 @@
 <dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Hot Koki utilise votre position pour trouver les vendeurs proches et livrer votre commande.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Hot Koki utilise votre galerie pour ajouter les photos des produits.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

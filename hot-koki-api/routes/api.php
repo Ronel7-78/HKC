@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\MtnMomoWebhookController;
 use App\Http\Controllers\Api\PaiementController;
 use App\Http\Controllers\Api\VendeurCommandeController;
 use App\Http\Controllers\Api\VendeurController;
+use App\Http\Controllers\Api\VendeurDashboardController;
 use App\Http\Controllers\Api\VendeurProduitController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -45,6 +46,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Routes reservees au vendeur
     Route::middleware('role:vendeur')->prefix('vendeur')->group(function () {
+        Route::get('/dashboard', [VendeurDashboardController::class, 'dashboard']);
+        Route::get('/avis', [VendeurDashboardController::class, 'avis']);
         Route::get('/profile', [VendeurController::class, 'show']);
         Route::put('/profile', [VendeurController::class, 'update']);
         Route::patch('/disponibilite', [VendeurController::class, 'updateDisponibilite']);

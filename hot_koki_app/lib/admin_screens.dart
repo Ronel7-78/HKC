@@ -1,7 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:image_picker/image_picker.dart';
 
+import 'api_config.dart';
 import 'app_feedback.dart';
 import 'client_screens.dart';
 
@@ -684,9 +688,22 @@ class _AdminCatalogueScreenState extends State<AdminCatalogueScreen> {
                   return Card(
                     child: ListTile(
                       onTap: () => _form(product),
-                      leading: const CircleAvatar(
+                      leading: CircleAvatar(
                         backgroundColor: _leaf100,
-                        child: Icon(Icons.restaurant_menu, color: _leaf700),
+                        backgroundImage:
+                            product['photo'] == null ||
+                                product['photo'].toString().isEmpty
+                            ? null
+                            : NetworkImage(
+                                ApiConfig.resolveMediaUrl(
+                                  product['photo'].toString(),
+                                ),
+                              ),
+                        child:
+                            product['photo'] == null ||
+                                product['photo'].toString().isEmpty
+                            ? const Icon(Icons.restaurant_menu, color: _leaf700)
+                            : null,
                       ),
                       title: Text(
                         product['nom'].toString(),
@@ -726,6 +743,8 @@ class _ProductFormState extends State<_ProductForm> {
   late final TextEditingController _name;
   late final TextEditingController _description;
   late final TextEditingController _price;
+  XFile? _selectedImage;
+  bool _removeExistingImage = false;
   bool _saving = false;
   late Future<List<dynamic>> _complements;
   late final Set<int> _selectedComplements;
@@ -762,17 +781,25 @@ class _ProductFormState extends State<_ProductForm> {
     if (!(_form.currentState?.validate() ?? false)) return;
     setState(() => _saving = true);
     try {
-      await ClientApi.request(
-        widget.product == null ? 'POST' : 'PUT',
+      final fields = <String, String>{
+        'nom': _name.text.trim(),
+        'description': _description.text.trim(),
+        'prix': double.parse(_price.text.replaceAll(',', '.')).toString(),
+        'synchroniser_complements': '1',
+        if (widget.product != null) '_method': 'PUT',
+        if (_removeExistingImage) 'supprimer_photo': '1',
+      };
+      for (var index = 0; index < _selectedComplements.length; index++) {
+        fields['complements[$index]'] = _selectedComplements
+            .elementAt(index)
+            .toString();
+      }
+      await ClientApi.multipart(
         widget.product == null
             ? '/admin/produits'
             : '/admin/produits/${widget.product!['id']}',
-        body: {
-          'nom': _name.text.trim(),
-          'description': _description.text.trim(),
-          'prix': double.parse(_price.text.replaceAll(',', '.')),
-          'complements': _selectedComplements.toList(),
-        },
+        fields: fields,
+        filePath: _selectedImage?.path,
       );
       if (!mounted) return;
       await AppFeedback.success(
@@ -788,64 +815,103 @@ class _ProductFormState extends State<_ProductForm> {
     }
   }
 
+  Future<void> _pickImage() async {
+    try {
+      final image = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 88,
+        maxWidth: 1800,
+      );
+      if (image != null && mounted) {
+        setState(() {
+          _selectedImage = image;
+          _removeExistingImage = false;
+        });
+      }
+    } catch (error) {
+      if (mounted) await AppFeedback.error(context, message: error);
+    }
+  }
+
   @override
   Widget build(BuildContext context) => AlertDialog(
     title: Text(
       widget.product == null ? 'Nouveau produit' : 'Modifier le produit',
     ),
-    content: Form(
-      key: _form,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _requiredField(_name, 'Nom du produit'),
-          TextFormField(
-            controller: _description,
-            maxLines: 3,
-            decoration: const InputDecoration(labelText: 'Description'),
-          ),
-          TextFormField(
-            controller: _price,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'Prix en F CFA'),
-            validator: (value) =>
-                double.tryParse((value ?? '').replaceAll(',', '.')) == null
-                ? 'Renseignez un prix valide.'
-                : null,
-          ),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'Compléments proposés',
-              style: Theme.of(context).textTheme.titleSmall,
+    content: SingleChildScrollView(
+      child: Form(
+        key: _form,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _ProductImageField(
+              selectedImage: _selectedImage,
+              existingImage: _removeExistingImage
+                  ? null
+                  : widget.product?['photo']?.toString(),
+              onPick: _pickImage,
+              onRemove:
+                  _selectedImage != null ||
+                      (!_removeExistingImage &&
+                          widget.product?['photo'] != null)
+                  ? () => setState(() {
+                      _selectedImage = null;
+                      _removeExistingImage = true;
+                    })
+                  : null,
             ),
-          ),
-          FutureBuilder<List<dynamic>>(
-            future: _complements,
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) {
-                return const LinearProgressIndicator();
-              }
-              return Wrap(
-                spacing: 7,
-                children: snapshot.data!.map((raw) {
-                  final item = raw as Map<String, dynamic>;
-                  final id = int.parse(item['id'].toString());
-                  return FilterChip(
-                    label: Text(item['nom'].toString()),
-                    selected: _selectedComplements.contains(id),
-                    onSelected: (selected) => setState(
-                      () => selected
-                          ? _selectedComplements.add(id)
-                          : _selectedComplements.remove(id),
-                    ),
-                  );
-                }).toList(),
-              );
-            },
-          ),
-        ],
+            const SizedBox(height: 12),
+            _requiredField(_name, 'Nom du produit'),
+            TextFormField(
+              controller: _description,
+              maxLines: 3,
+              decoration: const InputDecoration(labelText: 'Description'),
+            ),
+            TextFormField(
+              controller: _price,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(labelText: 'Prix en F CFA'),
+              validator: (value) =>
+                  double.tryParse((value ?? '').replaceAll(',', '.')) == null
+                  ? 'Renseignez un prix valide.'
+                  : null,
+            ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Compléments proposés',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+            ),
+            FutureBuilder<List<dynamic>>(
+              future: _complements,
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const LinearProgressIndicator();
+                }
+                return Wrap(
+                  spacing: 7,
+                  children: snapshot.data!.map((raw) {
+                    final item = raw as Map<String, dynamic>;
+                    final id = int.parse(item['id'].toString());
+                    return FilterChip(
+                      label: Text(item['nom'].toString()),
+                      selected: _selectedComplements.contains(id),
+                      onSelected: (selected) => setState(
+                        () => selected
+                            ? _selectedComplements.add(id)
+                            : _selectedComplements.remove(id),
+                      ),
+                    );
+                  }).toList(),
+                );
+              },
+            ),
+          ],
+        ),
       ),
     ),
     actions: [
@@ -858,6 +924,90 @@ class _ProductFormState extends State<_ProductForm> {
         child: const Text('Enregistrer'),
       ),
     ],
+  );
+}
+
+class _ProductImageField extends StatelessWidget {
+  const _ProductImageField({
+    required this.selectedImage,
+    required this.existingImage,
+    required this.onPick,
+    required this.onRemove,
+  });
+
+  final XFile? selectedImage;
+  final String? existingImage;
+  final VoidCallback onPick;
+  final VoidCallback? onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasExisting = existingImage != null && existingImage!.isNotEmpty;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            height: 155,
+            color: _leaf100,
+            child: selectedImage != null
+                ? Image.file(File(selectedImage!.path), fit: BoxFit.cover)
+                : hasExisting
+                ? Image.network(
+                    ApiConfig.resolveMediaUrl(existingImage!),
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => const _ImagePlaceholder(),
+                  )
+                : const _ImagePlaceholder(),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: onPick,
+                icon: const Icon(Icons.add_photo_alternate_outlined),
+                label: Text(
+                  selectedImage != null || hasExisting
+                      ? 'Changer l’image'
+                      : 'Choisir une image',
+                ),
+              ),
+            ),
+            if (onRemove != null) ...[
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: onRemove,
+                tooltip: 'Retirer l’image',
+                icon: const Icon(Icons.delete_outline, color: Colors.red),
+              ),
+            ],
+          ],
+        ),
+        const Text(
+          'JPEG, PNG ou WebP · 5 Mo maximum',
+          style: TextStyle(fontSize: 12, color: _inkSoft),
+        ),
+      ],
+    );
+  }
+}
+
+class _ImagePlaceholder extends StatelessWidget {
+  const _ImagePlaceholder();
+
+  @override
+  Widget build(BuildContext context) => const Center(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.image_outlined, size: 38, color: _leaf700),
+        SizedBox(height: 6),
+        Text('Photo du produit', style: TextStyle(color: _leaf700)),
+      ],
+    ),
   );
 }
 

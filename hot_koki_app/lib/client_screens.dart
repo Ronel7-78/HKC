@@ -52,6 +52,31 @@ class ClientApi {
       _ => http.get(uri, headers: headersValue),
     };
     final response = await request.timeout(const Duration(seconds: 20));
+    return _decodeResponse(response);
+  }
+
+  static Future<dynamic> multipart(
+    String path, {
+    required Map<String, String> fields,
+    String? filePath,
+  }) async {
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('${ApiConfig.baseUrl}$path'),
+    );
+    request.headers['Accept'] = 'application/json';
+    if (await storage.read(key: 'auth_token') case final token?) {
+      request.headers['Authorization'] = 'Bearer $token';
+    }
+    request.fields.addAll(fields);
+    if (filePath != null) {
+      request.files.add(await http.MultipartFile.fromPath('photo', filePath));
+    }
+    final streamed = await request.send().timeout(const Duration(seconds: 30));
+    return _decodeResponse(await http.Response.fromStream(streamed));
+  }
+
+  static dynamic _decodeResponse(http.Response response) {
     final data = response.body.isEmpty
         ? <String, dynamic>{}
         : jsonDecode(response.body);

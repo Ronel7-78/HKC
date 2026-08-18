@@ -19,7 +19,7 @@ class VendeurCommandeController extends Controller
 
         return response()->json(
             $vendeur->commandes()
-                ->with('client', 'items.complements', 'items.produit')
+                ->with('client.user', 'items.complements', 'items.produit', 'paiements')
                 ->latest()
                 ->get()
         );
@@ -32,7 +32,7 @@ class VendeurCommandeController extends Controller
         }
 
         return response()->json(
-            $commande->load('client', 'items.complements', 'items.produit')
+            $commande->load('client.user', 'items.complements', 'items.produit', 'paiements')
         );
     }
 
@@ -56,7 +56,7 @@ class VendeurCommandeController extends Controller
 
         return response()->json([
             'message' => 'Statut de la commande mis à jour.',
-            'commande' => $commande->fresh()->load('client', 'items.complements', 'items.produit'),
+            'commande' => $commande->fresh()->load('client.user', 'items.complements', 'items.produit', 'paiements'),
         ]);
     }
 

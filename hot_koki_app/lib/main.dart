@@ -9,6 +9,7 @@ import 'admin_screens.dart';
 import 'auth_screen.dart';
 import 'cart_screen.dart';
 import 'client_screens.dart';
+import 'seller_screens.dart';
 import 'vendor_screens.dart';
 
 void main() => runApp(const HotKokiApp());
@@ -184,26 +185,26 @@ class _MainShellState extends State<MainShell> {
           ),
         ];
       case UserRole.vendeur:
-        return const [
+        return [
           AppTab(
-            'Accueil',
-            Icons.dashboard_outlined,
-            PlaceholderScreen('Espace vendeur'),
+            'Tableau',
+            Icons.dashboard_rounded,
+            const SellerDashboardScreen(),
           ),
           AppTab(
             'Commandes',
-            Icons.receipt_long_outlined,
-            PlaceholderScreen('Commandes vendeur'),
+            Icons.receipt_long_rounded,
+            const SellerOrdersScreen(),
           ),
           AppTab(
             'Produits',
-            Icons.inventory_2_outlined,
-            PlaceholderScreen('Produits'),
+            Icons.inventory_2_rounded,
+            const SellerProductsScreen(),
           ),
           AppTab(
             'Compte',
-            Icons.storefront_outlined,
-            PlaceholderScreen('Compte vendeur'),
+            Icons.storefront_rounded,
+            SellerAccountScreen(onLogout: _logout),
           ),
         ];
       case UserRole.admin:
