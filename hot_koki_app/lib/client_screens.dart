@@ -48,6 +48,7 @@ class ClientApi {
       'POST' => http.post(uri, headers: headersValue, body: encoded),
       'PUT' => http.put(uri, headers: headersValue, body: encoded),
       'PATCH' => http.patch(uri, headers: headersValue, body: encoded),
+      'DELETE' => http.delete(uri, headers: headersValue, body: encoded),
       _ => http.get(uri, headers: headersValue),
     };
     final response = await request.timeout(const Duration(seconds: 20));

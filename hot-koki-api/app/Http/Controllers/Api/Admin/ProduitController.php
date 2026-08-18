@@ -1,4 +1,5 @@
 <?php
+
 // app/Http/Controllers/Api/Admin/ProduitController.php
 
 namespace App\Http\Controllers\Api\Admin;
@@ -24,7 +25,7 @@ class ProduitController extends Controller
             'photo' => 'nullable|string',
             'complements' => 'nullable|array',
             'complements.*' => 'exists:complements,id',
-        ]);
+        ], $this->messages());
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
@@ -58,7 +59,7 @@ class ProduitController extends Controller
             'photo' => 'sometimes|nullable|string',
             'complements' => 'sometimes|array',
             'complements.*' => 'exists:complements,id',
-        ]);
+        ], $this->messages());
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
@@ -79,6 +80,17 @@ class ProduitController extends Controller
     public function destroy($id)
     {
         Produit::findOrFail($id)->delete();
+
         return response()->json(['message' => 'Produit supprimé']);
+    }
+
+    private function messages(): array
+    {
+        return [
+            'required' => 'Le champ :attribute est obligatoire.',
+            'prix.numeric' => 'Le prix doit être un nombre valide.',
+            'prix.min' => 'Le prix ne peut pas être négatif.',
+            'complements.*.exists' => 'Un complément sélectionné n’existe plus.',
+        ];
     }
 }

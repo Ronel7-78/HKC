@@ -41,7 +41,7 @@ class VendeurController extends Controller
             'adresse_texte' => 'nullable|string|max:255',
             'latitude' => 'nullable|numeric',
             'longitude' => 'nullable|numeric',
-        ]);
+        ], $this->messages());
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
@@ -107,7 +107,7 @@ class VendeurController extends Controller
             'latitude' => 'sometimes|nullable|numeric',
             'longitude' => 'sometimes|nullable|numeric',
             'statut_compte' => 'sometimes|in:actif,suspendu',
-        ]);
+        ], $this->messages());
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
@@ -158,5 +158,17 @@ class VendeurController extends Controller
         });
 
         return response()->json(['message' => 'Vendeur supprimé']);
+    }
+
+    private function messages(): array
+    {
+        return [
+            'required' => 'Le champ :attribute est obligatoire.',
+            'email.email' => 'L’adresse email n’est pas valide.',
+            'email.unique' => 'Cette adresse email est déjà utilisée.',
+            'telephone.unique' => 'Ce numéro de téléphone est déjà utilisé.',
+            'password.min' => 'Le mot de passe doit contenir au moins 8 caractères.',
+            'password.confirmed' => 'La confirmation du mot de passe ne correspond pas.',
+        ];
     }
 }

@@ -1,4 +1,5 @@
 <?php
+
 // app/Http/Controllers/Api/Admin/ComplementController.php
 
 namespace App\Http\Controllers\Api\Admin;
@@ -19,6 +20,9 @@ class ComplementController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'nom' => 'required|string|max:255|unique:complements,nom',
+        ], [
+            'nom.required' => 'Le nom du complément est obligatoire.',
+            'nom.unique' => 'Ce complément existe déjà.',
         ]);
 
         if ($validator->fails()) {
@@ -33,6 +37,7 @@ class ComplementController extends Controller
     public function destroy($id)
     {
         Complement::findOrFail($id)->delete();
+
         return response()->json(['message' => 'Complément supprimé']);
     }
 }

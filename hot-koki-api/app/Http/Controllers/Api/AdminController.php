@@ -1,4 +1,5 @@
 <?php
+
 // app/Http/Controllers/Api/AdminController.php
 
 namespace App\Http\Controllers\Api;
@@ -39,6 +40,14 @@ class AdminController extends Controller
             'prenom' => 'sometimes|nullable|string|max:255',
             'current_password' => 'required_with:password|string',
             'password' => 'sometimes|string|min:8|confirmed',
+        ], [
+            'name.required' => 'Le nom affiché est obligatoire.',
+            'email.required' => 'L’adresse email est obligatoire.',
+            'email.email' => 'L’adresse email n’est pas valide.',
+            'email.unique' => 'Cette adresse email est déjà utilisée.',
+            'telephone.unique' => 'Ce numéro de téléphone est déjà utilisé.',
+            'password.min' => 'Le mot de passe doit contenir au moins 8 caractères.',
+            'password.confirmed' => 'La confirmation du mot de passe ne correspond pas.',
         ]);
 
         if ($validator->fails()) {

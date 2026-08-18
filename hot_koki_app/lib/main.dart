@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 
 import 'api_config.dart';
+import 'admin_screens.dart';
 import 'auth_screen.dart';
 import 'cart_screen.dart';
 import 'client_screens.dart';
@@ -206,27 +207,31 @@ class _MainShellState extends State<MainShell> {
           ),
         ];
       case UserRole.admin:
-        return const [
+        return [
           AppTab(
-            'Accueil',
-            Icons.dashboard_outlined,
-            PlaceholderScreen('Espace administrateur'),
+            'Tableau',
+            Icons.dashboard_rounded,
+            const AdminDashboardScreen(),
           ),
           AppTab(
             'Vendeurs',
-            Icons.store_outlined,
-            PlaceholderScreen('Vendeurs'),
+            Icons.storefront_rounded,
+            const AdminVendorsScreen(),
           ),
           AppTab(
             'Catalogue',
-            Icons.inventory_2_outlined,
-            PlaceholderScreen('Catalogue'),
+            Icons.restaurant_menu_rounded,
+            const AdminCatalogueScreen(),
           ),
-          AppTab('Litiges', Icons.gavel_outlined, PlaceholderScreen('Litiges')),
+          AppTab(
+            'Commandes',
+            Icons.receipt_long_rounded,
+            const AdminOrdersScreen(),
+          ),
           AppTab(
             'Compte',
-            Icons.admin_panel_settings_outlined,
-            PlaceholderScreen('Compte administrateur'),
+            Icons.admin_panel_settings_rounded,
+            AdminAccountScreen(onLogout: _logout),
           ),
         ];
     }
