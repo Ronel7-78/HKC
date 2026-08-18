@@ -956,9 +956,10 @@ class _SellerAccountScreenState extends State<SellerAccountScreen> {
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return snapshot.hasError
-              ? _SellerError(
+              ? _SellerAccountRecovery(
                   error: snapshot.error!,
                   retry: () => setState(_reload),
+                  logout: _logout,
                 )
               : const Center(
                   child: CircularProgressIndicator(color: _flame500),
@@ -1250,6 +1251,45 @@ class _SellerError extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(error.toString(), textAlign: TextAlign.center),
+          TextButton(onPressed: retry, child: const Text('Réessayer')),
+        ],
+      ),
+    ),
+  );
+}
+
+class _SellerAccountRecovery extends StatelessWidget {
+  const _SellerAccountRecovery({
+    required this.error,
+    required this.retry,
+    required this.logout,
+  });
+
+  final Object error;
+  final VoidCallback retry;
+  final Future<void> Function() logout;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.storefront_outlined, size: 48, color: _flame600),
+          const SizedBox(height: 12),
+          const Text(
+            'Profil vendeur indisponible',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 8),
+          Text(error.toString(), textAlign: TextAlign.center),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            onPressed: logout,
+            icon: const Icon(Icons.logout),
+            label: const Text('Fermer cette session'),
+          ),
           TextButton(onPressed: retry, child: const Text('Réessayer')),
         ],
       ),

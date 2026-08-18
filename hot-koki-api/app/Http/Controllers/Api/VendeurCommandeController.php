@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Commande;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -53,6 +54,21 @@ class VendeurCommandeController extends Controller
         }
 
         $commande->update(['statut' => $validated['statut']]);
+        $commande->load('client.user');
+        $libelles = [
+            Commande::STATUT_RECUE => 'reçue',
+            Commande::STATUT_PREPARATION => 'en préparation',
+            Commande::STATUT_EN_LIVRAISON => 'en livraison',
+            Commande::STATUT_LIVREE => 'livrée',
+            Commande::STATUT_ANNULEE => 'annulée',
+        ];
+        NotificationService::envoyer(
+            $commande->client->user,
+            'statut_commande',
+            'Commande mise à jour',
+            "Votre commande #{$commande->id} est désormais ".($libelles[$commande->statut] ?? $commande->statut).'.',
+            ['commande_id' => $commande->id, 'statut' => $commande->statut]
+        );
 
         return response()->json([
             'message' => 'Statut de la commande mis à jour.',

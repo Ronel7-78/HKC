@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Avis;
 use App\Models\Commande;
 use App\Models\Vendeur;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -50,6 +51,21 @@ class AvisController extends Controller
 
             return $avis;
         });
+
+        $commande->load('vendeur.user');
+        NotificationService::envoyer(
+            $commande->vendeur->user,
+            'nouvel_avis',
+            'Nouvel avis client',
+            "Vous avez reçu une note de {$avis->note}/5 pour la commande #{$commande->id}.",
+            ['commande_id' => $commande->id, 'avis_id' => $avis->id]
+        );
+        NotificationService::admins(
+            'nouvel_avis',
+            'Nouvel avis publié',
+            "Un avis de {$avis->note}/5 a été publié pour la commande #{$commande->id}.",
+            ['commande_id' => $commande->id, 'avis_id' => $avis->id]
+        );
 
         return response()->json(['message' => 'Merci pour votre avis.', 'avis' => $avis]);
     }

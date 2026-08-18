@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'api_config.dart';
 import 'app_feedback.dart';
 import 'client_screens.dart';
+import 'notifications_screen.dart';
 
 const _leaf900 = Color(0xFF1F3524);
 const _leaf700 = Color(0xFF2E4E36);
@@ -75,13 +76,38 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
               ),
               const SizedBox(height: 4),
-              const Text(
-                'Tableau de bord',
-                style: TextStyle(
-                  color: _leaf900,
-                  fontSize: 26,
-                  fontWeight: FontWeight.w900,
-                ),
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Tableau de bord',
+                      style: TextStyle(
+                        color: _leaf900,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  ValueListenableBuilder<int>(
+                    valueListenable: NotificationStore.unread,
+                    builder: (_, count, _) => IconButton(
+                      tooltip: 'Notifications',
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const Scaffold(body: NotificationsScreen()),
+                        ),
+                      ),
+                      icon: Badge(
+                        isLabelVisible: count > 0,
+                        label: Text(count > 99 ? '99+' : '$count'),
+                        backgroundColor: _flame600,
+                        child: const Icon(Icons.notifications_rounded),
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 17),
               GridView.count(

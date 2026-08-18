@@ -43,6 +43,18 @@ class MtnMomoService
                 'payeeNote' => 'Commande '.$paiement->commande_id,
             ]);
 
+        if ($response->status() === 409) {
+            // Le même X-Reference-Id a déjà pu être accepté avant une coupure
+            // locale. La lecture du statut permet de reprendre sans double débit.
+            $paiement->update([
+                'statut' => Paiement::STATUT_EN_ATTENTE,
+                'initie_le' => $paiement->initie_le ?? now(),
+                'prochaine_verification_le' => now()->addSeconds(5),
+            ]);
+
+            return;
+        }
+
         if ($response->status() !== 202) {
             $paiement->terminer(
                 Paiement::STATUT_ECHOUE,
@@ -68,15 +80,28 @@ class MtnMomoService
             return $paiement;
         }
 
+        if ($paiement->statut === Paiement::STATUT_INITIE) {
+            $this->initier($paiement);
+            $paiement->refresh();
+        }
+
         $response = $this->requeteAutorisee()
             ->withHeader('X-Target-Environment', config('services.mtn_momo.target_environment'))
             ->get('/collection/v1_0/requesttopay/'.$paiement->reference_interne);
 
-        $paiement->increment('tentatives_statut');
-
         if (! $response->successful()) {
-            throw new RuntimeException('Impossible de vérifier le statut MTN MoMo.');
+            $paiement->update([
+                'prochaine_verification_le' => now()->addSeconds(
+                    in_array($response->status(), [404, 429], true) || $response->serverError() ? 30 : 60
+                ),
+            ]);
+
+            throw new RuntimeException(
+                'Impossible de vérifier le statut MTN MoMo (HTTP '.$response->status().').'
+            );
         }
+
+        $paiement->increment('tentatives_statut');
 
         $donnees = $response->json();
         $statutMtn = strtoupper((string) ($donnees['status'] ?? ''));
@@ -111,18 +136,65 @@ class MtnMomoService
 
     private function token(): string
     {
-        return Cache::remember('mtn_momo:collection:access_token', now()->addMinutes(50), function () {
-            $response = Http::baseUrl(config('services.mtn_momo.base_url'))
-                ->withBasicAuth(config('services.mtn_momo.api_user'), config('services.mtn_momo.api_key'))
-                ->withHeader('Ocp-Apim-Subscription-Key', config('services.mtn_momo.subscription_key'))
-                ->post('/collection/token/');
+        $empreinte = hash('sha256', implode('|', [
+            config('services.mtn_momo.target_environment'),
+            config('services.mtn_momo.api_user'),
+            config('services.mtn_momo.api_key'),
+            config('services.mtn_momo.subscription_key'),
+        ]));
+        $cacheKey = 'mtn_momo:collection:access_token:'.$empreinte;
 
-            if (! $response->successful() || ! $response->json('access_token')) {
-                throw new RuntimeException('Impossible d’obtenir un jeton MTN MoMo.');
+        if ($token = Cache::get($cacheKey)) {
+            return $token;
+        }
+
+        $response = Http::baseUrl(config('services.mtn_momo.base_url'))
+            ->withBasicAuth(config('services.mtn_momo.api_user'), config('services.mtn_momo.api_key'))
+            ->withHeader('Ocp-Apim-Subscription-Key', config('services.mtn_momo.subscription_key'))
+            ->timeout(15)
+            ->post('/collection/token/');
+
+        if (! $response->successful() || ! $response->json('access_token')) {
+            throw new RuntimeException('Impossible d’obtenir un jeton MTN MoMo (HTTP '.$response->status().').');
+        }
+
+        $token = (string) $response->json('access_token');
+        $duree = max(60, ((int) $response->json('expires_in', 3600)) - 60);
+        Cache::put($cacheKey, $token, now()->addSeconds($duree));
+
+        return $token;
+    }
+
+    /** Teste les identifiants sans exposer ni journaliser le jeton obtenu. */
+    public function testerConfiguration(): void
+    {
+        $this->verifierConfiguration();
+
+        if (config('services.mtn_momo.target_environment') === 'sandbox') {
+            $response = Http::baseUrl(config('services.mtn_momo.base_url'))
+                ->acceptJson()
+                ->withHeader('Ocp-Apim-Subscription-Key', config('services.mtn_momo.subscription_key'))
+                ->timeout(15)
+                ->get('/v1_0/apiuser/'.rawurlencode((string) config('services.mtn_momo.api_user')));
+
+            if (! $response->successful()) {
+                throw new RuntimeException('Impossible de vérifier l’API User MTN (HTTP '.$response->status().').');
             }
 
-            return $response->json('access_token');
-        });
+            $hoteEnregistre = strtolower(rtrim((string) $response->json('providerCallbackHost'), '.'));
+            $hoteConfigure = strtolower(rtrim((string) parse_url(
+                config('services.mtn_momo.callback_base_url'),
+                PHP_URL_HOST,
+            ), '.'));
+
+            if ($hoteEnregistre && $hoteEnregistre !== $hoteConfigure) {
+                throw new RuntimeException(
+                    "Le domaine du callback ({$hoteConfigure}) ne correspond pas au providerCallbackHost MTN ({$hoteEnregistre})."
+                );
+            }
+        }
+
+        $this->token();
     }
 
     private function verifierConfiguration(): void
@@ -131,6 +203,11 @@ class MtnMomoService
             if (! config('services.mtn_momo.'.$cle)) {
                 throw new RuntimeException('Configuration MTN MoMo incomplète : '.$cle.'.');
             }
+        }
+
+        $callback = (string) config('services.mtn_momo.callback_base_url');
+        if (! str_starts_with($callback, 'https://') || ! parse_url($callback, PHP_URL_HOST)) {
+            throw new RuntimeException('Le callback MTN MoMo doit être une URL HTTPS publique valide.');
         }
     }
 }

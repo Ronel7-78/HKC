@@ -6,6 +6,7 @@ use App\Models\Paiement;
 use App\Services\Payments\MtnMomoService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use RuntimeException;
 
 class VerifierPaiementMtn implements ShouldQueue
 {
@@ -22,7 +23,12 @@ class VerifierPaiementMtn implements ShouldQueue
         $paiement = Paiement::find($this->paiementId);
 
         if ($paiement && in_array($paiement->statut, Paiement::STATUTS_ACTIFS, true)) {
-            $mtnMomo->synchroniser($paiement);
+            try {
+                $mtnMomo->synchroniser($paiement);
+            } catch (RuntimeException) {
+                // Le scheduler reprendra la vérification à la date enregistrée.
+                // Une indisponibilité MTN ne doit pas remplir la file des échecs.
+            }
         }
     }
 }

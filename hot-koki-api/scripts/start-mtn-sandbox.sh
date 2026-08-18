@@ -7,6 +7,12 @@ if [[ ! -t 0 ]]; then
     exit 1
 fi
 
+if ! php -r '$socket = @stream_socket_server("tcp://127.0.0.1:8000", $code, $message); if (! $socket) { exit(1); } fclose($socket);'; then
+    echo "Le port 8000 est déjà utilisé. Arrêtez l’ancienne API Laravel avant de relancer ce script." >&2
+    echo "Diagnostic : sudo lsof -iTCP:8000 -sTCP:LISTEN" >&2
+    exit 1
+fi
+
 read -r -p "URL HTTPS publique du callback : " MTN_CALLBACK_URL
 read -r -s -p "MTN Collections Primary Key : " MTN_SUBSCRIPTION_KEY
 echo
@@ -31,17 +37,20 @@ export MTN_MOMO_API_KEY="$MTN_API_KEY"
 unset MTN_SUBSCRIPTION_KEY MTN_API_USER MTN_API_KEY MTN_CALLBACK_URL
 
 php artisan config:clear --quiet
+php artisan mtn:test-config
 
-php artisan serve --host=127.0.0.1 --port=8000 &
+php artisan serve --host=0.0.0.0 --port=8000 &
 SERVER_PID=$!
 php artisan queue:work --queue=paiements,default --tries=3 --timeout=60 &
 QUEUE_PID=$!
+php artisan schedule:work &
+SCHEDULER_PID=$!
 
 cleanup() {
-    kill "$SERVER_PID" "$QUEUE_PID" 2>/dev/null || true
+    kill "$SERVER_PID" "$QUEUE_PID" "$SCHEDULER_PID" 2>/dev/null || true
 }
 
 trap cleanup EXIT INT TERM
 
-echo "API et worker démarrés. Ctrl+C pour arrêter les deux."
-wait -n "$SERVER_PID" "$QUEUE_PID"
+echo "API, worker et polling MTN démarrés. Ctrl+C pour tout arrêter."
+wait -n "$SERVER_PID" "$QUEUE_PID" "$SCHEDULER_PID"

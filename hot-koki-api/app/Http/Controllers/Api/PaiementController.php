@@ -64,7 +64,7 @@ class PaiementController extends Controller
             ], 422);
         }
 
-        if ($paiement->wasRecentlyCreated) {
+        if ($paiement->wasRecentlyCreated || $paiement->statut === Paiement::STATUT_INITIE) {
             try {
                 $mtnMomo->initier($paiement);
                 $paiement->refresh();
@@ -108,19 +108,27 @@ class PaiementController extends Controller
         }
 
         if ($paiement->tentatives_statut >= config('services.mtn_momo.poll_max_attempts')) {
-            return response()->json([
-                'message' => 'La durée maximale de vérification automatique est atteinte.',
-                'code' => 'POLLING_TERMINE',
-                'paiement' => $paiement,
-            ], 202);
+            if ($request->boolean('relancer')) {
+                $paiement->update([
+                    'tentatives_statut' => 0,
+                    'prochaine_verification_le' => now(),
+                ]);
+            } else {
+                return response()->json([
+                    'message' => 'La durée maximale de vérification automatique est atteinte.',
+                    'code' => 'POLLING_TERMINE',
+                    'paiement' => $paiement,
+                ], 202);
+            }
         }
 
         try {
             $paiement = $mtnMomo->synchroniser($paiement);
-        } catch (RuntimeException) {
+        } catch (RuntimeException $exception) {
             return response()->json([
-                'message' => 'Le statut MTN MoMo est temporairement indisponible.',
+                'message' => 'Le statut MTN MoMo est temporairement indisponible. '.$exception->getMessage(),
                 'code' => 'STATUT_MTN_INDISPONIBLE',
+                'detail' => $exception->getMessage(),
                 'paiement' => $paiement->fresh(),
             ], 503);
         }

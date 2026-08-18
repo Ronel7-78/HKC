@@ -94,6 +94,15 @@ class AuthController extends Controller
             return response()->json(['message' => 'Identifiants incorrects'], 401);
         }
 
+        if (! $this->profilMetierExiste($user)) {
+            $user->tokens()->delete();
+
+            return response()->json([
+                'message' => 'Ce compte est incomplet : le profil associé est introuvable. Contactez un administrateur.',
+                'code' => 'PROFIL_METIER_INTROUVABLE',
+            ], 409);
+        }
+
         // Un vendeur suspendu conserve son compte, mais ne peut plus se connecter.
         if ($user->isVendeur() && $user->vendeur?->statut_compte === 'suspendu') {
             return response()->json(['message' => 'Compte vendeur suspendu'], 403);
@@ -119,6 +128,27 @@ class AuthController extends Controller
     // Récupérer l'utilisateur connecté (utile pour Flutter au démarrage de l'app)
     public function me(Request $request)
     {
-        return response()->json($request->user());
+        $user = $request->user();
+
+        if (! $this->profilMetierExiste($user)) {
+            $user->currentAccessToken()?->delete();
+
+            return response()->json([
+                'message' => 'La session a été fermée car le profil associé à ce compte est introuvable.',
+                'code' => 'PROFIL_METIER_INTROUVABLE',
+            ], 409);
+        }
+
+        return response()->json($user);
+    }
+
+    private function profilMetierExiste(User $user): bool
+    {
+        return match ($user->role) {
+            'client' => $user->client()->exists(),
+            'vendeur' => $user->vendeur()->exists(),
+            'admin' => $user->admin()->exists(),
+            default => false,
+        };
     }
 }

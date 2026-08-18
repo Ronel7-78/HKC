@@ -471,6 +471,8 @@ class _PaymentStatusScreenState extends State<PaymentStatusScreen> {
   late Map<String, dynamic> _payment;
   Timer? _timer;
   bool _checking = false;
+  bool _pollingStopped = false;
+  String? _statusMessage;
   @override
   void initState() {
     super.initState();
@@ -480,21 +482,41 @@ class _PaymentStatusScreenState extends State<PaymentStatusScreen> {
 
   bool get _terminal =>
       ['reussi', 'echoue', 'expire', 'annule'].contains(_payment['statut']);
-  Future<void> _sync() async {
-    if (_checking || _terminal) return;
+  Future<void> _sync({bool relancer = false}) async {
+    if (_checking || _terminal || _pollingStopped) return;
     _checking = true;
     try {
       final data = await ClientApi.request(
         'POST',
         '/paiements/${_payment['id']}/synchroniser',
+        body: relancer ? {'relancer': true} : null,
       );
       final response = data as Map<String, dynamic>;
+      if (response['code'] == 'POLLING_TERMINE') {
+        if (mounted) {
+          setState(() {
+            _pollingStopped = true;
+            _statusMessage = response['message']?.toString();
+          });
+        }
+        _timer?.cancel();
+        return;
+      }
       final payment = response['paiement'] is Map<String, dynamic>
           ? response['paiement'] as Map<String, dynamic>
           : response;
-      if (mounted) setState(() => _payment = payment);
-    } catch (_) {
-      // Le polling continue : un échec réseau ponctuel ne clôt pas le paiement.
+      if (mounted) {
+        setState(() {
+          _payment = payment;
+          _statusMessage = null;
+        });
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _statusMessage = error.toString().replaceFirst('Exception: ', '');
+        });
+      }
     } finally {
       _checking = false;
     }
@@ -543,6 +565,46 @@ class _PaymentStatusScreenState extends State<PaymentStatusScreen> {
             ),
             const SizedBox(height: 20),
             if (!_terminal) const CircularProgressIndicator(color: _flame500),
+            if (!_terminal) ...[
+              const SizedBox(height: 14),
+              Text(
+                _payment['mode_test'] == true
+                    ? 'Mode Sandbox : aucun message réel n’est envoyé au téléphone. MTN simule le résultat.'
+                    : 'Validez la demande reçue sur votre téléphone MTN MoMo.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: _inkSoft),
+              ),
+              if (_statusMessage != null) ...[
+                const SizedBox(height: 10),
+                Text(
+                  _statusMessage!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: _flame600, fontSize: 12),
+                ),
+              ],
+              const SizedBox(height: 18),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (_statusMessage != null)
+                    TextButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _pollingStopped = false;
+                          _statusMessage = null;
+                        });
+                        _sync(relancer: true);
+                      },
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Revérifier'),
+                    ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Revenir aux commandes'),
+                  ),
+                ],
+              ),
+            ],
             if (_terminal)
               FilledButton(
                 onPressed: () => Navigator.pop(context),
@@ -1200,7 +1262,7 @@ Color _statusColor(String status) =>
     _flame500;
 String _paymentLabel(String status) =>
     {
-      'initie': 'Demande envoyée. Confirmez sur votre téléphone.',
+      'initie': 'Demande envoyée à MTN. Validation en cours…',
       'en_attente': 'Confirmation MTN MoMo en attente…',
       'reussi': 'Paiement confirmé',
       'echoue': 'Le paiement a échoué',

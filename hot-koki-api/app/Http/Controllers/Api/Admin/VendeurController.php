@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Vendeur;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -67,6 +68,13 @@ class VendeurController extends Controller
             ]);
         });
 
+        NotificationService::envoyer(
+            $vendeur->user,
+            'compte_vendeur_cree',
+            'Bienvenue sur Hot Koki',
+            'Votre espace vendeur a été créé. Complétez votre catalogue et votre disponibilité.'
+        );
+
         return response()->json([
             'message' => 'Vendeur créé avec succès',
             'vendeur' => $vendeur->load('user'),
@@ -86,6 +94,7 @@ class VendeurController extends Controller
      */
     public function update(Request $request, Vendeur $vendeur)
     {
+        $ancienStatut = $vendeur->statut_compte;
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|string|max:255',
             'email' => [
@@ -136,6 +145,18 @@ class VendeurController extends Controller
                 $vendeur->user->tokens()->delete();
             }
         });
+
+        if ($request->filled('statut_compte') && $request->statut_compte !== $ancienStatut) {
+            NotificationService::envoyer(
+                $vendeur->user,
+                'statut_compte',
+                'Statut du compte vendeur',
+                $request->statut_compte === 'actif'
+                    ? 'Votre compte vendeur est maintenant actif.'
+                    : 'Votre compte vendeur a été suspendu. Contactez l’administration pour plus d’informations.',
+                ['statut' => $request->statut_compte]
+            );
+        }
 
         return response()->json([
             'message' => 'Vendeur mis à jour',

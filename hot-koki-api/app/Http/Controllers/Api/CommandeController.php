@@ -9,6 +9,7 @@ use App\Models\Commande;
 use App\Models\CommandeItem;
 use App\Models\Produit;
 use App\Models\Vendeur;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -202,6 +203,21 @@ class CommandeController extends Controller
             ], 422);
         }
 
+        $commande->load('client.user', 'vendeur.user');
+        NotificationService::envoyer(
+            $commande->client->user,
+            'commande_creee',
+            'Commande créée',
+            "Votre commande #{$commande->id} attend maintenant le paiement.",
+            ['commande_id' => $commande->id]
+        );
+        NotificationService::admins(
+            'nouvelle_commande',
+            'Nouvelle commande',
+            "La commande #{$commande->id} vient d’être créée.",
+            ['commande_id' => $commande->id]
+        );
+
         return response()->json([
             'message' => 'Commande créée, en attente de paiement',
             'commande' => $commande->load('items.complements', 'vendeur'),
@@ -278,6 +294,15 @@ class CommandeController extends Controller
         }
 
         $commande->update(['statut' => Commande::STATUT_ANNULEE]);
+
+        $commande->load('vendeur.user');
+        NotificationService::envoyer(
+            $commande->vendeur->user,
+            'commande_annulee',
+            'Commande annulée',
+            "Le client a annulé la commande #{$commande->id}.",
+            ['commande_id' => $commande->id]
+        );
 
         return response()->json([
             'message' => 'Commande annulée.',

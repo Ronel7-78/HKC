@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\ClientController;
 use App\Http\Controllers\Api\ClientVendeurController;
 use App\Http\Controllers\Api\CommandeController;
 use App\Http\Controllers\Api\MtnMomoWebhookController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PaiementController;
 use App\Http\Controllers\Api\VendeurCommandeController;
 use App\Http\Controllers\Api\VendeurController;
@@ -24,7 +25,7 @@ use Illuminate\Support\Facades\Route;
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::get('/catalogue', [CatalogueController::class, 'index']);
-Route::post('/webhooks/mtn-momo/{transactionHash}', MtnMomoWebhookController::class)
+Route::match(['post', 'put'], '/webhooks/mtn-momo/{transactionHash}', MtnMomoWebhookController::class)
     ->where('transactionHash', '[A-Za-z0-9]{64}');
 
 // Routes de l'utilisateur authentifie
@@ -34,6 +35,9 @@ Route::middleware('auth:sanctum')->group(function () {
     });
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::patch('/notifications/tout-lire', [NotificationController::class, 'toutMarquerLu']);
+    Route::patch('/notifications/{notification}/lire', [NotificationController::class, 'marquerLue']);
 
     // Routes reservees au client
     Route::middleware('role:client')->prefix('client')->group(function () {

@@ -133,6 +133,30 @@ class PaiementTest extends TestCase
             ->assertJsonPath('paiement.telephone_masque', '46733****401');
     }
 
+    public function test_tentative_restee_initiee_est_renvoyee_a_mtn_au_lieu_de_rester_bloquee(): void
+    {
+        [$user, $client] = $this->creerClient();
+        $commande = $this->creerCommande($client);
+        $paiement = $commande->paiements()->create([
+            'fournisseur' => Paiement::FOURNISSEUR_MTN_MOMO,
+            'telephone' => '46733123401',
+            'montant' => $commande->total,
+            'devise' => 'XAF',
+            'statut' => Paiement::STATUT_INITIE,
+        ]);
+        Sanctum::actingAs($user);
+
+        $this->postJson("/api/commandes/{$commande->id}/paiements", [
+            'fournisseur' => Paiement::FOURNISSEUR_MTN_MOMO,
+            'telephone' => '46733123401',
+        ])->assertOk()->assertJsonPath('paiement.statut', Paiement::STATUT_EN_ATTENTE);
+
+        Http::assertSent(fn (Request $request) => str_ends_with(
+            $request->url(),
+            '/collection/v1_0/requesttopay'
+        ) && $request->hasHeader('X-Reference-Id', $paiement->reference_interne));
+    }
+
     public function test_client_ne_peut_pas_creer_ou_consulter_le_paiement_dun_autre_client(): void
     {
         [$premierUser] = $this->creerClient();

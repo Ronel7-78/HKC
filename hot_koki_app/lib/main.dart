@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -9,6 +10,7 @@ import 'admin_screens.dart';
 import 'auth_screen.dart';
 import 'cart_screen.dart';
 import 'client_screens.dart';
+import 'notifications_screen.dart';
 import 'seller_screens.dart';
 import 'vendor_screens.dart';
 
@@ -55,6 +57,11 @@ class HotKokiTheme {
         secondary: HotKokiColors.leaf700,
         surface: Colors.white,
       ),
+      navigationBarTheme: const NavigationBarThemeData(
+        labelTextStyle: WidgetStatePropertyAll(
+          TextStyle(fontSize: 9, fontWeight: FontWeight.w700),
+        ),
+      ),
       textTheme: GoogleFonts.manropeTextTheme().copyWith(
         headlineSmall: TextStyle(
           color: HotKokiColors.leaf900,
@@ -92,6 +99,7 @@ class _MainShellState extends State<MainShell> {
   UserRole? _role;
   String? _userName;
   bool _restoringSession = true;
+  Timer? _notificationTimer;
 
   @override
   void initState() {
@@ -114,6 +122,8 @@ class _MainShellState extends State<MainShell> {
             );
             _userName = user['name']?.toString();
           });
+          NotificationStore.refresh();
+          _startNotificationRefresh();
         }
       }
     } catch (_) {
@@ -121,14 +131,22 @@ class _MainShellState extends State<MainShell> {
         await ClientApi.storage.delete(key: 'auth_token');
       } catch (_) {}
     }
+    if (_role != null && _notificationTimer == null) {
+      NotificationStore.refresh();
+      _startNotificationRefresh();
+    }
     if (mounted) setState(() => _restoringSession = false);
   }
 
-  void _logout() => setState(() {
-    _role = null;
-    _userName = null;
-    _currentIndex = 0;
-  });
+  void _logout() {
+    _notificationTimer?.cancel();
+    NotificationStore.unread.value = 0;
+    setState(() {
+      _role = null;
+      _userName = null;
+      _currentIndex = 0;
+    });
+  }
 
   Future<void> _openAuth(bool register) async {
     final result = await Navigator.push<AuthResult>(
@@ -141,6 +159,22 @@ class _MainShellState extends State<MainShell> {
       _userName = result.name;
       _currentIndex = 0;
     });
+    NotificationStore.refresh();
+    _startNotificationRefresh();
+  }
+
+  void _startNotificationRefresh() {
+    _notificationTimer?.cancel();
+    _notificationTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => NotificationStore.refresh(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _notificationTimer?.cancel();
+    super.dispose();
   }
 
   List<AppTab> get _tabs {
@@ -172,11 +206,16 @@ class _MainShellState extends State<MainShell> {
               ),
             ),
           ),
-          const AppTab('Recherche', Icons.search_rounded, VendorSearchScreen()),
           AppTab(
-            'Commandes',
+            'Commande',
             Icons.receipt_long_rounded,
             const ClientOrdersScreen(),
+          ),
+          const AppTab('Recherche', Icons.search_rounded, VendorSearchScreen()),
+          const AppTab(
+            'Notification',
+            Icons.notifications_rounded,
+            NotificationsScreen(),
           ),
           AppTab(
             'Compte',
@@ -195,6 +234,11 @@ class _MainShellState extends State<MainShell> {
             'Commandes',
             Icons.receipt_long_rounded,
             const SellerOrdersScreen(),
+          ),
+          const AppTab(
+            'Notifications',
+            Icons.notifications_rounded,
+            NotificationsScreen(),
           ),
           AppTab(
             'Produits',
@@ -283,36 +327,54 @@ class _RoleNavigationBar extends StatelessWidget {
       labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
       destinations: tabs.map((tab) {
         final primary = tab.label == 'Recherche';
+        Widget withBadge(Widget icon) {
+          if (!tab.label.startsWith('Notification')) return icon;
+          return ValueListenableBuilder<int>(
+            valueListenable: NotificationStore.unread,
+            builder: (_, count, child) => Badge(
+              isLabelVisible: count > 0,
+              label: Text(count > 99 ? '99+' : '$count'),
+              backgroundColor: HotKokiColors.flame600,
+              child: child,
+            ),
+            child: icon,
+          );
+        }
+
         return NavigationDestination(
-          icon: primary
-              ? Container(
-                  width: 52,
-                  height: 52,
-                  decoration: const BoxDecoration(
-                    color: HotKokiColors.flame600,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Color(0x33D92D20),
-                        blurRadius: 12,
-                        offset: Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                  child: Icon(tab.icon, color: Colors.white, size: 29),
-                )
-              : Icon(tab.icon, size: 24),
-          selectedIcon: primary
-              ? Container(
-                  width: 52,
-                  height: 52,
-                  decoration: const BoxDecoration(
-                    color: HotKokiColors.flame600,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(tab.icon, color: Colors.white, size: 30),
-                )
-              : Icon(tab.icon, color: HotKokiColors.flame600, size: 26),
+          icon: withBadge(
+            primary
+                ? Container(
+                    width: 52,
+                    height: 52,
+                    decoration: const BoxDecoration(
+                      color: HotKokiColors.flame600,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Color(0x33D92D20),
+                          blurRadius: 12,
+                          offset: Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: Icon(tab.icon, color: Colors.white, size: 29),
+                  )
+                : Icon(tab.icon, size: 24),
+          ),
+          selectedIcon: withBadge(
+            primary
+                ? Container(
+                    width: 52,
+                    height: 52,
+                    decoration: const BoxDecoration(
+                      color: HotKokiColors.flame600,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(tab.icon, color: Colors.white, size: 30),
+                  )
+                : Icon(tab.icon, color: HotKokiColors.flame600, size: 26),
+          ),
           label: tab.label,
         );
       }).toList(),

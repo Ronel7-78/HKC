@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\NotificationService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -42,6 +43,13 @@ class Paiement extends Model
 
     protected $hidden = ['telephone', 'callback_hash', 'donnees_operateur'];
 
+    protected $appends = ['mode_test'];
+
+    public function getModeTestAttribute(): bool
+    {
+        return config('services.mtn_momo.target_environment') === 'sandbox';
+    }
+
     protected static function booted(): void
     {
         static::creating(function (Paiement $paiement) {
@@ -61,7 +69,8 @@ class Paiement extends Model
      */
     public function confirmerReussite(?string $referenceOperateur = null, array $donnees = []): void
     {
-        DB::transaction(function () use ($referenceOperateur, $donnees) {
+        $confirme = false;
+        DB::transaction(function () use ($referenceOperateur, $donnees, &$confirme) {
             $paiement = self::whereKey($this->id)->lockForUpdate()->firstOrFail();
             $commande = Commande::whereKey($paiement->commande_id)->lockForUpdate()->firstOrFail();
 
@@ -86,7 +95,26 @@ class Paiement extends Model
             ]);
 
             $commande->update(['statut' => Commande::STATUT_RECUE]);
+            $confirme = true;
         });
+
+        if ($confirme) {
+            $commande = $this->commande()->with('client.user', 'vendeur.user')->firstOrFail();
+            NotificationService::envoyer(
+                $commande->client->user,
+                'paiement_reussi',
+                'Paiement confirmé',
+                "Le paiement de la commande #{$commande->id} a été confirmé.",
+                ['commande_id' => $commande->id, 'paiement_id' => $this->id]
+            );
+            NotificationService::envoyer(
+                $commande->vendeur->user,
+                'nouvelle_commande',
+                'Nouvelle commande reçue',
+                "La commande payée #{$commande->id} peut être préparée.",
+                ['commande_id' => $commande->id]
+            );
+        }
     }
 
     public function terminer(string $statut, ?string $code = null, ?string $message = null, array $donnees = []): void
@@ -103,5 +131,14 @@ class Paiement extends Model
             'confirme_le' => now(),
             'prochaine_verification_le' => null,
         ]);
+
+        $commande = $this->commande()->with('client.user')->firstOrFail();
+        NotificationService::envoyer(
+            $commande->client->user,
+            'paiement_echoue',
+            'Paiement non abouti',
+            $message ?: "Le paiement de la commande #{$commande->id} n’a pas abouti.",
+            ['commande_id' => $commande->id, 'paiement_id' => $this->id, 'statut' => $statut]
+        );
     }
 }
