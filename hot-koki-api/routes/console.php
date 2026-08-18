@@ -24,6 +24,60 @@ Artisan::command('mtn:test-config', function () {
     return 0;
 })->purpose('Valider la configuration MTN MoMo sans afficher les secrets');
 
+Artisan::command('deploy:check', function () {
+    $errors = [];
+    $environment = app()->environment();
+    if (! in_array($environment, ['staging', 'production'], true)) {
+        $errors[] = 'APP_ENV doit être staging ou production.';
+    }
+    if (config('app.debug')) {
+        $errors[] = 'APP_DEBUG doit être false.';
+    }
+    if (! str_starts_with((string) config('app.url'), 'https://')) {
+        $errors[] = 'APP_URL doit utiliser HTTPS.';
+    }
+    if (! config('app.key')) {
+        $errors[] = 'APP_KEY est absent.';
+    }
+    if (config('database.default') === 'sqlite') {
+        $errors[] = 'SQLite ne doit pas être utilisé pour cet environnement.';
+    }
+    if (config('cache.default') === 'array') {
+        $errors[] = 'Le cache array ne convient pas au déploiement.';
+    }
+    if (config('queue.default') === 'sync') {
+        $errors[] = 'La queue sync ne convient pas aux paiements.';
+    }
+    if (config('filesystems.default') === 'local') {
+        $errors[] = 'Le stockage local n’est pas persistant en environnement distribué.';
+    }
+    foreach (['base_url', 'subscription_key', 'api_user', 'api_key', 'callback_base_url'] as $key) {
+        if (! config('services.mtn_momo.'.$key)) {
+            $errors[] = 'Configuration MTN absente : '.$key.'.';
+        }
+    }
+    if ($environment === 'production') {
+        if (config('services.mtn_momo.target_environment') === 'sandbox') {
+            $errors[] = 'MTN sandbox est interdit en production.';
+        }
+        if (! config('services.mtn_momo.callback_allowed_ips')) {
+            $errors[] = 'Les IP de callback MTN doivent être autorisées en production.';
+        }
+    }
+
+    if ($errors) {
+        foreach ($errors as $error) {
+            $this->error($error);
+        }
+
+        return 1;
+    }
+
+    $this->info('Configuration de déploiement valide pour '.$environment.'.');
+
+    return 0;
+})->purpose('Vérifier les exigences avant un déploiement staging ou production');
+
 Schedule::call(function () {
     Paiement::query()
         ->whereIn('statut', Paiement::STATUTS_ACTIFS)

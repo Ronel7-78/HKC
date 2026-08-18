@@ -1,0 +1,5 @@
+# Copiez ce fichier vers android/key.properties sans le versionner.
+storePassword=
+keyPassword=
+keyAlias=hotkoki
+storeFile=/chemin/absolu/vers/hot-koki-upload.jks

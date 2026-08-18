@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\CatalogueController;
 use App\Http\Controllers\Api\ClientController;
 use App\Http\Controllers\Api\ClientVendeurController;
 use App\Http\Controllers\Api\CommandeController;
+use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\MtnMomoWebhookController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PaiementController;
@@ -26,6 +27,7 @@ use Illuminate\Support\Facades\Route;
 // Routes publiques
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::get('/health', HealthController::class);
 Route::get('/catalogue', [CatalogueController::class, 'index']);
 Route::get('/accueil', AccueilController::class);
 Route::match(['post', 'put'], '/webhooks/mtn-momo/{transactionHash}', MtnMomoWebhookController::class)
