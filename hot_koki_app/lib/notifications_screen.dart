@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'client_screens.dart';
 
@@ -10,11 +11,27 @@ const _inkSoft = Color(0xFF6B5F4E);
 
 class NotificationStore {
   static final unread = ValueNotifier<int>(0);
+  static bool _initialized = false;
+
+  static void reset() {
+    unread.value = 0;
+    _initialized = false;
+  }
 
   static Future<void> refresh() async {
     try {
       final data = await ClientApi.request('GET', '/notifications');
-      unread.value = int.tryParse(data['non_lues'].toString()) ?? 0;
+      final count = int.tryParse(data['non_lues'].toString()) ?? 0;
+      if (_initialized && count > unread.value) {
+        try {
+          await SystemSound.play(SystemSoundType.alert);
+          await HapticFeedback.mediumImpact();
+        } catch (_) {
+          // Le compteur reste fonctionnel si le son système est indisponible.
+        }
+      }
+      unread.value = count;
+      _initialized = true;
     } catch (_) {}
   }
 }

@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Api\AccueilController;
+use App\Http\Controllers\Api\Admin\AnnonceController as AdminAnnonceController;
 use App\Http\Controllers\Api\Admin\ComplementController;
 use App\Http\Controllers\Api\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Api\Admin\ProduitController as AdminProduitController;
@@ -25,6 +27,7 @@ use Illuminate\Support\Facades\Route;
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::get('/catalogue', [CatalogueController::class, 'index']);
+Route::get('/accueil', AccueilController::class);
 Route::match(['post', 'put'], '/webhooks/mtn-momo/{transactionHash}', MtnMomoWebhookController::class)
     ->where('transactionHash', '[A-Za-z0-9]{64}');
 
@@ -46,6 +49,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/vendeurs', [ClientVendeurController::class, 'index']);
         Route::get('/vendeurs/{vendeur}', [ClientVendeurController::class, 'show']);
         Route::get('/avis', [AvisController::class, 'index']);
+        Route::get('/catalogue', [CatalogueController::class, 'client']);
     });
 
     // Routes reservees au vendeur
@@ -93,6 +97,7 @@ Route::middleware(['auth:sanctum', 'isAdmin'])->prefix('admin')->group(function 
 
     // Catalogue (admin uniquement)
     Route::apiResource('produits', AdminProduitController::class);
+    Route::apiResource('annonces', AdminAnnonceController::class)->except('show');
     Route::get('/complements', [ComplementController::class, 'index']);
     Route::post('/complements', [ComplementController::class, 'store']);
     Route::delete('/complements/{id}', [ComplementController::class, 'destroy']);

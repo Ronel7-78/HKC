@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'api_config.dart';
+import 'admin_announcements_screen.dart';
 import 'app_feedback.dart';
 import 'client_screens.dart';
 import 'notifications_screen.dart';
@@ -677,6 +678,17 @@ class _AdminCatalogueScreenState extends State<AdminCatalogueScreen> {
                   ),
                 ),
               ),
+              IconButton.filledTonal(
+                tooltip: 'Gérer les annonces',
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const AdminAnnouncementsScreen(),
+                  ),
+                ),
+                icon: const Icon(Icons.campaign_outlined),
+              ),
+              const SizedBox(width: 7),
               IconButton.filledTonal(
                 tooltip: 'Ajouter un complément',
                 onPressed: _addComplement,

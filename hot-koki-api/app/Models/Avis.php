@@ -14,4 +14,14 @@ class Avis extends Model
     {
         return $this->belongsTo(Commande::class);
     }
+
+    public function client()
+    {
+        return $this->belongsTo(Client::class);
+    }
+
+    public function vendeur()
+    {
+        return $this->belongsTo(Vendeur::class);
+    }
 }

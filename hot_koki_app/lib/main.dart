@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 
 import 'api_config.dart';
 import 'admin_screens.dart';
+import 'app_feedback.dart';
 import 'auth_screen.dart';
 import 'cart_screen.dart';
 import 'client_screens.dart';
@@ -140,7 +141,7 @@ class _MainShellState extends State<MainShell> {
 
   void _logout() {
     _notificationTimer?.cancel();
-    NotificationStore.unread.value = 0;
+    NotificationStore.reset();
     setState(() {
       _role = null;
       _userName = null;
@@ -402,12 +403,14 @@ class ClientHomeScreen extends StatefulWidget {
 
 class _ClientHomeScreenState extends State<ClientHomeScreen> {
   late Future<List<ProductData>> _products;
+  late Future<HomeContent> _content;
   late Future<String?> _deliveryAddress;
 
   @override
   void initState() {
     super.initState();
-    _products = CatalogueApi.fetchProducts();
+    _products = CatalogueApi.fetchProducts(widget.userName != null);
+    _content = HomeApi.fetch();
     _deliveryAddress = _loadDeliveryAddress();
   }
 
@@ -416,6 +419,85 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.userName != widget.userName) {
       _deliveryAddress = _loadDeliveryAddress();
+      _products = CatalogueApi.fetchProducts(widget.userName != null);
+    }
+  }
+
+  Future<void> _addFromHome(ProductData product) async {
+    if (widget.userName == null) {
+      widget.onLogin?.call();
+      return;
+    }
+    if (!product.available || product.vendorId == null || product.id == null) {
+      await AppFeedback.error(
+        context,
+        message: 'Aucun vendeur disponible ne propose actuellement ce plat.',
+      );
+      return;
+    }
+    if (product.complements.isEmpty) {
+      await AppFeedback.error(
+        context,
+        message: 'Aucun complément n’est configuré pour ce produit.',
+      );
+      return;
+    }
+    final complement = await showModalBottomSheet<HomeComplement>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Choisissez un complément',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              ...product.complements.map(
+                (item) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(
+                    Icons.radio_button_unchecked,
+                    color: HotKokiColors.flame600,
+                  ),
+                  title: Text(item.name),
+                  onTap: () => Navigator.pop(context, item),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (complement == null || !mounted) return;
+    final added = CartStore.instance.add(
+      CartItem(
+        vendorId: product.vendorId!,
+        vendorName: product.vendorName!,
+        productId: product.id!,
+        productName: product.name,
+        unitPrice: product.price,
+        complementId: complement.id,
+        complementName: complement.name,
+        photo: product.photoUrl,
+      ),
+    );
+    if (!mounted) return;
+    if (added) {
+      await AppFeedback.success(
+        context,
+        title: 'Ajouté au panier',
+        message: '${product.name} a été ajouté depuis l’accueil.',
+      );
+    } else {
+      await AppFeedback.error(
+        context,
+        message: 'Terminez d’abord le panier du vendeur actuel.',
+      );
     }
   }
 
@@ -508,7 +590,12 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                const _PromoCard(),
+                FutureBuilder<HomeContent>(
+                  future: _content,
+                  builder: (_, snapshot) => _Announcements(
+                    announcements: snapshot.data?.announcements ?? const [],
+                  ),
+                ),
                 const SizedBox(height: 22),
                 const _SectionHeader(
                   title: 'Le menu du jour',
@@ -545,7 +632,9 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                             ),
                             TextButton(
                               onPressed: () => setState(
-                                () => _products = CatalogueApi.fetchProducts(),
+                                () => _products = CatalogueApi.fetchProducts(
+                                  widget.userName != null,
+                                ),
                               ),
                               child: const Text('Réessayer'),
                             ),
@@ -555,7 +644,10 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                     ...products.map(
                       (product) => Padding(
                         padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-                        child: ProductCard(product: product),
+                        child: ProductCard(
+                          product: product,
+                          onAdd: () => _addFromHome(product),
+                        ),
                       ),
                     ),
                   ],
@@ -569,7 +661,15 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
               child: _SectionHeader(title: 'Avis récents', action: 'Voir tout'),
             ),
           ),
-          const SliverToBoxAdapter(child: _ReviewsList()),
+          SliverToBoxAdapter(
+            child: FutureBuilder<HomeContent>(
+              future: _content,
+              builder: (_, snapshot) => _ReviewsList(
+                reviews: snapshot.data?.reviews ?? const [],
+                loading: snapshot.connectionState == ConnectionState.waiting,
+              ),
+            ),
+          ),
           const SliverToBoxAdapter(child: SizedBox(height: 24)),
         ],
       ),
@@ -726,60 +826,100 @@ class _AddressRow extends StatelessWidget {
   }
 }
 
-class _PromoCard extends StatelessWidget {
-  const _PromoCard();
+class _Announcements extends StatelessWidget {
+  const _Announcements({required this.announcements});
+  final List<HomeAnnouncement> announcements;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: const LinearGradient(
-          colors: [HotKokiColors.flame500, HotKokiColors.flame600],
+    if (announcements.isEmpty) return const SizedBox.shrink();
+    return SizedBox(
+      height: 145,
+      child: PageView.builder(
+        controller: PageController(viewportFraction: .94),
+        itemCount: announcements.length,
+        itemBuilder: (_, index) => Padding(
+          padding: const EdgeInsets.only(right: 9),
+          child: _AnnouncementCard(announcement: announcements[index]),
         ),
-      ),
-      child: const Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'NOUVEAUTÉ',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1,
-                  ),
-                ),
-                SizedBox(height: 5),
-                Text(
-                  'Eru de retour',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 19,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                SizedBox(height: 3),
-                Text(
-                  'Préparé ce matin — quantité limitée.',
-                  style: TextStyle(color: Colors.white, fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-          Icon(
-            Icons.local_fire_department_rounded,
-            size: 58,
-            color: Colors.white24,
-          ),
-        ],
       ),
     );
   }
+}
+
+class _AnnouncementCard extends StatelessWidget {
+  const _AnnouncementCard({required this.announcement});
+  final HomeAnnouncement announcement;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(18),
+    clipBehavior: Clip.antiAlias,
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(20),
+      gradient: const LinearGradient(
+        colors: [HotKokiColors.flame500, HotKokiColors.flame600],
+      ),
+    ),
+    child: Stack(
+      children: [
+        if (announcement.imageUrl != null)
+          Positioned(
+            right: -20,
+            top: -30,
+            bottom: -30,
+            width: 145,
+            child: Opacity(
+              opacity: .28,
+              child: Image.network(announcement.imageUrl!, fit: BoxFit.cover),
+            ),
+          ),
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    announcement.label.toUpperCase(),
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    announcement.title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 19,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    announcement.description,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              announcement.type == 'produit'
+                  ? Icons.restaurant_rounded
+                  : Icons.campaign_rounded,
+              size: 58,
+              color: Colors.white24,
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
 }
 
 class _SectionHeader extends StatelessWidget {
@@ -822,8 +962,12 @@ class ProductData {
     this.description,
     this.sides,
     this.available,
-    this.eta,
-  );
+    this.eta, {
+    this.id,
+    this.vendorId,
+    this.vendorName,
+    this.complements = const [],
+  });
 
   final String? photoUrl;
   final String name;
@@ -832,11 +976,16 @@ class ProductData {
   final List<String> sides;
   final bool available;
   final String eta;
+  final int? id;
+  final int? vendorId;
+  final String? vendorName;
+  final List<HomeComplement> complements;
 
   factory ProductData.fromJson(Map<String, dynamic> json) {
     final complements = (json['complements'] as List<dynamic>? ?? [])
-        .map((item) => (item as Map<String, dynamic>)['nom'].toString())
+        .map((item) => HomeComplement.fromJson(item as Map<String, dynamic>))
         .toList();
+    final vendor = json['vendeur_choisi'] as Map<String, dynamic>?;
 
     return ProductData(
       json['photo'] == null || json['photo'].toString().isEmpty
@@ -845,20 +994,123 @@ class ProductData {
       json['nom'].toString(),
       double.parse(json['prix'].toString()).round(),
       (json['description'] ?? 'Préparé avec soin par nos vendeurs.').toString(),
-      complements,
+      complements.map((item) => item.name).toList(),
       json['disponible'] == true,
       json['disponible'] == true ? 'Disponible' : 'Indisponible',
+      id: int.tryParse(json['id'].toString()),
+      vendorId: vendor == null ? null : int.tryParse(vendor['id'].toString()),
+      vendorName: vendor?['nom_boutique']?.toString(),
+      complements: complements,
+    );
+  }
+}
+
+class HomeComplement {
+  const HomeComplement(this.id, this.name);
+  final int id;
+  final String name;
+
+  factory HomeComplement.fromJson(Map<String, dynamic> json) =>
+      HomeComplement(int.parse(json['id'].toString()), json['nom'].toString());
+}
+
+class HomeAnnouncement {
+  const HomeAnnouncement({
+    required this.type,
+    required this.label,
+    required this.title,
+    required this.description,
+    this.imageUrl,
+  });
+  final String type;
+  final String label;
+  final String title;
+  final String description;
+  final String? imageUrl;
+
+  factory HomeAnnouncement.fromJson(Map<String, dynamic> json) {
+    final product = json['produit'] as Map<String, dynamic>?;
+    final image = json['image']?.toString().trim().isNotEmpty == true
+        ? json['image'].toString()
+        : product?['photo']?.toString();
+    return HomeAnnouncement(
+      type: json['type']?.toString() ?? 'promotion',
+      label: json['etiquette']?.toString().trim().isNotEmpty == true
+          ? json['etiquette'].toString()
+          : 'À découvrir',
+      title: json['titre'].toString(),
+      description: json['description']?.toString() ?? '',
+      imageUrl: image == null || image.isEmpty
+          ? null
+          : ApiConfig.resolveMediaUrl(image),
+    );
+  }
+}
+
+class HomeReview {
+  const HomeReview({
+    required this.name,
+    required this.rating,
+    required this.comment,
+  });
+  final String name;
+  final int rating;
+  final String comment;
+  String get initials => name
+      .split(RegExp(r'\s+'))
+      .where((part) => part.isNotEmpty)
+      .take(2)
+      .map((part) => part[0].toUpperCase())
+      .join();
+
+  factory HomeReview.fromJson(Map<String, dynamic> json) {
+    final client = json['client'] as Map<String, dynamic>?;
+    final user = client?['user'] as Map<String, dynamic>?;
+    return HomeReview(
+      name: user?['name']?.toString() ?? 'Client Hot Koki',
+      rating: int.tryParse(json['note'].toString()) ?? 0,
+      comment: json['commentaire']?.toString() ?? '',
+    );
+  }
+}
+
+class HomeContent {
+  const HomeContent({required this.announcements, required this.reviews});
+  final List<HomeAnnouncement> announcements;
+  final List<HomeReview> reviews;
+}
+
+class HomeApi {
+  static Future<HomeContent> fetch() async {
+    final response = await http
+        .get(Uri.parse('${ApiConfig.baseUrl}/accueil'))
+        .timeout(const Duration(seconds: 8));
+    if (response.statusCode != 200) throw Exception('Accueil indisponible');
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    return HomeContent(
+      announcements: (body['annonces'] as List<dynamic>? ?? [])
+          .map(
+            (item) => HomeAnnouncement.fromJson(item as Map<String, dynamic>),
+          )
+          .toList(),
+      reviews: (body['avis'] as List<dynamic>? ?? [])
+          .map((item) => HomeReview.fromJson(item as Map<String, dynamic>))
+          .toList(),
     );
   }
 }
 
 class CatalogueApi {
-  static Future<List<ProductData>> fetchProducts() async {
-    final response = await http
-        .get(Uri.parse('${ApiConfig.baseUrl}/catalogue'))
-        .timeout(const Duration(seconds: 8));
-    if (response.statusCode != 200) throw Exception('Catalogue indisponible');
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
+  static Future<List<ProductData>> fetchProducts(bool authenticated) async {
+    final dynamic raw = authenticated
+        ? await ClientApi.request('GET', '/client/catalogue')
+        : jsonDecode(
+            (await http
+                    .get(Uri.parse('${ApiConfig.baseUrl}/catalogue'))
+                    .timeout(const Duration(seconds: 8)))
+                .body,
+          );
+    final body = raw as Map<String, dynamic>;
     return (body['produits'] as List<dynamic>)
         .map((item) => ProductData.fromJson(item as Map<String, dynamic>))
         .toList();
@@ -866,9 +1118,10 @@ class CatalogueApi {
 }
 
 class ProductCard extends StatelessWidget {
-  const ProductCard({super.key, required this.product});
+  const ProductCard({super.key, required this.product, required this.onAdd});
 
   final ProductData product;
+  final VoidCallback onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -970,7 +1223,7 @@ class ProductCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 10),
                       InkWell(
-                        onTap: product.available ? () {} : null,
+                        onTap: product.available ? onAdd : null,
                         borderRadius: BorderRadius.circular(20),
                         child: CircleAvatar(
                           radius: 15,
@@ -1056,19 +1309,27 @@ class _AvailabilityBadge extends StatelessWidget {
 }
 
 class _ReviewsList extends StatelessWidget {
-  const _ReviewsList();
+  const _ReviewsList({required this.reviews, required this.loading});
+  final List<HomeReview> reviews;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
-    const reviews = [
-      (
-        'EA',
-        'Émile A.',
-        'Koki toujours chaud à la livraison, franchement top.',
-      ),
-      ('MF', 'Marie F.', 'Le koki spicy est devenu mon péché mignon du soir.'),
-      ('JD', 'Joel D.', 'Livraison un peu longue mais le goût compense.'),
-    ];
+    if (loading) {
+      return const SizedBox(
+        height: 90,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (reviews.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: Text(
+          'Les avis publiés après livraison apparaîtront ici.',
+          style: TextStyle(color: HotKokiColors.inkSoft),
+        ),
+      );
+    }
 
     return SizedBox(
       height: 118,
@@ -1095,7 +1356,7 @@ class _ReviewsList extends StatelessWidget {
                       radius: 13,
                       backgroundColor: HotKokiColors.leaf700,
                       child: Text(
-                        review.$1,
+                        review.initials,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 9,
@@ -1105,16 +1366,16 @@ class _ReviewsList extends StatelessWidget {
                     ),
                     const SizedBox(width: 7),
                     Text(
-                      review.$2,
+                      review.name,
                       style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     const Spacer(),
-                    const Text(
-                      '★★★★★',
-                      style: TextStyle(
+                    Text(
+                      '${List.filled(review.rating, '★').join()}${List.filled(5 - review.rating, '☆').join()}',
+                      style: const TextStyle(
                         color: HotKokiColors.flame600,
                         fontSize: 10,
                       ),
@@ -1123,7 +1384,7 @@ class _ReviewsList extends StatelessWidget {
                 ),
                 const SizedBox(height: 9),
                 Text(
-                  review.$3,
+                  review.comment,
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
