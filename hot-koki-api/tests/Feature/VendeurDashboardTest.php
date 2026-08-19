@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Avis;
 use App\Models\Client;
 use App\Models\Commande;
+use App\Models\Paiement;
 use App\Models\User;
 use App\Models\Vendeur;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -44,12 +45,24 @@ class VendeurDashboardTest extends TestCase
             'note' => 5,
             'commentaire' => 'Excellent.',
         ]);
+        $commande->paiements()->create([
+            'fournisseur' => Paiement::FOURNISSEUR_MTN_MOMO,
+            'telephone' => '237670000001',
+            'montant' => 1300,
+            'devise' => 'XAF',
+            'statut' => Paiement::STATUT_REUSSI,
+            'confirme_le' => now(),
+        ]);
         Sanctum::actingAs($vendeurUser);
 
         $this->getJson('/api/vendeur/dashboard')
             ->assertOk()
             ->assertJsonPath('statistiques.commandes_du_jour', 1)
             ->assertJsonPath('statistiques.nombre_avis', 1)
+            ->assertJsonPath('revenus.jour', 1300)
+            ->assertJsonPath('revenus.semaine', 1300)
+            ->assertJsonPath('revenus.mois', 1300)
+            ->assertJsonPath('revenus.total', 1300)
             ->assertJsonCount(1, 'avis_recents');
 
         $this->getJson('/api/vendeur/avis')

@@ -20,6 +20,7 @@ class AdminAnnouncementsScreen extends StatefulWidget {
 
 class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
   late Future<List<dynamic>> _future;
+  final Set<int> _deletingIds = {};
 
   @override
   void initState() {
@@ -59,17 +60,21 @@ class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
       ),
     );
     if (confirmed != true) return;
+    final id = int.parse(item['id'].toString());
+    setState(() => _deletingIds.add(id));
     try {
-      await ClientApi.request('DELETE', '/admin/annonces/${item['id']}');
+      await ClientApi.request('DELETE', '/admin/annonces/$id');
       if (!mounted) return;
+      setState(_reload);
       await AppFeedback.success(
         context,
         title: 'Annonce supprimée',
         message: 'Elle n’apparaît plus sur la page d’accueil.',
       );
-      setState(_reload);
     } catch (error) {
       if (mounted) await AppFeedback.error(context, message: error);
+    } finally {
+      if (mounted) setState(() => _deletingIds.remove(id));
     }
   }
 
@@ -115,6 +120,7 @@ class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
           separatorBuilder: (_, _) => const SizedBox(height: 10),
           itemBuilder: (_, index) {
             final item = items[index] as Map<String, dynamic>;
+            final id = int.parse(item['id'].toString());
             final image = item['image']?.toString();
             final product = item['produit'] as Map<String, dynamic>?;
             final productImage = product?['photo']?.toString();
@@ -143,8 +149,16 @@ class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
                   '${item['type'] == 'produit' ? 'Plat' : 'Promotion'} · ${item['active'] == true ? 'Visible' : 'Masquée'}',
                 ),
                 trailing: IconButton(
-                  onPressed: () => _delete(item),
-                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  onPressed: _deletingIds.contains(id)
+                      ? null
+                      : () => _delete(item),
+                  icon: _deletingIds.contains(id)
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.delete_outline, color: Colors.red),
                 ),
               ),
             );

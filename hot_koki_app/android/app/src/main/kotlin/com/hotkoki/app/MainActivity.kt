@@ -1,4 +1,4 @@
-package com.hotkoki.hot_koki_app
+package com.hotkoki.app
 
 import io.flutter.embedding.android.FlutterActivity
 

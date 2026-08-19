@@ -57,6 +57,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         }
         final data = snapshot.data!;
         final stats = data['statistiques'] as Map<String, dynamic>;
+        final revenues = data['revenus'] as Map<String, dynamic>? ?? {};
+        final vendorRevenues =
+            data['revenus_par_vendeur'] as List<dynamic>? ?? const [];
         final vendors = data['vendeurs_recents'] as List<dynamic>;
         final orders = data['commandes_recentes'] as List<dynamic>;
         return RefreshIndicator(
@@ -111,6 +114,41 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ],
               ),
               const SizedBox(height: 17),
+              const _AdminSectionTitle('Chiffre d’affaires confirmé'),
+              const SizedBox(height: 9),
+              GridView.count(
+                crossAxisCount: 2,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+                childAspectRatio: 1.4,
+                children: [
+                  _StatCard(
+                    icon: Icons.today_rounded,
+                    label: 'Aujourd’hui',
+                    value: '${_money(revenues['jour'])} F',
+                  ),
+                  _StatCard(
+                    icon: Icons.date_range_rounded,
+                    label: 'Cette semaine',
+                    value: '${_money(revenues['semaine'])} F',
+                  ),
+                  _StatCard(
+                    icon: Icons.calendar_month_rounded,
+                    label: 'Ce mois',
+                    value: '${_money(revenues['mois'])} F',
+                  ),
+                  _StatCard(
+                    icon: Icons.account_balance_wallet_outlined,
+                    label: 'Total plateforme',
+                    value: '${_money(revenues['total'])} F',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 22),
+              const _AdminSectionTitle('Activité'),
+              const SizedBox(height: 9),
               GridView.count(
                 crossAxisCount: 2,
                 shrinkWrap: true,
@@ -130,9 +168,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     value: '${stats['commandes_du_jour']}',
                   ),
                   _StatCard(
-                    icon: Icons.payments_outlined,
-                    label: 'CA du jour',
-                    value: '${_money(stats['chiffre_affaires_du_jour'])} F',
+                    icon: Icons.verified_outlined,
+                    label: 'Paiements réussis',
+                    value: '${revenues['paiements_reussis'] ?? 0}',
                   ),
                   _StatCard(
                     icon: Icons.people_outline,
@@ -141,6 +179,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   ),
                 ],
               ),
+              const SizedBox(height: 24),
+              const _AdminSectionTitle('Chiffre d’affaires par vendeur'),
+              const SizedBox(height: 9),
+              if (vendorRevenues.isEmpty)
+                const Text(
+                  'Aucun vendeur à afficher.',
+                  style: TextStyle(color: _inkSoft),
+                )
+              else
+                ...vendorRevenues.map(
+                  (raw) =>
+                      _VendorRevenueRow(revenue: raw as Map<String, dynamic>),
+                ),
               const SizedBox(height: 24),
               const _AdminSectionTitle('Vendeurs récents'),
               const SizedBox(height: 9),
@@ -1436,6 +1487,97 @@ class _VendorSummary extends StatelessWidget {
       ),
     );
   }
+}
+
+class _VendorRevenueRow extends StatelessWidget {
+  const _VendorRevenueRow({required this.revenue});
+  final Map<String, dynamic> revenue;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const CircleAvatar(
+                backgroundColor: _leaf100,
+                child: Icon(Icons.storefront, color: _leaf700),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      revenue['nom_boutique']?.toString() ?? 'Vendeur',
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                    Text(
+                      revenue['responsable']?.toString() ?? 'Responsable',
+                      style: const TextStyle(color: _inkSoft, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                '${_money(revenue['total'])} F',
+                style: const TextStyle(
+                  color: _flame600,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _RevenueValue(
+                  label: 'Aujourd’hui',
+                  value: revenue['jour'],
+                ),
+              ),
+              Expanded(
+                child: _RevenueValue(
+                  label: 'Semaine',
+                  value: revenue['semaine'],
+                ),
+              ),
+              Expanded(
+                child: _RevenueValue(label: 'Mois', value: revenue['mois']),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _RevenueValue extends StatelessWidget {
+  const _RevenueValue({required this.label, required this.value});
+  final String label;
+  final dynamic value;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(label, style: const TextStyle(color: _inkSoft, fontSize: 10)),
+      Text(
+        '${_money(value)} F',
+        maxLines: 1,
+        style: const TextStyle(
+          color: _leaf900,
+          fontSize: 13,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    ],
+  );
 }
 
 class _OrderSummary extends StatelessWidget {

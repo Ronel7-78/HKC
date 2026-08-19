@@ -71,6 +71,7 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
         final data = snapshot.data!;
         final seller = data['vendeur'] as Map<String, dynamic>;
         final stats = data['statistiques'] as Map<String, dynamic>;
+        final revenues = data['revenus'] as Map<String, dynamic>? ?? {};
         final orders = data['commandes_recentes'] as List<dynamic>;
         final reviews = data['avis_recents'] as List<dynamic>;
         return RefreshIndicator(
@@ -150,6 +151,41 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
                 ),
               ),
               const SizedBox(height: 14),
+              const _SellerTitle('Chiffre d’affaires confirmé'),
+              const SizedBox(height: 9),
+              GridView.count(
+                crossAxisCount: 2,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: 9,
+                crossAxisSpacing: 9,
+                childAspectRatio: 1.45,
+                children: [
+                  _SellerStat(
+                    icon: Icons.today_rounded,
+                    label: 'Aujourd’hui',
+                    value: '${_money(revenues['jour'])} F',
+                  ),
+                  _SellerStat(
+                    icon: Icons.date_range_rounded,
+                    label: 'Cette semaine',
+                    value: '${_money(revenues['semaine'])} F',
+                  ),
+                  _SellerStat(
+                    icon: Icons.calendar_month_rounded,
+                    label: 'Ce mois',
+                    value: '${_money(revenues['mois'])} F',
+                  ),
+                  _SellerStat(
+                    icon: Icons.account_balance_wallet_outlined,
+                    label: 'Total',
+                    value: '${_money(revenues['total'])} F',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              const _SellerTitle('Activité'),
+              const SizedBox(height: 9),
               GridView.count(
                 crossAxisCount: 2,
                 shrinkWrap: true,
@@ -160,7 +196,7 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
                 children: [
                   _SellerStat(
                     icon: Icons.today,
-                    label: 'Aujourd’hui',
+                    label: 'Commandes du jour',
                     value: '${stats['commandes_du_jour']}',
                   ),
                   _SellerStat(
@@ -169,9 +205,9 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
                     value: '${stats['a_preparer']}',
                   ),
                   _SellerStat(
-                    icon: Icons.payments_outlined,
-                    label: 'Chiffre d’affaires',
-                    value: '${_money(stats['chiffre_affaires'])} F',
+                    icon: Icons.verified_outlined,
+                    label: 'Paiements réussis',
+                    value: '${revenues['paiements_reussis'] ?? 0}',
                   ),
                   _SellerStat(
                     icon: Icons.star_rounded,

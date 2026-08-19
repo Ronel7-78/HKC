@@ -24,6 +24,36 @@ Artisan::command('mtn:test-config', function () {
     return 0;
 })->purpose('Valider la configuration MTN MoMo sans afficher les secrets');
 
+Artisan::command('mtn:check-env', function () {
+    $required = [
+        'MTN_MOMO_CALLBACK_BASE_URL' => 'callback_base_url',
+        'MTN_MOMO_SUBSCRIPTION_KEY' => 'subscription_key',
+        'MTN_MOMO_API_USER' => 'api_user',
+        'MTN_MOMO_API_KEY' => 'api_key',
+    ];
+
+    $missing = [];
+    foreach ($required as $environmentName => $configName) {
+        if (blank(config('services.mtn_momo.'.$configName))) {
+            $missing[] = $environmentName;
+        }
+    }
+
+    if ($missing !== []) {
+        $this->error('Configuration MTN incomplète. Variables à renseigner dans .env :');
+        foreach ($missing as $name) {
+            $this->line(' - '.$name);
+        }
+
+        return 1;
+    }
+
+    $this->info('Toutes les variables MTN requises sont présentes.');
+    $this->comment('Aucune valeur secrète n’a été affichée et aucun appel MTN n’a été effectué.');
+
+    return 0;
+})->purpose('Vérifier la présence des secrets MTN sans les afficher ni appeler MTN');
+
 Artisan::command('deploy:check', function () {
     $errors = [];
     $environment = app()->environment();

@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 
 import 'client_screens.dart';
 import 'app_feedback.dart';
+import 'app_states.dart';
 
 const _leaf900 = Color(0xFF1F3524);
 const _leaf100 = Color(0xFFE7EEE4);
@@ -590,22 +591,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     backgroundColor: const Color(0xFFFFF8EE),
     appBar: AppBar(title: const Text('Valider la commande')),
     body: _loading
-        ? const Center(child: CircularProgressIndicator(color: _flame600))
+        ? const AppLoadingState(label: 'Calcul de votre commande…')
         : _preview == null
-        ? Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Text(
-                    _error ?? 'Aperçu indisponible',
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                TextButton(onPressed: _load, child: const Text('Réessayer')),
-              ],
-            ),
+        ? AppErrorState(
+            message: _error ?? 'L’aperçu de la commande est indisponible.',
+            onRetry: _load,
           )
         : ListView(
             padding: const EdgeInsets.all(20),
@@ -695,14 +685,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 15),
                 ),
                 child: _submitting
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
+                    ? const AppButtonLoading(label: 'Envoi sécurisé…')
                     : const Text('Commander et payer'),
               ),
               const SizedBox(height: 8),

@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'api_config.dart';
 import 'admin_screens.dart';
 import 'app_feedback.dart';
+import 'app_states.dart';
 import 'auth_screen.dart';
 import 'cart_screen.dart';
 import 'client_screens.dart';
@@ -609,13 +610,12 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
             child: FutureBuilder<List<ProductData>>(
               future: _products,
               builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const AppCardSkeleton();
+                }
                 final products = snapshot.data ?? fallbackProducts;
                 return Column(
                   children: [
-                    if (snapshot.connectionState == ConnectionState.waiting)
-                      const LinearProgressIndicator(
-                        color: HotKokiColors.flame500,
-                      ),
                     if (snapshot.hasError)
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -1317,16 +1317,20 @@ class _ReviewsList extends StatelessWidget {
   Widget build(BuildContext context) {
     if (loading) {
       return const SizedBox(
-        height: 90,
-        child: Center(child: CircularProgressIndicator()),
+        height: 118,
+        child: AppLoadingState(
+          label: 'Chargement des derniers avis…',
+          compact: true,
+        ),
       );
     }
     if (reviews.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        child: Text(
-          'Les avis publiés après livraison apparaîtront ici.',
-          style: TextStyle(color: HotKokiColors.inkSoft),
+      return const SizedBox(
+        height: 200,
+        child: AppEmptyState(
+          title: 'Pas encore d’avis',
+          message: 'Les avis publiés après livraison apparaîtront ici.',
+          icon: Icons.reviews_outlined,
         ),
       );
     }

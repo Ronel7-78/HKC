@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 
 import 'api_config.dart';
 import 'app_feedback.dart';
+import 'app_states.dart';
 
 const _leaf900 = Color(0xFF1F3524);
 const _leaf700 = Color(0xFF2E4E36);
@@ -158,20 +159,30 @@ class _ClientOrdersScreenState extends State<ClientOrdersScreen> {
             future: _orders,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(
-                  child: CircularProgressIndicator(color: _flame500),
+                return const AppLoadingState(
+                  label: 'Nous retrouvons vos commandes…',
                 );
               }
               if (snapshot.hasError) {
-                return _ErrorState(
-                  error: snapshot.error!,
-                  retry: () => setState(() {
+                return AppErrorState(
+                  message: snapshot.error.toString().replaceFirst(
+                    'Exception: ',
+                    '',
+                  ),
+                  onRetry: () => setState(() {
                     _reload();
                   }),
                 );
               }
               final orders = snapshot.data ?? [];
-              if (orders.isEmpty) return const _EmptyOrders();
+              if (orders.isEmpty) {
+                return const AppEmptyState(
+                  title: 'Aucune commande pour le moment',
+                  message:
+                      'Votre prochaine commande apparaîtra ici avec son suivi en temps réel.',
+                  icon: Icons.receipt_long_outlined,
+                );
+              }
               return RefreshIndicator(
                 onRefresh: _refresh,
                 child: ListView.separated(
@@ -360,6 +371,10 @@ class _OrderCard extends StatelessWidget {
         ],
       ),
     );
+    // Laisse l'animation de fermeture retirer complètement le champ avant de
+    // libérer son contrôleur. Sinon Flutter peut brièvement afficher son écran
+    // d'erreur rouge pendant la transition.
+    await Future<void>.delayed(const Duration(milliseconds: 250));
     phone.dispose();
     if (value == null || value.isEmpty) return;
     try {
@@ -473,10 +488,12 @@ class _PaymentStatusScreenState extends State<PaymentStatusScreen> {
   bool _checking = false;
   bool _pollingStopped = false;
   String? _statusMessage;
+  DateTime? _startedAt;
   @override
   void initState() {
     super.initState();
     _payment = widget.payment;
+    _startedAt = DateTime.now();
     _timer = Timer.periodic(const Duration(seconds: 4), (_) => _sync());
   }
 
@@ -564,9 +581,13 @@ class _PaymentStatusScreenState extends State<PaymentStatusScreen> {
               style: const TextStyle(color: _inkSoft),
             ),
             const SizedBox(height: 20),
-            if (!_terminal) const CircularProgressIndicator(color: _flame500),
+            if (!_terminal)
+              const AppLoadingState(
+                label: 'Confirmation sécurisée en cours…',
+                compact: true,
+              ),
             if (!_terminal) ...[
-              const SizedBox(height: 14),
+              const SizedBox(height: 4),
               Text(
                 _payment['mode_test'] == true
                     ? 'Mode Sandbox : aucun message réel n’est envoyé au téléphone. MTN simule le résultat.'
@@ -574,6 +595,15 @@ class _PaymentStatusScreenState extends State<PaymentStatusScreen> {
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: _inkSoft),
               ),
+              if (_startedAt != null &&
+                  DateTime.now().difference(_startedAt!).inSeconds >= 10) ...[
+                const SizedBox(height: 8),
+                const Text(
+                  'La confirmation peut prendre quelques instants. Vous pouvez quitter cet écran : le suivi continuera.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: _inkSoft, fontSize: 12),
+                ),
+              ],
               if (_statusMessage != null) ...[
                 const SizedBox(height: 10),
                 Text(
@@ -1197,24 +1227,6 @@ class _StatusChip extends StatelessWidget {
         fontSize: 10,
         fontWeight: FontWeight.w800,
       ),
-    ),
-  );
-}
-
-class _EmptyOrders extends StatelessWidget {
-  const _EmptyOrders();
-  @override
-  Widget build(BuildContext context) => const Center(
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.receipt_long_outlined, size: 52, color: _inkSoft),
-        SizedBox(height: 10),
-        Text(
-          'Aucune commande pour le moment.',
-          style: TextStyle(color: _inkSoft),
-        ),
-      ],
     ),
   );
 }

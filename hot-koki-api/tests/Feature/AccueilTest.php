@@ -61,7 +61,12 @@ class AccueilTest extends TestCase
             'description' => 'Aujourd’hui seulement',
             'active' => true,
         ])->assertCreated();
-        $this->deleteJson('/api/admin/annonces/'.$creation->json('annonce.id'))->assertOk();
+        $annonceId = $creation->json('annonce.id');
+        $this->deleteJson('/api/admin/annonces/'.$annonceId)
+            ->assertOk()
+            ->assertJsonPath('message', 'Annonce supprimée.');
+        $this->assertDatabaseMissing('annonces', ['id' => $annonceId]);
+        $this->getJson('/api/accueil')->assertJsonMissing(['id' => $annonceId]);
 
         $clientUser = User::factory()->create(['role' => 'client']);
         Client::create([
