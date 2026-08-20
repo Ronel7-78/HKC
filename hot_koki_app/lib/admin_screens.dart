@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'api_config.dart';
 import 'admin_announcements_screen.dart';
 import 'app_feedback.dart';
+import 'app_preferences.dart';
 import 'client_screens.dart';
 import 'notifications_screen.dart';
 
@@ -1318,9 +1319,9 @@ class _AdminAccountScreenState extends State<AdminAccountScreen> {
         return ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            const Text(
-              'Compte administrateur',
-              style: TextStyle(
+            Text(
+              context.tr('admin_account'),
+              style: const TextStyle(
                 color: _leaf900,
                 fontSize: 25,
                 fontWeight: FontWeight.w900,
@@ -1362,23 +1363,25 @@ class _AdminAccountScreenState extends State<AdminAccountScreen> {
                   Icons.admin_panel_settings,
                   color: _leaf700,
                 ),
-                title: const Text('Rôle'),
-                subtitle: const Text('Administrateur'),
+                title: Text(context.tr('role')),
+                subtitle: Text(context.tr('administrator')),
               ),
             ),
             Card(
               child: ListTile(
                 onTap: () => _edit(user, admin),
                 leading: const Icon(Icons.edit_outlined, color: _leaf700),
-                title: const Text('Modifier mes informations'),
+                title: Text(context.tr('edit_information')),
                 trailing: const Icon(Icons.chevron_right),
               ),
             ),
+            const SizedBox(height: 8),
+            const PreferencesCard(),
             const SizedBox(height: 20),
             OutlinedButton.icon(
               onPressed: _logout,
               icon: const Icon(Icons.logout),
-              label: const Text('Se déconnecter'),
+              label: Text(context.tr('logout')),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.red,
                 padding: const EdgeInsets.symmetric(vertical: 14),

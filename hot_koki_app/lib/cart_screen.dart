@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import 'client_screens.dart';
 import 'app_feedback.dart';
 import 'app_states.dart';
+import 'payment_method_card.dart';
 
 const _leaf900 = Color(0xFF1F3524);
 const _leaf100 = Color(0xFFE7EEE4);
@@ -669,28 +670,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ..._paymentMethods.map((method) {
                 final available = method['disponible'] == true;
                 final selected = _provider == method['code'];
-                return ListTile(
-                  onTap: available
-                      ? () => setState(
-                          () => _provider = method['code'].toString(),
-                        )
-                      : null,
-                  leading: Icon(
-                    selected
-                        ? Icons.radio_button_checked
-                        : Icons.radio_button_off,
-                    color: available ? _flame600 : Colors.grey,
-                  ),
-                  title: Text(method['nom'].toString()),
-                  subtitle: available ? null : const Text('Bientôt disponible'),
-                  trailing: Icon(
-                    method['code'] == 'orange_money'
-                        ? Icons.account_balance_wallet_rounded
-                        : Icons.phone_android_rounded,
-                    color: method['code'] == 'orange_money'
-                        ? Colors.orange.shade800
-                        : _flame600,
-                  ),
+                return PaymentMethodCard(
+                  code: method['code'].toString(),
+                  name: method['nom'].toString(),
+                  selected: selected,
+                  available: available,
+                  onTap: () =>
+                      setState(() => _provider = method['code'].toString()),
                 );
               }),
               const SizedBox(height: 8),

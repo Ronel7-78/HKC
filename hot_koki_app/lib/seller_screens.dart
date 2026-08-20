@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'app_feedback.dart';
+import 'app_preferences.dart';
 import 'client_screens.dart';
 
 const _leaf900 = Color(0xFF1F3524);
@@ -1013,11 +1014,11 @@ class _SellerAccountScreenState extends State<SellerAccountScreen> {
               ),
               child: Column(
                 children: [
-                  const Align(
+                  Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      'Ma boutique',
-                      style: TextStyle(
+                      context.tr('my_shop'),
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 20,
                         fontWeight: FontWeight.w900,
@@ -1056,38 +1057,40 @@ class _SellerAccountScreenState extends State<SellerAccountScreen> {
                 children: [
                   _AccountTile(
                     icon: Icons.phone_outlined,
-                    label: 'Téléphone',
+                    label: context.tr('phone'),
                     value: user['telephone']?.toString() ?? '—',
                   ),
                   _AccountTile(
                     icon: Icons.email_outlined,
-                    label: 'Email',
+                    label: context.tr('email'),
                     value: user['email'].toString(),
                   ),
                   _AccountTile(
                     icon: Icons.location_on_outlined,
-                    label: 'Adresse',
+                    label: context.tr('address'),
                     value: seller['adresse_texte']?.toString() ?? '—',
                   ),
                   _AccountTile(
                     icon: Icons.edit_outlined,
-                    label: 'Boutique',
-                    value: 'Modifier mes informations',
+                    label: context.tr('shop'),
+                    value: context.tr('edit_information'),
                     onTap: () => _edit(user, seller),
                   ),
                   _AccountTile(
                     icon: Icons.lock_outline,
-                    label: 'Sécurité',
-                    value: 'Modifier mon mot de passe',
+                    label: context.tr('security'),
+                    value: context.tr('change_password'),
                     onTap: _password,
                   ),
+                  const SizedBox(height: 10),
+                  const PreferencesCard(),
                   const SizedBox(height: 14),
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       onPressed: _logout,
                       icon: const Icon(Icons.logout),
-                      label: const Text('Se déconnecter'),
+                      label: Text(context.tr('logout')),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.red,
                         padding: const EdgeInsets.symmetric(vertical: 14),

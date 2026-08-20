@@ -9,7 +9,9 @@ import 'package:http/http.dart' as http;
 
 import 'api_config.dart';
 import 'app_feedback.dart';
+import 'app_preferences.dart';
 import 'app_states.dart';
+import 'payment_method_card.dart';
 
 const _leaf900 = Color(0xFF1F3524);
 const _leaf700 = Color(0xFF2E4E36);
@@ -363,20 +365,14 @@ class _OrderCard extends StatelessWidget {
             children: [
               ...methods.map((method) {
                 final available = method['disponible'] == true;
-                return ListTile(
-                  onTap: available
-                      ? () => setDialogState(
-                          () => provider = method['code'].toString(),
-                        )
-                      : null,
-                  leading: Icon(
-                    provider == method['code']
-                        ? Icons.radio_button_checked
-                        : Icons.radio_button_off,
-                    color: available ? _flame600 : Colors.grey,
+                return PaymentMethodCard(
+                  code: method['code'].toString(),
+                  name: method['nom'].toString(),
+                  selected: provider == method['code'],
+                  available: available,
+                  onTap: () => setDialogState(
+                    () => provider = method['code'].toString(),
                   ),
-                  title: Text(method['nom'].toString()),
-                  subtitle: available ? null : const Text('Bientôt disponible'),
                 );
               }),
               TextField(
@@ -807,9 +803,9 @@ class _ClientAccountScreenState extends State<ClientAccountScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'Mon compte',
-                        style: TextStyle(
+                      Text(
+                        context.tr('my_account'),
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
@@ -818,9 +814,9 @@ class _ClientAccountScreenState extends State<ClientAccountScreen> {
                       TextButton.icon(
                         onPressed: () => _edit(user, client),
                         icon: const Icon(Icons.edit, color: Colors.white),
-                        label: const Text(
-                          'Modifier',
-                          style: TextStyle(color: Colors.white),
+                        label: Text(
+                          context.tr('edit'),
+                          style: const TextStyle(color: Colors.white),
                         ),
                       ),
                     ],
@@ -855,32 +851,34 @@ class _ClientAccountScreenState extends State<ClientAccountScreen> {
                 children: [
                   _InfoTile(
                     icon: Icons.phone_outlined,
-                    label: 'Téléphone',
+                    label: context.tr('phone'),
                     value: user['telephone']?.toString() ?? '—',
                   ),
                   _InfoTile(
                     icon: Icons.email_outlined,
-                    label: 'Email',
+                    label: context.tr('email'),
                     value: user['email'].toString(),
                   ),
                   _InfoTile(
                     icon: Icons.location_on_outlined,
-                    label: 'Adresse de livraison',
+                    label: context.tr('delivery_address'),
                     value: client['adresse_texte']?.toString() ?? '—',
                   ),
                   _InfoTile(
                     icon: Icons.lock_outline,
-                    label: 'Sécurité',
-                    value: 'Modifier mon mot de passe',
+                    label: context.tr('security'),
+                    value: context.tr('change_password'),
                     onTap: _changePassword,
                   ),
+                  const SizedBox(height: 10),
+                  const PreferencesCard(),
                   const SizedBox(height: 18),
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       onPressed: _logout,
                       icon: const Icon(Icons.logout),
-                      label: const Text('Se déconnecter'),
+                      label: Text(context.tr('logout')),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.red.shade700,
                         padding: const EdgeInsets.symmetric(vertical: 14),

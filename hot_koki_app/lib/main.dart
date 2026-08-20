@@ -2,12 +2,14 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 
 import 'api_config.dart';
 import 'admin_screens.dart';
 import 'app_feedback.dart';
+import 'app_preferences.dart';
 import 'app_states.dart';
 import 'auth_screen.dart';
 import 'cart_screen.dart';
@@ -16,18 +18,31 @@ import 'notifications_screen.dart';
 import 'seller_screens.dart';
 import 'vendor_screens.dart';
 
-void main() => runApp(const HotKokiApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await AppPreferences.instance.load();
+  runApp(const HotKokiApp());
+}
 
 class HotKokiApp extends StatelessWidget {
   const HotKokiApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Hot Koki Chaud',
-      theme: HotKokiTheme.light,
-      home: const MainShell(),
+    return AnimatedBuilder(
+      animation: AppPreferences.instance,
+      builder: (context, _) => MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'Hot Koki Chaud',
+        locale: AppPreferences.instance.locale,
+        supportedLocales: const [Locale('fr'), Locale('en')],
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        theme: HotKokiTheme.light,
+        // Mode sombre désactivé jusqu'à validation de sa direction visuelle.
+        // darkTheme: HotKokiTheme.dark,
+        // themeMode: AppPreferences.instance.themeMode,
+        home: const MainShell(),
+      ),
     );
   }
 }
@@ -77,6 +92,9 @@ class HotKokiTheme {
       ),
     );
   }
+
+  // La définition du thème sombre sera recréée après discussion et validation
+  // de la palette. L'application reste explicitement sur ce thème clair.
 }
 
 class AppTab {
@@ -183,7 +201,7 @@ class _MainShellState extends State<MainShell> {
     if (_role == null) {
       return [
         AppTab(
-          'Accueil',
+          context.tr('home'),
           Icons.home_outlined,
           ClientHomeScreen(
             userName: null,
@@ -198,7 +216,7 @@ class _MainShellState extends State<MainShell> {
       case UserRole.client:
         return [
           AppTab(
-            'Accueil',
+            context.tr('home'),
             Icons.home_rounded,
             ClientHomeScreen(
               userName: _userName,
@@ -209,18 +227,22 @@ class _MainShellState extends State<MainShell> {
             ),
           ),
           AppTab(
-            'Commande',
+            context.tr('order'),
             Icons.receipt_long_rounded,
             const ClientOrdersScreen(),
           ),
-          const AppTab('Recherche', Icons.search_rounded, VendorSearchScreen()),
-          const AppTab(
-            'Notification',
+          AppTab(
+            context.tr('search'),
+            Icons.search_rounded,
+            const VendorSearchScreen(),
+          ),
+          AppTab(
+            context.tr('notification'),
             Icons.notifications_rounded,
             NotificationsScreen(),
           ),
           AppTab(
-            'Compte',
+            context.tr('account'),
             Icons.person_rounded,
             ClientAccountScreen(onLogout: _logout),
           ),
@@ -228,27 +250,27 @@ class _MainShellState extends State<MainShell> {
       case UserRole.vendeur:
         return [
           AppTab(
-            'Tableau',
+            context.tr('dashboard'),
             Icons.dashboard_rounded,
             const SellerDashboardScreen(),
           ),
           AppTab(
-            'Commandes',
+            context.tr('orders'),
             Icons.receipt_long_rounded,
             const SellerOrdersScreen(),
           ),
-          const AppTab(
-            'Notifications',
+          AppTab(
+            context.tr('notifications'),
             Icons.notifications_rounded,
             NotificationsScreen(),
           ),
           AppTab(
-            'Produits',
+            context.tr('products'),
             Icons.inventory_2_rounded,
             const SellerProductsScreen(),
           ),
           AppTab(
-            'Compte',
+            context.tr('account'),
             Icons.storefront_rounded,
             SellerAccountScreen(onLogout: _logout),
           ),
@@ -256,27 +278,27 @@ class _MainShellState extends State<MainShell> {
       case UserRole.admin:
         return [
           AppTab(
-            'Tableau',
+            context.tr('dashboard'),
             Icons.dashboard_rounded,
             const AdminDashboardScreen(),
           ),
           AppTab(
-            'Vendeurs',
+            context.tr('vendors'),
             Icons.storefront_rounded,
             const AdminVendorsScreen(),
           ),
           AppTab(
-            'Catalogue',
+            context.tr('catalog'),
             Icons.restaurant_menu_rounded,
             const AdminCatalogueScreen(),
           ),
           AppTab(
-            'Commandes',
+            context.tr('orders'),
             Icons.receipt_long_rounded,
             const AdminOrdersScreen(),
           ),
           AppTab(
-            'Compte',
+            context.tr('account'),
             Icons.admin_panel_settings_rounded,
             AdminAccountScreen(onLogout: _logout),
           ),
@@ -324,13 +346,13 @@ class _RoleNavigationBar extends StatelessWidget {
       height: 76,
       selectedIndex: selectedIndex,
       onDestinationSelected: onSelected,
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       indicatorColor: HotKokiColors.flame100,
       labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
       destinations: tabs.map((tab) {
-        final primary = tab.label == 'Recherche';
+        final primary = tab.icon == Icons.search_rounded;
         Widget withBadge(Widget icon) {
-          if (!tab.label.startsWith('Notification')) return icon;
+          if (tab.icon != Icons.notifications_rounded) return icon;
           return ValueListenableBuilder<int>(
             valueListenable: NotificationStore.unread,
             builder: (_, count, child) => Badge(
