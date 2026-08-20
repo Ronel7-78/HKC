@@ -62,7 +62,8 @@ class AccueilTest extends TestCase
             'active' => true,
         ])->assertCreated();
         $annonceId = $creation->json('annonce.id');
-        $this->deleteJson('/api/admin/annonces/'.$annonceId)
+        $annoncePublicId = $creation->json('annonce.public_id');
+        $this->deleteJson('/api/admin/annonces/'.$annoncePublicId)
             ->assertOk()
             ->assertJsonPath('message', 'Annonce supprimée.');
         $this->assertDatabaseMissing('annonces', ['id' => $annonceId]);

@@ -6,7 +6,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Client;
+use App\Models\EmailAuthCode;
 use App\Models\User;
+use App\Services\EmailCodeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -14,7 +16,7 @@ use Illuminate\Support\Facades\Validator;
 class AuthController extends Controller
 {
     // Inscription publique reservee exclusivement aux clients.
-    public function register(Request $request)
+    public function register(Request $request, EmailCodeService $codes)
     {
         // Le role n'est pas accepte depuis la requete pour eviter la creation
         // publique d'un compte vendeur ou administrateur.
@@ -50,7 +52,7 @@ class AuthController extends Controller
         // Un compte cree par cette route est toujours un client.
         $user = User::create([
             'name' => $request->name,
-            'email' => $request->email,
+            'email' => mb_strtolower(trim($request->email)),
             'telephone' => $request->telephone,
             'password' => Hash::make($request->password),
             'role' => 'client',
@@ -67,12 +69,12 @@ class AuthController extends Controller
             'longitude' => $request->longitude,
         ]);
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        $codes->issue($user, EmailAuthCode::PURPOSE_VERIFY_EMAIL);
 
         return response()->json([
-            'message' => 'Compte créé avec succès',
+            'message' => 'Compte créé. Saisissez le code envoyé par email.',
             'user' => $user->load('client'),
-            'token' => $token,
+            'verification_requise' => true,
         ], 201);
     }
 
@@ -94,10 +96,18 @@ class AuthController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $user = User::where('email', $request->email)->first();
+        $user = User::where('email', mb_strtolower(trim($request->email)))->first();
 
         if (! $user || ! Hash::check($request->password, $user->password)) {
             return response()->json(['message' => 'Identifiants incorrects'], 401);
+        }
+
+        if (! $user->isAdmin() && ! $user->email_verified_at) {
+            return response()->json([
+                'message' => 'Vérifiez votre adresse email avant de vous connecter.',
+                'code' => 'EMAIL_NON_VERIFIE',
+                'email' => $user->email,
+            ], 403);
         }
 
         if (! $this->profilMetierExiste($user)) {

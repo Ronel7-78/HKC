@@ -34,9 +34,9 @@ class ComplementController extends Controller
         return response()->json(['message' => 'Complément créé', 'complement' => $complement], 201);
     }
 
-    public function destroy($id)
+    public function destroy(string $id)
     {
-        Complement::findOrFail($id)->delete();
+        Complement::where('public_id', $id)->firstOrFail()->delete();
 
         return response()->json(['message' => 'Complément supprimé']);
     }

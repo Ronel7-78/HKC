@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 
-import 'client_screens.dart';
+import 'api_config.dart';
 import 'app_feedback.dart';
 import 'app_states.dart';
+import 'client_screens.dart';
 import 'payment_method_card.dart';
 
 const _leaf900 = Color(0xFF1F3524);
@@ -493,7 +494,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       final result =
           await ClientApi.request(
                 'POST',
-                '/commandes/${order['id']}/paiements',
+                '/commandes/${apiResourceId(order)}/paiements',
                 body: {
                   'fournisseur': _provider,
                   'telephone': _phone.text.trim(),

@@ -35,12 +35,12 @@ class ClientCommandeAccessTest extends TestCase
             ->assertJsonCount(1)
             ->assertJsonPath('0.id', $commandeDuClient->id);
 
-        $this->getJson("/api/commandes/{$commandeDuClient->id}")
+        $this->getJson("/api/commandes/{$commandeDuClient->public_id}")
             ->assertOk()
             ->assertJsonPath('id', $commandeDuClient->id)
             ->assertJsonPath('adresse_livraison', 'Bonamoussadi');
 
-        $this->getJson("/api/commandes/{$commandeEtrangere->id}")
+        $this->getJson("/api/commandes/{$commandeEtrangere->public_id}")
             ->assertForbidden()
             ->assertJsonPath('message', 'Cette commande n\'appartient pas à ce client.');
     }

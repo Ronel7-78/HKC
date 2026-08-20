@@ -59,7 +59,7 @@ class NotificationCenterTest extends TestCase
         ]);
 
         Sanctum::actingAs($vendeurUser);
-        $this->patchJson("/api/vendeur/commandes/{$commande->id}/statut", [
+        $this->patchJson("/api/vendeur/commandes/{$commande->public_id}/statut", [
             'statut' => Commande::STATUT_PREPARATION,
         ])->assertOk();
 

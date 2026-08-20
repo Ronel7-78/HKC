@@ -1,6 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+String apiResourceId(Map<dynamic, dynamic> resource) =>
+    (resource['public_id'] ?? resource['id']).toString();
+
 class ApiConfig {
   static const _definedBaseUrl = String.fromEnvironment('API_BASE_URL');
 

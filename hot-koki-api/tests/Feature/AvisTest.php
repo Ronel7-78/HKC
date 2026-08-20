@@ -35,7 +35,7 @@ class AvisTest extends TestCase
         ]);
         Sanctum::actingAs($user);
 
-        $this->postJson("/api/commandes/{$commande->id}/avis", [
+        $this->postJson("/api/commandes/{$commande->public_id}/avis", [
             'note' => 5,
             'commentaire' => 'Très bon.',
         ])->assertOk()->assertJsonPath('avis.note', 5);

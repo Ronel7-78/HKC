@@ -50,14 +50,14 @@ class ProduitController extends Controller
         ], 201);
     }
 
-    public function show($id)
+    public function show(string $id)
     {
-        return response()->json(Produit::with('complements')->findOrFail($id));
+        return response()->json(Produit::with('complements')->where('public_id', $id)->firstOrFail());
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, string $id)
     {
-        $produit = Produit::findOrFail($id);
+        $produit = Produit::where('public_id', $id)->firstOrFail();
 
         $validator = Validator::make($request->all(), [
             'nom' => 'sometimes|string|max:255',
@@ -95,9 +95,9 @@ class ProduitController extends Controller
         ]);
     }
 
-    public function destroy($id)
+    public function destroy(string $id)
     {
-        $produit = Produit::findOrFail($id);
+        $produit = Produit::where('public_id', $id)->firstOrFail();
         $this->deleteManagedPhoto($produit->photo);
         $produit->delete();
 

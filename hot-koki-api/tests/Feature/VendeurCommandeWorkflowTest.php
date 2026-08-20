@@ -100,8 +100,9 @@ class VendeurCommandeWorkflowTest extends TestCase
             ->assertJsonPath('commande.vendeur_id', $vendeur->id);
 
         $commandeId = $creation->json('commande.id');
+        $commandePublicId = $creation->json('commande.public_id');
 
-        $paiement = $this->postJson("/api/commandes/{$commandeId}/paiements", [
+        $paiement = $this->postJson("/api/commandes/{$commandePublicId}/paiements", [
             'fournisseur' => Paiement::FOURNISSEUR_MTN_MOMO,
             'telephone' => '677123456',
         ])
@@ -115,7 +116,7 @@ class VendeurCommandeWorkflowTest extends TestCase
 
         Sanctum::actingAs($autreVendeurUser);
 
-        $this->patchJson("/api/vendeur/commandes/{$commandeId}/statut", [
+        $this->patchJson("/api/vendeur/commandes/{$commandePublicId}/statut", [
             'statut' => Commande::STATUT_RECUE,
         ])->assertForbidden();
 
@@ -127,23 +128,23 @@ class VendeurCommandeWorkflowTest extends TestCase
             ->assertJsonPath('0.id', $commandeId)
             ->assertJsonPath('0.statut', Commande::STATUT_EN_ATTENTE_PAIEMENT);
 
-        $this->getJson("/api/vendeur/commandes/{$commandeId}")
+        $this->getJson("/api/vendeur/commandes/{$commandePublicId}")
             ->assertOk()
             ->assertJsonPath('id', $commandeId);
 
-        $this->changerStatut($commandeId, Commande::STATUT_RECUE)->assertUnprocessable();
+        $this->changerStatut($commandePublicId, Commande::STATUT_RECUE)->assertUnprocessable();
 
         // En production, seul le resultat verifie chez MTN appellera cette methode.
         Paiement::findOrFail($paiement->json('paiement.id'))->confirmerReussite('mtn-test-1');
 
-        $this->changerStatut($commandeId, Commande::STATUT_LIVREE)
+        $this->changerStatut($commandePublicId, Commande::STATUT_LIVREE)
             ->assertUnprocessable();
 
-        $this->changerStatut($commandeId, Commande::STATUT_PREPARATION)->assertOk();
-        $this->changerStatut($commandeId, Commande::STATUT_EN_LIVRAISON)->assertOk();
-        $this->changerStatut($commandeId, Commande::STATUT_LIVREE)->assertOk();
+        $this->changerStatut($commandePublicId, Commande::STATUT_PREPARATION)->assertOk();
+        $this->changerStatut($commandePublicId, Commande::STATUT_EN_LIVRAISON)->assertOk();
+        $this->changerStatut($commandePublicId, Commande::STATUT_LIVREE)->assertOk();
 
-        $this->changerStatut($commandeId, Commande::STATUT_ANNULEE)
+        $this->changerStatut($commandePublicId, Commande::STATUT_ANNULEE)
             ->assertUnprocessable();
 
         $this->assertDatabaseHas('commandes', [
@@ -152,7 +153,7 @@ class VendeurCommandeWorkflowTest extends TestCase
         ]);
     }
 
-    private function changerStatut(int $commandeId, string $statut)
+    private function changerStatut(string $commandeId, string $statut)
     {
         return $this->patchJson("/api/vendeur/commandes/{$commandeId}/statut", [
             'statut' => $statut,

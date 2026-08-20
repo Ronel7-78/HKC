@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPublicId;
 use App\Services\NotificationService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -9,6 +10,8 @@ use Illuminate\Support\Str;
 
 class Paiement extends Model
 {
+    use HasPublicId;
+
     public const FOURNISSEUR_MTN_MOMO = 'mtn_momo';
 
     public const FOURNISSEUR_ORANGE_MONEY = 'orange_money';
@@ -43,7 +46,13 @@ class Paiement extends Model
         'prochaine_verification_le' => 'datetime',
     ];
 
-    protected $hidden = ['telephone', 'callback_hash', 'donnees_operateur'];
+    protected $hidden = [
+        'telephone',
+        'callback_hash',
+        'donnees_operateur',
+        'reference_interne',
+        'reference_operateur',
+    ];
 
     protected $appends = ['mode_test'];
 

@@ -1,6 +1,7 @@
 <?php
 
 use App\Jobs\VerifierPaiementMtn;
+use App\Models\EmailAuthCode;
 use App\Models\Paiement;
 use App\Services\Payments\MtnMomoService;
 use Illuminate\Foundation\Inspiring;
@@ -81,6 +82,12 @@ Artisan::command('deploy:check', function () {
     if (config('filesystems.default') === 'local') {
         $errors[] = 'Le stockage local n’est pas persistant en environnement distribué.';
     }
+    if (in_array(config('mail.default'), ['log', 'array'], true)) {
+        $errors[] = 'Un transport email réel est obligatoire pour les codes de sécurité.';
+    }
+    if (config('mail.from.address') === 'hello@example.com') {
+        $errors[] = 'MAIL_FROM_ADDRESS doit utiliser une adresse Hot Koki valide.';
+    }
     foreach (['base_url', 'subscription_key', 'api_user', 'api_key', 'callback_base_url'] as $key) {
         if (! config('services.mtn_momo.'.$key)) {
             $errors[] = 'Configuration MTN absente : '.$key.'.';
@@ -120,3 +127,9 @@ Schedule::call(function () {
         ->pluck('id')
         ->each(fn (int $id) => VerifierPaiementMtn::dispatch($id)->onQueue('paiements'));
 })->everyMinute()->name('mtn-momo-polling')->withoutOverlapping();
+
+Schedule::call(function () {
+    EmailAuthCode::query()
+        ->where('created_at', '<', now()->subDay())
+        ->delete();
+})->daily()->name('purge-email-auth-codes')->withoutOverlapping();

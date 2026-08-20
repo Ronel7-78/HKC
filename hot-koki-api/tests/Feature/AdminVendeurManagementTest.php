@@ -85,7 +85,7 @@ class AdminVendeurManagementTest extends TestCase
 
         Sanctum::actingAs($admin);
 
-        $this->deleteJson("/api/admin/vendeurs/{$vendeur->id}")
+        $this->deleteJson("/api/admin/vendeurs/{$vendeur->public_id}")
             ->assertOk();
 
         $this->assertSoftDeleted('users', ['id' => $user->id]);

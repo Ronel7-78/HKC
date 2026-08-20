@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 
 import 'api_config.dart';
 import 'app_feedback.dart';
+import 'email_auth_screens.dart';
 import 'legal_screen.dart';
 
 class AuthResult {
@@ -121,27 +122,21 @@ class _AuthScreenState extends State<AuthScreen> {
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode < 200 || response.statusCode >= 300) {
+        if (data['code'] == 'EMAIL_NON_VERIFIE') {
+          await _openVerification(
+            (data['email'] ?? _email.text.trim()).toString(),
+          );
+          return;
+        }
         throw Exception(_extractError(data));
       }
 
-      final user = data['user'] as Map<String, dynamic>;
-      await _storage.write(key: 'auth_token', value: data['token'].toString());
-      if (!mounted) return;
-      await AppFeedback.success(
-        context,
-        title: _register ? 'Compte créé' : 'Connexion réussie',
-        message: _register
-            ? 'Bienvenue chez Hot Koki ! Votre compte est prêt.'
-            : 'Heureux de vous revoir.',
-      );
-      if (!mounted) return;
-      Navigator.pop(
-        context,
-        AuthResult(
-          role: user['role'].toString(),
-          name: user['name'].toString(),
-        ),
-      );
+      if (data['verification_requise'] == true) {
+        await _openVerification(_email.text.trim());
+        return;
+      }
+
+      await _completeAuthentication(data, registered: _register);
     } catch (error) {
       if (mounted) {
         final message = error is TimeoutException
@@ -153,6 +148,37 @@ class _AuthScreenState extends State<AuthScreen> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _openVerification(String email) async {
+    final data = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(builder: (_) => EmailVerificationScreen(email: email)),
+    );
+    if (data != null && mounted) {
+      await _completeAuthentication(data, registered: _register);
+    }
+  }
+
+  Future<void> _completeAuthentication(
+    Map<String, dynamic> data, {
+    required bool registered,
+  }) async {
+    final user = data['user'] as Map<String, dynamic>;
+    await _storage.write(key: 'auth_token', value: data['token'].toString());
+    if (!mounted) return;
+    await AppFeedback.success(
+      context,
+      title: registered ? 'Compte créé' : 'Connexion réussie',
+      message: registered
+          ? 'Bienvenue chez Hot Koki ! Votre compte est prêt.'
+          : 'Heureux de vous revoir.',
+    );
+    if (!mounted) return;
+    Navigator.pop(
+      context,
+      AuthResult(role: user['role'].toString(), name: user['name'].toString()),
+    );
   }
 
   String _normalisePhone(String value) {
@@ -461,6 +487,23 @@ class _AuthScreenState extends State<AuthScreen> {
                               ? '8 caractères minimum'
                               : null,
                         ),
+                        if (!_register)
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: _loading
+                                  ? null
+                                  : () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => ForgotPasswordScreen(
+                                          initialEmail: _email.text.trim(),
+                                        ),
+                                      ),
+                                    ),
+                              child: const Text('Mot de passe oublié ?'),
+                            ),
+                          ),
                         if (_register) ...[
                           const SizedBox(height: 14),
                           _field(

@@ -309,7 +309,7 @@ class _OrderCard extends StatelessWidget {
 
   Future<void> _showDetails(BuildContext context) async {
     final details =
-        await ClientApi.request('GET', '/commandes/${order['id']}')
+        await ClientApi.request('GET', '/commandes/${apiResourceId(order)}')
             as Map<String, dynamic>;
     if (!context.mounted) return;
     await showModalBottomSheet<void>(
@@ -340,7 +340,10 @@ class _OrderCard extends StatelessWidget {
     );
     if (yes != true) return;
     try {
-      await ClientApi.request('PATCH', '/commandes/${order['id']}/annuler');
+      await ClientApi.request(
+        'PATCH',
+        '/commandes/${apiResourceId(order)}/annuler',
+      );
       await onChanged();
     } catch (error) {
       if (context.mounted) _snack(context, error);
@@ -411,7 +414,7 @@ class _OrderCard extends StatelessWidget {
       final result =
           await ClientApi.request(
                 'POST',
-                '/commandes/${order['id']}/paiements',
+                '/commandes/${apiResourceId(order)}/paiements',
                 body: {
                   'fournisseur': value['fournisseur'],
                   'telephone': value['telephone'],
@@ -489,7 +492,7 @@ class _OrderCard extends StatelessWidget {
     try {
       await ClientApi.request(
         'POST',
-        '/commandes/${order['id']}/avis',
+        '/commandes/${apiResourceId(order)}/avis',
         body: {'note': rating, 'commentaire': comment.text.trim()},
       );
       await onChanged();
@@ -540,7 +543,7 @@ class _PaymentStatusScreenState extends State<PaymentStatusScreen> {
     try {
       final data = await ClientApi.request(
         'POST',
-        '/paiements/${_payment['id']}/synchroniser',
+        '/paiements/${apiResourceId(_payment)}/synchroniser',
         body: relancer ? {'relancer': true} : null,
       );
       final response = data as Map<String, dynamic>;

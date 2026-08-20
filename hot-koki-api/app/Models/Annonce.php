@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPublicId;
 use Illuminate\Database\Eloquent\Model;
 
 class Annonce extends Model
 {
+    use HasPublicId;
+
     protected $fillable = [
         'type', 'etiquette', 'titre', 'description', 'image', 'produit_id', 'active', 'ordre',
     ];

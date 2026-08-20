@@ -497,7 +497,9 @@ class _VendorFormState extends State<_VendorForm> {
     try {
       await ClientApi.request(
         editing ? 'PUT' : 'POST',
-        editing ? '/admin/vendeurs/${widget.vendor!['id']}' : '/admin/vendeurs',
+        editing
+            ? '/admin/vendeurs/${apiResourceId(widget.vendor!)}'
+            : '/admin/vendeurs',
         body: body,
       );
       if (!mounted) return;
@@ -698,7 +700,10 @@ class _AdminCatalogueScreenState extends State<AdminCatalogueScreen> {
     );
     if (yes != true) return;
     try {
-      await ClientApi.request('DELETE', '/admin/produits/${product['id']}');
+      await ClientApi.request(
+        'DELETE',
+        '/admin/produits/${apiResourceId(product)}',
+      );
       if (mounted) {
         await AppFeedback.success(
           context,
@@ -887,7 +892,7 @@ class _ProductFormState extends State<_ProductForm> {
       await ClientApi.multipart(
         widget.product == null
             ? '/admin/produits'
-            : '/admin/produits/${widget.product!['id']}',
+            : '/admin/produits/${apiResourceId(widget.product!)}',
         fields: fields,
         filePath: _selectedImage?.path,
       );

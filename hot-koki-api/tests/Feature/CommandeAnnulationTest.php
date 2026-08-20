@@ -22,11 +22,11 @@ class CommandeAnnulationTest extends TestCase
 
         Sanctum::actingAs($clientUser);
 
-        $this->patchJson("/api/commandes/{$commande->id}/annuler")
+        $this->patchJson("/api/commandes/{$commande->public_id}/annuler")
             ->assertOk()
             ->assertJsonPath('commande.statut', Commande::STATUT_ANNULEE);
 
-        $this->patchJson("/api/commandes/{$commande->id}/annuler")
+        $this->patchJson("/api/commandes/{$commande->public_id}/annuler")
             ->assertUnprocessable()
             ->assertJsonPath('code', 'ANNULATION_CLIENT_IMPOSSIBLE');
     }
@@ -41,11 +41,11 @@ class CommandeAnnulationTest extends TestCase
 
         Sanctum::actingAs($clientUser);
 
-        $this->patchJson("/api/commandes/{$commandeEnPreparation->id}/annuler")
+        $this->patchJson("/api/commandes/{$commandeEnPreparation->public_id}/annuler")
             ->assertUnprocessable()
             ->assertJsonPath('code', 'ANNULATION_CLIENT_IMPOSSIBLE');
 
-        $this->patchJson("/api/commandes/{$commandeEtrangere->id}/annuler")
+        $this->patchJson("/api/commandes/{$commandeEtrangere->public_id}/annuler")
             ->assertForbidden();
 
         $this->assertDatabaseHas('commandes', [
@@ -62,13 +62,13 @@ class CommandeAnnulationTest extends TestCase
 
         Sanctum::actingAs($vendeurUser);
 
-        $this->patchJson("/api/vendeur/commandes/{$commande->id}/statut", [
+        $this->patchJson("/api/vendeur/commandes/{$commande->public_id}/statut", [
             'statut' => Commande::STATUT_ANNULEE,
         ])
             ->assertOk()
             ->assertJsonPath('commande.statut', Commande::STATUT_ANNULEE);
 
-        $this->patchJson("/api/vendeur/commandes/{$commande->id}/statut", [
+        $this->patchJson("/api/vendeur/commandes/{$commande->public_id}/statut", [
             'statut' => Commande::STATUT_RECUE,
         ])->assertUnprocessable();
     }

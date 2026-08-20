@@ -245,7 +245,7 @@ class _AnnouncementFormState extends State<_AnnouncementForm> {
     try {
       await ClientApi.multipart(
         editing
-            ? '/admin/annonces/${widget.announcement!['id']}'
+            ? '/admin/annonces/${apiResourceId(widget.announcement!)}'
             : '/admin/annonces',
         fields: {
           if (editing) '_method': 'PUT',

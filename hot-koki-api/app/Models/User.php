@@ -36,6 +36,17 @@ class User extends Authenticatable
         'conditions_acceptees_le' => 'datetime',
     ];
 
+    protected static function booted(): void
+    {
+        static::updating(function (User $user): void {
+            if ($user->isDirty('email')) {
+                $user->email = mb_strtolower(trim($user->email));
+                $user->email_verified_at = null;
+                $user->tokens()->delete();
+            }
+        });
+    }
+
     public function client()
     {
         return $this->hasOne(Client::class);

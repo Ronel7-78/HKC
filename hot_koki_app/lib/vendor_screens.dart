@@ -24,6 +24,7 @@ const _inkSoft = Color(0xFF6B5F4E);
 class VendorData {
   const VendorData({
     required this.id,
+    required this.publicId,
     required this.name,
     required this.address,
     required this.rating,
@@ -34,6 +35,7 @@ class VendorData {
     required this.phone,
   });
   final int id;
+  final String publicId;
   final String name;
   final String address;
   final double rating;
@@ -45,6 +47,7 @@ class VendorData {
 
   factory VendorData.fromJson(Map<String, dynamic> json) => VendorData(
     id: int.parse(json['id'].toString()),
+    publicId: apiResourceId(json),
     name: json['nom_boutique'].toString(),
     address: (json['adresse_texte'] ?? 'Adresse non renseignée').toString(),
     rating: double.tryParse(json['note_moyenne'].toString()) ?? 0,
@@ -127,7 +130,7 @@ class VendorApi {
         .toList();
   }
 
-  static Future<VendorData> show(int id) async {
+  static Future<VendorData> show(String id) async {
     final response = await http.get(
       Uri.parse('${ApiConfig.baseUrl}/client/vendeurs/$id'),
       headers: await _headers(),
@@ -270,7 +273,7 @@ class _VendorCard extends StatelessWidget {
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => VendorDetailScreen(vendorId: vendor.id),
+          builder: (_) => VendorDetailScreen(vendorId: vendor.publicId),
         ),
       ),
       borderRadius: BorderRadius.circular(18),
@@ -513,7 +516,7 @@ class _VendorMapScreenState extends State<VendorSearchScreen> {
                         context,
                         MaterialPageRoute(
                           builder: (_) =>
-                              VendorDetailScreen(vendorId: vendor.id),
+                              VendorDetailScreen(vendorId: vendor.publicId),
                         ),
                       ),
                     ),
@@ -713,7 +716,7 @@ class _MapMessage extends StatelessWidget {
 
 class VendorDetailScreen extends StatelessWidget {
   const VendorDetailScreen({super.key, required this.vendorId});
-  final int vendorId;
+  final String vendorId;
 
   @override
   Widget build(BuildContext context) {

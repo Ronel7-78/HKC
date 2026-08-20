@@ -4,10 +4,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPublicId;
 use Illuminate\Database\Eloquent\Model;
 
 class Commande extends Model
 {
+    use HasPublicId;
+
     public const STATUT_EN_ATTENTE_PAIEMENT = 'en_attente_paiement';
 
     public const STATUT_RECUE = 'recue';

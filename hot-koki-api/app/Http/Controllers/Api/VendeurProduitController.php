@@ -1,4 +1,5 @@
 <?php
+
 // app/Http/Controllers/Api/VendeurProduitController.php
 
 namespace App\Http\Controllers\Api;
@@ -15,13 +16,14 @@ class VendeurProduitController extends Controller
     {
         $vendeur = $request->user()->vendeur;
 
-        if (!$vendeur) {
+        if (! $vendeur) {
             return response()->json(['message' => 'Profil vendeur introuvable'], 404);
         }
 
         $produits = Produit::with('complements')->get()->map(function ($produit) use ($vendeur) {
             $pivot = $vendeur->produits()->where('produit_id', $produit->id)->first();
             $produit->mon_statut = $pivot ? $pivot->pivot->statut : 'rupture';
+
             return $produit;
         });
 
@@ -33,7 +35,7 @@ class VendeurProduitController extends Controller
     {
         $vendeur = $request->user()->vendeur;
 
-        if (!$vendeur) {
+        if (! $vendeur) {
             return response()->json(['message' => 'Profil vendeur introuvable'], 404);
         }
 
@@ -45,10 +47,10 @@ class VendeurProduitController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        Produit::findOrFail($produitId); // vérifie que le produit existe bien au catalogue
+        $produit = Produit::where('public_id', $produitId)->firstOrFail();
 
         $vendeur->produits()->syncWithoutDetaching([
-            $produitId => ['statut' => $request->statut],
+            $produit->id => ['statut' => $request->statut],
         ]);
 
         return response()->json(['message' => 'Statut mis à jour']);

@@ -3,6 +3,7 @@ import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'api_config.dart';
 import 'app_feedback.dart';
 import 'app_preferences.dart';
 import 'client_screens.dart';
@@ -406,7 +407,7 @@ class SellerOrderCard extends StatelessWidget {
     try {
       await ClientApi.request(
         'PATCH',
-        '/vendeur/commandes/${order['id']}/statut',
+        '/vendeur/commandes/${apiResourceId(order)}/statut',
         body: {'statut': next},
       );
       if (!context.mounted) return;
@@ -608,7 +609,7 @@ class _SellerProductsScreenState extends State<SellerProductsScreen> {
     try {
       await ClientApi.request(
         'PATCH',
-        '/vendeur/produits/${product['id']}/statut',
+        '/vendeur/produits/${apiResourceId(product)}/statut',
         body: {'statut': available ? 'disponible' : 'rupture'},
       );
       if (!mounted) return;

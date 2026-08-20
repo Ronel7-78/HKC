@@ -5,8 +5,10 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\EmailAuthCode;
 use App\Models\User;
 use App\Models\Vendeur;
+use App\Services\EmailCodeService;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -29,7 +31,7 @@ class VendeurController extends Controller
     /**
      * Cree le compte utilisateur et le profil du vendeur en une transaction.
      */
-    public function store(Request $request)
+    public function store(Request $request, EmailCodeService $codes)
     {
         // Les identifiants temporaires sont definis par l'administrateur.
         $validator = Validator::make($request->all(), [
@@ -52,7 +54,7 @@ class VendeurController extends Controller
         $vendeur = DB::transaction(function () use ($request) {
             $user = User::create([
                 'name' => $request->name,
-                'email' => $request->email,
+                'email' => mb_strtolower(trim($request->email)),
                 'telephone' => $request->telephone,
                 'password' => Hash::make($request->password),
                 'role' => 'vendeur',
@@ -67,6 +69,8 @@ class VendeurController extends Controller
                 'longitude' => $request->longitude,
             ]);
         });
+
+        $codes->issue($vendeur->user, EmailAuthCode::PURPOSE_VERIFY_EMAIL);
 
         NotificationService::envoyer(
             $vendeur->user,

@@ -30,7 +30,7 @@ class AdminProduitImageTest extends TestCase
         $premierePhoto = str_replace('storage/', '', $produit->photo);
         Storage::disk('public')->assertExists($premierePhoto);
 
-        $this->post("/api/admin/produits/{$produit->id}", [
+        $this->post("/api/admin/produits/{$produit->public_id}", [
             '_method' => 'PUT',
             'photo' => $this->fakePng('nouveau-koki.png'),
         ], ['Accept' => 'application/json'])->assertOk();
@@ -40,7 +40,7 @@ class AdminProduitImageTest extends TestCase
         Storage::disk('public')->assertExists(str_replace('storage/', '', $produit->photo));
 
         $dernierePhoto = str_replace('storage/', '', $produit->photo);
-        $this->putJson("/api/admin/produits/{$produit->id}", [
+        $this->putJson("/api/admin/produits/{$produit->public_id}", [
             'supprimer_photo' => true,
         ])->assertOk()->assertJsonPath('produit.photo', null);
         Storage::disk('public')->assertMissing($dernierePhoto);

@@ -47,7 +47,7 @@ class ClientVendeurTest extends TestCase
             ->assertJsonPath('vendeurs.0.produits.0.nom', 'Koki')
             ->assertJsonStructure(['vendeurs' => [['latitude', 'longitude', 'user' => ['telephone']]]]);
 
-        $this->getJson("/api/client/vendeurs/{$vendeur->id}")
+        $this->getJson("/api/client/vendeurs/{$vendeur->public_id}")
             ->assertOk()
             ->assertJsonPath('vendeur.id', $vendeur->id);
     }

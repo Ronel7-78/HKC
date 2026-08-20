@@ -63,7 +63,7 @@ class PaiementTest extends TestCase
             'montant' => 1,
         ];
 
-        $creation = $this->postJson("/api/commandes/{$commande->id}/paiements", $payload)
+        $creation = $this->postJson("/api/commandes/{$commande->public_id}/paiements", $payload)
             ->assertCreated()
             ->assertJsonPath('paiement.montant', '1300.00')
             ->assertJsonPath('paiement.devise', 'XAF')
@@ -73,7 +73,7 @@ class PaiementTest extends TestCase
         $paiementId = $creation->json('paiement.id');
         $this->assertSame('237677123456', Paiement::findOrFail($paiementId)->telephone);
 
-        $this->postJson("/api/commandes/{$commande->id}/paiements", $payload)
+        $this->postJson("/api/commandes/{$commande->public_id}/paiements", $payload)
             ->assertOk()
             ->assertJsonPath('paiement.id', $paiementId);
 
@@ -125,7 +125,7 @@ class PaiementTest extends TestCase
         $commande = $this->creerCommande($client);
         Sanctum::actingAs($user);
 
-        $this->postJson("/api/commandes/{$commande->id}/paiements", [
+        $this->postJson("/api/commandes/{$commande->public_id}/paiements", [
             'fournisseur' => Paiement::FOURNISSEUR_MTN_MOMO,
             'telephone' => '46733123401',
         ])
@@ -146,7 +146,7 @@ class PaiementTest extends TestCase
             ->assertJsonPath('1.code', Paiement::FOURNISSEUR_ORANGE_MONEY)
             ->assertJsonPath('1.disponible', false);
 
-        $this->postJson("/api/commandes/{$commande->id}/paiements", [
+        $this->postJson("/api/commandes/{$commande->public_id}/paiements", [
             'fournisseur' => Paiement::FOURNISSEUR_ORANGE_MONEY,
             'telephone' => '690000010',
         ])->assertStatus(503)
@@ -168,7 +168,7 @@ class PaiementTest extends TestCase
         ]);
         Sanctum::actingAs($user);
 
-        $this->postJson("/api/commandes/{$commande->id}/paiements", [
+        $this->postJson("/api/commandes/{$commande->public_id}/paiements", [
             'fournisseur' => Paiement::FOURNISSEUR_MTN_MOMO,
             'telephone' => '46733123401',
         ])->assertOk()->assertJsonPath('paiement.statut', Paiement::STATUT_EN_ATTENTE);
@@ -192,12 +192,12 @@ class PaiementTest extends TestCase
         ]);
         Sanctum::actingAs($premierUser);
 
-        $this->postJson("/api/commandes/{$commande->id}/paiements", [
+        $this->postJson("/api/commandes/{$commande->public_id}/paiements", [
             'fournisseur' => Paiement::FOURNISSEUR_MTN_MOMO,
             'telephone' => '677123456',
         ])->assertForbidden();
 
-        $this->getJson("/api/paiements/{$paiement->id}")->assertForbidden();
+        $this->getJson("/api/paiements/{$paiement->public_id}")->assertForbidden();
     }
 
     public function test_synchronisation_verifie_le_succes_chez_mtn_avant_de_recevoir_la_commande(): void
@@ -219,7 +219,7 @@ class PaiementTest extends TestCase
         ];
         Sanctum::actingAs($user);
 
-        $this->postJson("/api/paiements/{$paiement->id}/synchroniser")
+        $this->postJson("/api/paiements/{$paiement->public_id}/synchroniser")
             ->assertOk()
             ->assertJsonPath('statut', Paiement::STATUT_REUSSI)
             ->assertJsonPath('commande.statut', Commande::STATUT_RECUE)
