@@ -110,6 +110,7 @@ Artisan::command('deploy:check', function () {
 
 Schedule::call(function () {
     Paiement::query()
+        ->where('fournisseur', Paiement::FOURNISSEUR_MTN_MOMO)
         ->whereIn('statut', Paiement::STATUTS_ACTIFS)
         ->where('tentatives_statut', '<', config('services.mtn_momo.poll_max_attempts'))
         ->where(function ($query) {

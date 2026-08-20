@@ -21,6 +21,7 @@ class InvalidBusinessProfileSessionTest extends TestCase
         $this->postJson('/api/login', [
             'email' => 'vendeur-incomplet@example.com',
             'password' => 'mot-de-passe',
+            'conditions_acceptees' => true,
         ])->assertStatus(409)
             ->assertJsonPath('code', 'PROFIL_METIER_INTROUVABLE');
     }

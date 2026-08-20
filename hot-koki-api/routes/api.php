@@ -84,6 +84,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::middleware('role:client')->get('/paiements/{paiement}', [PaiementController::class, 'show']);
+    Route::middleware('role:client')->get('/paiements-moyens', [PaiementController::class, 'moyens']);
     Route::middleware('role:client')->post('/paiements/{paiement}/synchroniser', [PaiementController::class, 'synchroniser']);
 });
 

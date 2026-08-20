@@ -133,6 +133,28 @@ class PaiementTest extends TestCase
             ->assertJsonPath('paiement.telephone_masque', '46733****401');
     }
 
+    public function test_orange_est_annonce_mais_ne_cree_aucun_paiement_tant_que_non_configure(): void
+    {
+        [$user, $client] = $this->creerClient();
+        $commande = $this->creerCommande($client);
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/paiements-moyens')
+            ->assertOk()
+            ->assertJsonPath('0.code', Paiement::FOURNISSEUR_MTN_MOMO)
+            ->assertJsonPath('0.disponible', true)
+            ->assertJsonPath('1.code', Paiement::FOURNISSEUR_ORANGE_MONEY)
+            ->assertJsonPath('1.disponible', false);
+
+        $this->postJson("/api/commandes/{$commande->id}/paiements", [
+            'fournisseur' => Paiement::FOURNISSEUR_ORANGE_MONEY,
+            'telephone' => '690000010',
+        ])->assertStatus(503)
+            ->assertJsonPath('code', 'ORANGE_MONEY_INDISPONIBLE');
+
+        $this->assertDatabaseCount('paiements', 0);
+    }
+
     public function test_tentative_restee_initiee_est_renvoyee_a_mtn_au_lieu_de_rester_bloquee(): void
     {
         [$user, $client] = $this->creerClient();

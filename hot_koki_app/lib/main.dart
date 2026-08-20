@@ -515,45 +515,6 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     }
   }
 
-  static const fallbackProducts = [
-    ProductData(
-      null,
-      'Koki Pimenté',
-      500,
-      'Haricots de koki, huile rouge et épices',
-      ['Manioc', 'Patate', 'Banane', 'Plantain'],
-      true,
-      '~15 min',
-    ),
-    ProductData(
-      null,
-      'Koki Non Pimenté',
-      500,
-      'Koki doux préparé ce matin',
-      ['Manioc', 'Patate', 'Banane', 'Plantain'],
-      true,
-      '~15 min',
-    ),
-    ProductData(
-      null,
-      'Eru',
-      200,
-      'Water fufu, viande, crevettes et huile rouge',
-      ['Water fufu', 'Tapioca'],
-      true,
-      '~10 min',
-    ),
-    ProductData(
-      null,
-      'Ekwan',
-      800,
-      'Macabo, feuilles, huile rouge, viande et crevettes',
-      ['Piment'],
-      false,
-      'Demain',
-    ),
-  ];
-
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -613,33 +574,28 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const AppCardSkeleton();
                 }
-                final products = snapshot.data ?? fallbackProducts;
+                if (snapshot.hasError) {
+                  return AppErrorState(
+                    title: 'Hot Koki est hors ligne',
+                    message:
+                        'Impossible de joindre le serveur. Vérifiez votre connexion Internet puis réessayez.',
+                    onRetry: () => setState(() {
+                      _products = CatalogueApi.fetchProducts(
+                        widget.userName != null,
+                      );
+                      _content = HomeApi.fetch();
+                    }),
+                  );
+                }
+                final products = snapshot.data ?? const <ProductData>[];
                 return Column(
                   children: [
-                    if (snapshot.hasError)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Row(
-                          children: [
-                            const Expanded(
-                              child: Text(
-                                'Catalogue hors ligne — aperçu local affiché.',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: HotKokiColors.inkSoft,
-                                ),
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: () => setState(
-                                () => _products = CatalogueApi.fetchProducts(
-                                  widget.userName != null,
-                                ),
-                              ),
-                              child: const Text('Réessayer'),
-                            ),
-                          ],
-                        ),
+                    if (products.isEmpty)
+                      const AppEmptyState(
+                        title: 'Le menu arrive bientôt',
+                        message:
+                            'Aucun plat réel n’est disponible actuellement.',
+                        icon: Icons.restaurant_menu_rounded,
                       ),
                     ...products.map(
                       (product) => Padding(
@@ -1326,7 +1282,7 @@ class _ReviewsList extends StatelessWidget {
     }
     if (reviews.isEmpty) {
       return const SizedBox(
-        height: 200,
+        height: 220,
         child: AppEmptyState(
           title: 'Pas encore d’avis',
           message: 'Les avis publiés après livraison apparaîtront ici.',

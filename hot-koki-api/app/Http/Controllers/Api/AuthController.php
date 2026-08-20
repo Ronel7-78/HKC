@@ -26,6 +26,7 @@ class AuthController extends Controller
             'adresse_texte' => 'required|string|max:255',
             'latitude' => 'required|numeric|between:-90,90',
             'longitude' => 'required|numeric|between:-180,180',
+            'conditions_acceptees' => 'accepted',
         ], [
             'name.required' => 'Le nom est obligatoire.',
             'email.required' => 'L’adresse email est obligatoire.',
@@ -39,6 +40,7 @@ class AuthController extends Controller
             'adresse_texte.required' => 'La localisation est obligatoire.',
             'latitude.required' => 'La latitude est obligatoire.',
             'longitude.required' => 'La longitude est obligatoire.',
+            'conditions_acceptees.accepted' => 'Vous devez accepter les conditions d’utilisation et la politique de confidentialité.',
         ]);
 
         if ($validator->fails()) {
@@ -52,6 +54,8 @@ class AuthController extends Controller
             'telephone' => $request->telephone,
             'password' => Hash::make($request->password),
             'role' => 'client',
+            'conditions_acceptees_le' => now(),
+            'conditions_version' => config('legal.version'),
         ]);
 
         // Le profil client est cree automatiquement avec le compte utilisateur.
@@ -78,10 +82,12 @@ class AuthController extends Controller
         $validator = Validator::make($request->all(), [
             'email' => 'required|email',
             'password' => 'required',
+            'conditions_acceptees' => 'accepted',
         ], [
             'email.required' => 'L’adresse email est obligatoire.',
             'email.email' => 'L’adresse email n’est pas valide.',
             'password.required' => 'Le mot de passe est obligatoire.',
+            'conditions_acceptees.accepted' => 'Vous devez accepter les conditions d’utilisation et la politique de confidentialité.',
         ]);
 
         if ($validator->fails()) {
@@ -107,6 +113,11 @@ class AuthController extends Controller
         if ($user->isVendeur() && $user->vendeur?->statut_compte === 'suspendu') {
             return response()->json(['message' => 'Compte vendeur suspendu'], 403);
         }
+
+        $user->update([
+            'conditions_acceptees_le' => now(),
+            'conditions_version' => config('legal.version'),
+        ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;
 

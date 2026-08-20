@@ -51,4 +51,13 @@ return [
         'poll_max_attempts' => (int) env('MTN_MOMO_POLL_MAX_ATTEMPTS', 8),
     ],
 
+    'orange_money' => [
+        'enabled' => env('ORANGE_MONEY_ENABLED', false),
+        'base_url' => env('ORANGE_MONEY_BASE_URL'),
+        'merchant_key' => env('ORANGE_MONEY_MERCHANT_KEY'),
+        'merchant_secret' => env('ORANGE_MONEY_MERCHANT_SECRET'),
+        'callback_base_url' => env('ORANGE_MONEY_CALLBACK_BASE_URL'),
+        'currency' => env('ORANGE_MONEY_CURRENCY', 'XAF'),
+    ],
+
 ];

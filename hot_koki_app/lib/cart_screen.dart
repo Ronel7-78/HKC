@@ -385,6 +385,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   bool _locating = false;
   double? _deliveryLatitude;
   double? _deliveryLongitude;
+  List<Map<String, dynamic>> _paymentMethods = const [];
+  String _provider = 'mtn_momo';
 
   @override
   void initState() {
@@ -423,6 +425,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       _profile =
           await ClientApi.request('GET', '/client/profile')
               as Map<String, dynamic>;
+      final methods = await ClientApi.request('GET', '/paiements-moyens');
+      _paymentMethods = (methods as List<dynamic>)
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .toList();
       final client = _profile!['client'] as Map<String, dynamic>;
       _deliveryAddress.text = client['adresse_texte']?.toString() ?? '';
       _deliveryLatitude = double.tryParse(client['latitude']?.toString() ?? '');
@@ -461,7 +467,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       return;
     }
     if (_phone.text.trim().isEmpty) {
-      setState(() => _error = 'Renseignez le numéro MTN MoMo à débiter.');
+      setState(() => _error = 'Renseignez le numéro Mobile Money à débiter.');
+      return;
+    }
+    final selected = _paymentMethods.where(
+      (method) => method['code'] == _provider,
+    );
+    if (selected.isEmpty || selected.first['disponible'] != true) {
+      setState(
+        () => _error = 'Ce moyen de paiement n’est pas encore disponible.',
+      );
       return;
     }
     setState(() {
@@ -479,7 +494,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 'POST',
                 '/commandes/${order['id']}/paiements',
                 body: {
-                  'fournisseur': 'mtn_momo',
+                  'fournisseur': _provider,
                   'telephone': _phone.text.trim(),
                 },
               )
@@ -643,18 +658,47 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
               const SizedBox(height: 16),
               const Text(
-                'Paiement MTN MoMo',
+                'Moyen de paiement',
                 style: TextStyle(
                   color: _leaf900,
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                 ),
               ),
+              const SizedBox(height: 9),
+              ..._paymentMethods.map((method) {
+                final available = method['disponible'] == true;
+                final selected = _provider == method['code'];
+                return ListTile(
+                  onTap: available
+                      ? () => setState(
+                          () => _provider = method['code'].toString(),
+                        )
+                      : null,
+                  leading: Icon(
+                    selected
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_off,
+                    color: available ? _flame600 : Colors.grey,
+                  ),
+                  title: Text(method['nom'].toString()),
+                  subtitle: available ? null : const Text('Bientôt disponible'),
+                  trailing: Icon(
+                    method['code'] == 'orange_money'
+                        ? Icons.account_balance_wallet_rounded
+                        : Icons.phone_android_rounded,
+                    color: method['code'] == 'orange_money'
+                        ? Colors.orange.shade800
+                        : _flame600,
+                  ),
+                );
+              }),
+              const SizedBox(height: 8),
               TextField(
                 controller: _phone,
                 keyboardType: TextInputType.phone,
                 decoration: const InputDecoration(
-                  labelText: 'Numéro à débiter',
+                  labelText: 'Numéro Mobile Money à débiter',
                   hintText: '6XXXXXXXX',
                   prefixIcon: Icon(Icons.phone_android),
                   filled: true,
@@ -690,7 +734,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Le paiement n’est confirmé qu’après le statut final de MTN.',
+                'Le paiement n’est confirmé qu’après le statut final de l’opérateur.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: _inkSoft, fontSize: 11),
               ),

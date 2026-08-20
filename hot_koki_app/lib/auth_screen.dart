@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 
 import 'api_config.dart';
 import 'app_feedback.dart';
+import 'legal_screen.dart';
 
 class AuthResult {
   const AuthResult({required this.role, required this.name});
@@ -74,7 +75,7 @@ class _AuthScreenState extends State<AuthScreen> {
       );
       return;
     }
-    if (_register && !_acceptedTerms) {
+    if (!_acceptedTerms) {
       setState(
         () => _error = 'Accepte les conditions d’utilisation pour continuer.',
       );
@@ -107,8 +108,13 @@ class _AuthScreenState extends State<AuthScreen> {
                       'adresse_texte': _locationLabel,
                       'latitude': _latitude,
                       'longitude': _longitude,
+                      'conditions_acceptees': _acceptedTerms,
                     }
-                  : {'email': _email.text.trim(), 'password': _password.text},
+                  : {
+                      'email': _email.text.trim(),
+                      'password': _password.text,
+                      'conditions_acceptees': _acceptedTerms,
+                    },
             ),
           )
           .timeout(const Duration(seconds: 15));
@@ -466,18 +472,33 @@ class _AuthScreenState extends State<AuthScreen> {
                                 ? 'Les mots de passe diffèrent'
                                 : null,
                           ),
-                          CheckboxListTile(
-                            value: _acceptedTerms,
-                            onChanged: (value) =>
-                                setState(() => _acceptedTerms = value ?? false),
-                            contentPadding: EdgeInsets.zero,
-                            controlAffinity: ListTileControlAffinity.leading,
-                            title: const Text(
-                              'J’accepte les conditions d’utilisation et la politique de confidentialité.',
-                              style: TextStyle(fontSize: 11, color: _inkSoft),
-                            ),
-                          ),
                         ],
+                        CheckboxListTile(
+                          value: _acceptedTerms,
+                          onChanged: (value) =>
+                              setState(() => _acceptedTerms = value ?? false),
+                          contentPadding: EdgeInsets.zero,
+                          controlAffinity: ListTileControlAffinity.leading,
+                          title: const Text(
+                            'J’accepte les documents ci-dessous.',
+                            style: TextStyle(fontSize: 11, color: _inkSoft),
+                          ),
+                          subtitle: Wrap(
+                            spacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              _legalLink(
+                                'Conditions d’utilisation',
+                                LegalDocument.terms,
+                              ),
+                              const Text('et', style: TextStyle(fontSize: 11)),
+                              _legalLink(
+                                'Politique de confidentialité',
+                                LegalDocument.privacy,
+                              ),
+                            ],
+                          ),
+                        ),
                         if (_error != null)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 10),
@@ -558,4 +579,17 @@ class _AuthScreenState extends State<AuthScreen> {
       ),
     );
   }
+
+  Widget _legalLink(String label, LegalDocument document) => TextButton(
+    onPressed: () => Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => LegalScreen(document: document)),
+    ),
+    style: TextButton.styleFrom(
+      padding: EdgeInsets.zero,
+      minimumSize: Size.zero,
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    ),
+    child: Text(label, style: const TextStyle(fontSize: 11)),
+  );
 }

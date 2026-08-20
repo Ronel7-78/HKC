@@ -29,6 +29,7 @@ class AdminVendeurManagementTest extends TestCase
             'latitude' => 4.5763,
             'longitude' => 13.6845,
             'role' => 'admin',
+            'conditions_acceptees' => true,
         ]);
 
         $response->assertCreated()
@@ -114,6 +115,7 @@ class AdminVendeurManagementTest extends TestCase
         $this->postJson('/api/login', [
             'email' => 'suspendu@example.com',
             'password' => 'password',
+            'conditions_acceptees' => true,
         ])->assertForbidden();
     }
 

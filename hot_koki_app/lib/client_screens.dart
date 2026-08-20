@@ -347,28 +347,62 @@ class _OrderCard extends StatelessWidget {
 
   Future<void> _pay(BuildContext context) async {
     final phone = TextEditingController();
-    final value = await showDialog<String>(
+    final methodsRaw = await ClientApi.request('GET', '/paiements-moyens');
+    if (!context.mounted) return;
+    final methods = (methodsRaw as List<dynamic>)
+        .map((item) => Map<String, dynamic>.from(item as Map))
+        .toList();
+    var provider = 'mtn_momo';
+    final value = await showDialog<Map<String, String>>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Paiement MTN MoMo'),
-        content: TextField(
-          controller: phone,
-          keyboardType: TextInputType.phone,
-          decoration: const InputDecoration(
-            labelText: 'Numéro MTN',
-            hintText: '6XXXXXXXX',
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Choisir le paiement'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ...methods.map((method) {
+                final available = method['disponible'] == true;
+                return ListTile(
+                  onTap: available
+                      ? () => setDialogState(
+                          () => provider = method['code'].toString(),
+                        )
+                      : null,
+                  leading: Icon(
+                    provider == method['code']
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_off,
+                    color: available ? _flame600 : Colors.grey,
+                  ),
+                  title: Text(method['nom'].toString()),
+                  subtitle: available ? null : const Text('Bientôt disponible'),
+                );
+              }),
+              TextField(
+                controller: phone,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'Numéro Mobile Money',
+                  hintText: '6XXXXXXXX',
+                ),
+              ),
+            ],
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Fermer'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, {
+                'telephone': phone.text.trim(),
+                'fournisseur': provider,
+              }),
+              child: const Text('Envoyer'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fermer'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, phone.text.trim()),
-            child: const Text('Envoyer'),
-          ),
-        ],
       ),
     );
     // Laisse l'animation de fermeture retirer complètement le champ avant de
@@ -376,13 +410,16 @@ class _OrderCard extends StatelessWidget {
     // d'erreur rouge pendant la transition.
     await Future<void>.delayed(const Duration(milliseconds: 250));
     phone.dispose();
-    if (value == null || value.isEmpty) return;
+    if (value == null || value['telephone']?.isEmpty != false) return;
     try {
       final result =
           await ClientApi.request(
                 'POST',
                 '/commandes/${order['id']}/paiements',
-                body: {'fournisseur': 'mtn_momo', 'telephone': value},
+                body: {
+                  'fournisseur': value['fournisseur'],
+                  'telephone': value['telephone'],
+                },
               )
               as Map<String, dynamic>;
       if (!context.mounted) return;
@@ -499,6 +536,8 @@ class _PaymentStatusScreenState extends State<PaymentStatusScreen> {
 
   bool get _terminal =>
       ['reussi', 'echoue', 'expire', 'annule'].contains(_payment['statut']);
+  bool get _isOrange => _payment['fournisseur'] == 'orange_money';
+  String get _operatorName => _isOrange ? 'Orange Money' : 'MTN MoMo';
   Future<void> _sync({bool relancer = false}) async {
     if (_checking || _terminal || _pollingStopped) return;
     _checking = true;
@@ -548,7 +587,7 @@ class _PaymentStatusScreenState extends State<PaymentStatusScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: _cream,
-    appBar: AppBar(title: const Text('Paiement MTN MoMo')),
+    appBar: AppBar(title: Text('Paiement $_operatorName')),
     body: Center(
       child: Padding(
         padding: const EdgeInsets.all(28),
@@ -591,7 +630,7 @@ class _PaymentStatusScreenState extends State<PaymentStatusScreen> {
               Text(
                 _payment['mode_test'] == true
                     ? 'Mode Sandbox : aucun message réel n’est envoyé au téléphone. MTN simule le résultat.'
-                    : 'Validez la demande reçue sur votre téléphone MTN MoMo.',
+                    : 'Validez la demande reçue sur votre téléphone $_operatorName.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: _inkSoft),
               ),

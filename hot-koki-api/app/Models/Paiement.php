@@ -11,6 +11,8 @@ class Paiement extends Model
 {
     public const FOURNISSEUR_MTN_MOMO = 'mtn_momo';
 
+    public const FOURNISSEUR_ORANGE_MONEY = 'orange_money';
+
     public const STATUT_INITIE = 'initie';
 
     public const STATUT_EN_ATTENTE = 'en_attente';
