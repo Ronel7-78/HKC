@@ -5,9 +5,9 @@ import 'client_screens.dart';
 
 const _leaf900 = Color(0xFF1F3524);
 const _leaf100 = Color(0xFFE7EEE4);
-const _flame600 = Color(0xFFC9491E);
-const _flame100 = Color(0xFFFFE8E5);
-const _inkSoft = Color(0xFF6B5F4E);
+const _flame600 = Color(0xFFD94B16);
+const _flame100 = Color(0xFFFFF0E7);
+const _inkSoft = Color(0xFF6B6864);
 
 class NotificationStore {
   static final unread = ValueNotifier<int>(0);

@@ -29,9 +29,9 @@ class AuthScreen extends StatefulWidget {
 class _AuthScreenState extends State<AuthScreen> {
   static const _leaf900 = Color(0xFF1F3524);
   static const _leaf700 = Color(0xFF2E4E36);
-  static const _cream2 = Color(0xFFFFF8EE);
-  static const _flame500 = Color(0xFFE0672F);
-  static const _inkSoft = Color(0xFF6B5F4E);
+  static const _cream2 = Color(0xFFF4F3F1);
+  static const _flame500 = Color(0xFFF06424);
+  static const _inkSoft = Color(0xFF6B6864);
   static const _storage = FlutterSecureStorage();
 
   final _formKey = GlobalKey<FormState>();

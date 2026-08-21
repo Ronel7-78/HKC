@@ -34,7 +34,15 @@ class Commande extends Model
 
     protected $fillable = [
         'client_id', 'vendeur_id', 'statut', 'adresse_livraison',
-        'latitude_client', 'longitude_client', 'sous_total', 'frais_livraison', 'total',
+        'latitude_client', 'longitude_client', 'distance_km',
+        'sous_total', 'frais_livraison', 'total',
+    ];
+
+    protected $casts = [
+        'distance_km' => 'decimal:3',
+        'sous_total' => 'decimal:2',
+        'frais_livraison' => 'decimal:2',
+        'total' => 'decimal:2',
     ];
 
     public function client()

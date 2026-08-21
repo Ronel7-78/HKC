@@ -6,12 +6,13 @@ import 'api_config.dart';
 import 'app_feedback.dart';
 import 'app_states.dart';
 import 'client_screens.dart';
+import 'delivery_fee_info.dart';
 import 'payment_method_card.dart';
 
 const _leaf900 = Color(0xFF1F3524);
 const _leaf100 = Color(0xFFE7EEE4);
-const _flame600 = Color(0xFFC9491E);
-const _inkSoft = Color(0xFF6B5F4E);
+const _flame600 = Color(0xFFD94B16);
+const _inkSoft = Color(0xFF6B6864);
 
 class CartItem {
   CartItem({
@@ -91,9 +92,9 @@ class CartScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFFFFF8EE),
+    backgroundColor: const Color(0xFFF4F3F1),
     appBar: AppBar(
-      backgroundColor: const Color(0xFFFFF8EE),
+      backgroundColor: const Color(0xFFF4F3F1),
       surfaceTintColor: Colors.transparent,
       title: const Text(
         'Mon panier',
@@ -181,7 +182,7 @@ class _CartLine extends StatelessWidget {
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: const Color(0xFFECE7DA)),
+      border: Border.all(color: const Color(0xFFE8E5E1)),
       boxShadow: const [
         BoxShadow(
           color: Color(0x0D1F3524),
@@ -605,7 +606,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFFFFF8EE),
+    backgroundColor: const Color(0xFFF4F3F1),
     appBar: AppBar(title: const Text('Valider la commande')),
     body: _loading
         ? const AppLoadingState(label: 'Calcul de votre commande…')
@@ -655,8 +656,41 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
               const SizedBox(height: 5),
               Text(
-                '${(_preview!['vendeur'] as Map)['nom_boutique']} · ${(_preview!['vendeur'] as Map)['distance_km']} km',
+                '${(_preview!['vendeur'] as Map)['nom_boutique']} · ${formatDistanceKm((_preview!['vendeur'] as Map)['distance_km'])}',
                 style: const TextStyle(color: _inkSoft, fontSize: 12),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: _preview!['livraison_gratuite'] == true
+                      ? _leaf100
+                      : const Color(0xFFFFF0E7),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      _preview!['livraison_gratuite'] == true
+                          ? Icons.local_shipping_outlined
+                          : Icons.route_outlined,
+                      color: _preview!['livraison_gratuite'] == true
+                          ? _leaf900
+                          : _flame600,
+                    ),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: DeliveryFeeLabel(
+                        fee: _preview!['frais_livraison'],
+                        color: _leaf900,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 16),
               const Text(
@@ -694,9 +728,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
               const SizedBox(height: 20),
               _AmountLine(label: 'Sous-total', value: _preview!['sous_total']),
-              _AmountLine(
-                label: 'Livraison',
-                value: _preview!['frais_livraison'],
+              DeliveryFeeLabel(
+                fee: _preview!['frais_livraison'],
+                color: _leaf900,
+                fontSize: 14,
               ),
               const Divider(),
               _AmountLine(

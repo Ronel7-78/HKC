@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 const _leaf900 = Color(0xFF1F3524);
-const _flame600 = Color(0xFFC9491E);
-const _inkSoft = Color(0xFF6B5F4E);
+const _flame600 = Color(0xFFD94B16);
+const _inkSoft = Color(0xFF6B6864);
 
 enum LegalDocument { terms, privacy }
 
@@ -42,7 +42,7 @@ class LegalScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFF1E8),
+                color: const Color(0xFFFFF0E7),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: const Text(

@@ -4,6 +4,18 @@ import 'package:flutter/services.dart';
 String apiResourceId(Map<dynamic, dynamic> resource) =>
     (resource['public_id'] ?? resource['id']).toString();
 
+String formatDistanceKm(dynamic value) {
+  final distance = double.tryParse(value?.toString() ?? '');
+  if (distance == null) return 'Distance indisponible';
+  final decimals = (distance - 3).abs() < .01 ? 3 : 2;
+  return '${distance.toStringAsFixed(decimals)} km';
+}
+
+String deliveryFeeText(dynamic value) {
+  final fee = double.tryParse(value?.toString() ?? '') ?? 0;
+  return 'Frais de livraison : ${fee.round()} FCFA';
+}
+
 class ApiConfig {
   static const _definedBaseUrl = String.fromEnvironment('API_BASE_URL');
 

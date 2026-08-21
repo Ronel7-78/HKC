@@ -9,8 +9,8 @@ import 'api_config.dart';
 import 'app_feedback.dart';
 
 const _leaf900 = Color(0xFF1F3524);
-const _cream = Color(0xFFFFF8EE);
-const _flame = Color(0xFFE0672F);
+const _cream = Color(0xFFF4F3F1);
+const _flame = Color(0xFFF06424);
 
 class EmailVerificationScreen extends StatefulWidget {
   const EmailVerificationScreen({super.key, required this.email});
@@ -100,7 +100,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                   children: [
                     const CircleAvatar(
                       radius: 34,
-                      backgroundColor: Color(0xFFFFE8E5),
+                      backgroundColor: Color(0xFFFFF0E7),
                       child: Icon(
                         Icons.mark_email_read_outlined,
                         color: _flame,

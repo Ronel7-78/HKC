@@ -11,9 +11,9 @@ import 'client_screens.dart';
 const _leaf900 = Color(0xFF1F3524);
 const _leaf700 = Color(0xFF2E4E36);
 const _leaf100 = Color(0xFFE7EEE4);
-const _flame600 = Color(0xFFC9491E);
-const _flame500 = Color(0xFFE0672F);
-const _inkSoft = Color(0xFF6B5F4E);
+const _flame600 = Color(0xFFD94B16);
+const _flame500 = Color(0xFFF06424);
+const _inkSoft = Color(0xFF6B6864);
 
 class SellerDashboardScreen extends StatefulWidget {
   const SellerDashboardScreen({super.key});
@@ -456,6 +456,14 @@ class SellerOrderCard extends StatelessWidget {
                   order['adresse_livraison'].toString(),
                   style: const TextStyle(color: _inkSoft),
                 ),
+                if (order['distance_km'] != null)
+                  Text(
+                    '${formatDistanceKm(order['distance_km'])} · ${deliveryFeeText(order['frais_livraison'])}',
+                    style: const TextStyle(
+                      color: _leaf700,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 if (user['telephone'] != null)
                   TextButton.icon(
                     onPressed: () => launchUrl(
@@ -547,6 +555,15 @@ class SellerOrderCard extends StatelessWidget {
                         '${_money(order['total'])} F CFA',
                         style: const TextStyle(color: _inkSoft, fontSize: 12),
                       ),
+                      if (order['distance_km'] != null)
+                        Text(
+                          '${formatDistanceKm(order['distance_km'])} · ${deliveryFeeText(order['frais_livraison'])}',
+                          style: const TextStyle(
+                            color: _leaf700,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -1139,7 +1156,7 @@ class _SellerStat extends StatelessWidget {
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(17),
-      border: Border.all(color: const Color(0xFFECE7DA)),
+      border: Border.all(color: const Color(0xFFE8E5E1)),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1220,7 +1237,7 @@ class _OrderStatus extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
     decoration: BoxDecoration(
-      color: status == 'livree' ? _leaf100 : const Color(0xFFFBD9C4),
+      color: status == 'livree' ? _leaf100 : const Color(0xFFF6D2BC),
       borderRadius: BorderRadius.circular(20),
     ),
     child: Text(

@@ -7,8 +7,8 @@ import 'api_config.dart';
 import 'app_feedback.dart';
 import 'client_screens.dart';
 
-const _flame600 = Color(0xFFC9491E);
-const _cream = Color(0xFFFFF8EE);
+const _flame600 = Color(0xFFD94B16);
+const _cream = Color(0xFFF4F3F1);
 
 class AdminAnnouncementsScreen extends StatefulWidget {
   const AdminAnnouncementsScreen({super.key});
@@ -133,7 +133,7 @@ class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
               child: ListTile(
                 onTap: () => _form(item),
                 leading: CircleAvatar(
-                  backgroundColor: const Color(0xFFFFE8E5),
+                  backgroundColor: const Color(0xFFFFF0E7),
                   backgroundImage: resolved == null
                       ? null
                       : NetworkImage(ApiConfig.resolveMediaUrl(resolved)),
@@ -298,7 +298,7 @@ class _AnnouncementFormState extends State<_AnnouncementForm> {
                   width: double.infinity,
                   clipBehavior: Clip.antiAlias,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFE8E5),
+                    color: const Color(0xFFFFF0E7),
                     borderRadius: BorderRadius.circular(15),
                   ),
                   child: _image != null

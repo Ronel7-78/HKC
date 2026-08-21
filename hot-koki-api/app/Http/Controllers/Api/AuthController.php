@@ -69,6 +69,17 @@ class AuthController extends Controller
             'longitude' => $request->longitude,
         ]);
 
+        if (! config('email_auth.verification_enabled')) {
+            $token = $user->createToken('auth_token')->plainTextToken;
+
+            return response()->json([
+                'message' => 'Compte créé. La vérification email est temporairement désactivée.',
+                'user' => $user->load('client'),
+                'token' => $token,
+                'verification_requise' => false,
+            ], 201);
+        }
+
         $codes->issue($user, EmailAuthCode::PURPOSE_VERIFY_EMAIL);
 
         return response()->json([
@@ -102,7 +113,7 @@ class AuthController extends Controller
             return response()->json(['message' => 'Identifiants incorrects'], 401);
         }
 
-        if (! $user->isAdmin() && ! $user->email_verified_at) {
+        if (config('email_auth.verification_enabled') && ! $user->isAdmin() && ! $user->email_verified_at) {
             return response()->json([
                 'message' => 'Vérifiez votre adresse email avant de vous connecter.',
                 'code' => 'EMAIL_NON_VERIFIE',

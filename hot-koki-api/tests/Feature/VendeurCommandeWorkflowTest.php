@@ -108,7 +108,7 @@ class VendeurCommandeWorkflowTest extends TestCase
         ])
             ->assertCreated()
             ->assertJsonPath('paiement.statut', Paiement::STATUT_EN_ATTENTE)
-            ->assertJsonPath('paiement.montant', '1300.00');
+            ->assertJsonPath('paiement.montant', '1000.00');
 
         $this->getJson('/api/commandes')
             ->assertOk()

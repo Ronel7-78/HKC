@@ -16,10 +16,10 @@ import 'cart_screen.dart';
 const _leaf900 = Color(0xFF1F3524);
 const _leaf700 = Color(0xFF2E4E36);
 const _leaf100 = Color(0xFFE7EEE4);
-const _cream2 = Color(0xFFFFF8EE);
-const _flame600 = Color(0xFFC9491E);
-const _flame500 = Color(0xFFE0672F);
-const _inkSoft = Color(0xFF6B5F4E);
+const _cream2 = Color(0xFFF4F3F1);
+const _flame600 = Color(0xFFD94B16);
+const _flame500 = Color(0xFFF06424);
+const _inkSoft = Color(0xFF6B6864);
 
 class VendorData {
   const VendorData({
@@ -325,7 +325,7 @@ class _VendorCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFBD9C4),
+                  color: const Color(0xFFF6D2BC),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -852,33 +852,42 @@ class _VendorProductCard extends StatelessWidget {
     final complement = await showModalBottomSheet<ProductComplement>(
       context: context,
       showDragHandle: true,
+      isScrollControlled: true,
       builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Choisissez un complément',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: _leaf900,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 8),
-              ...product.complements.map(
-                (item) => ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(
-                    Icons.radio_button_unchecked,
-                    color: _flame600,
+        child: FractionallySizedBox(
+          heightFactor: .72,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Choisissez un complément',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: _leaf900,
+                    fontWeight: FontWeight.w800,
                   ),
-                  title: Text(item.name),
-                  onTap: () => Navigator.pop(context, item),
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: product.complements.length,
+                    itemBuilder: (context, index) {
+                      final item = product.complements[index];
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(
+                          Icons.radio_button_unchecked,
+                          color: _flame600,
+                        ),
+                        title: Text(item.name),
+                        onTap: () => Navigator.pop(context, item),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

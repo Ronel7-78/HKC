@@ -39,7 +39,9 @@ class CommandeComplementTest extends TestCase
         $this->postJson('/api/commandes/preview', $this->panier($produit, [$complement->id]))
             ->assertOk()
             ->assertJsonPath('sous_total', 1000)
-            ->assertJsonPath('total', 1300);
+            ->assertJsonPath('frais_livraison', 0)
+            ->assertJsonPath('livraison_gratuite', true)
+            ->assertJsonPath('total', 1000);
     }
 
     public function test_commande_calculates_product_quantity(): void
@@ -51,7 +53,8 @@ class CommandeComplementTest extends TestCase
         $this->postJson('/api/commandes/preview', $panier)
             ->assertOk()
             ->assertJsonPath('sous_total', 3000)
-            ->assertJsonPath('total', 3300);
+            ->assertJsonPath('frais_livraison', 0)
+            ->assertJsonPath('total', 3000);
     }
 
     /**

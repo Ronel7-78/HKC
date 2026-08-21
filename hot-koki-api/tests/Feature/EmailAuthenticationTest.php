@@ -16,6 +16,7 @@ class EmailAuthenticationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        config()->set('email_auth.verification_enabled', true);
         Notification::fake();
     }
 
@@ -47,6 +48,26 @@ class EmailAuthenticationTest extends TestCase
         $this->assertNotNull($user->fresh()->email_verified_at);
         $this->postJson('/api/email/verify', ['email' => $user->email, 'code' => $code])
             ->assertUnprocessable();
+    }
+
+    public function test_inscription_et_connexion_fonctionnent_sans_smtp_quand_la_verification_est_desactivee(): void
+    {
+        config()->set('email_auth.verification_enabled', false);
+
+        $response = $this->postJson('/api/register', $this->registration())
+            ->assertCreated()
+            ->assertJsonPath('verification_requise', false)
+            ->assertJsonStructure(['token', 'user']);
+
+        $user = User::findOrFail($response->json('user.id'));
+        $this->assertNull($user->email_verified_at);
+        Notification::assertNothingSent();
+
+        $this->postJson('/api/login', [
+            'email' => $user->email,
+            'password' => 'Password-123',
+            'conditions_acceptees' => true,
+        ])->assertOk()->assertJsonStructure(['token']);
     }
 
     public function test_reset_password_est_neutre_revoque_les_sessions_et_consomme_le_code(): void

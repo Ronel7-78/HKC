@@ -11,15 +11,16 @@ import 'api_config.dart';
 import 'app_feedback.dart';
 import 'app_preferences.dart';
 import 'app_states.dart';
+import 'delivery_fee_info.dart';
 import 'payment_method_card.dart';
 
 const _leaf900 = Color(0xFF1F3524);
 const _leaf700 = Color(0xFF2E4E36);
 const _leaf100 = Color(0xFFE7EEE4);
-const _cream = Color(0xFFFFF8EE);
-const _flame600 = Color(0xFFC9491E);
-const _flame500 = Color(0xFFE0672F);
-const _inkSoft = Color(0xFF6B5F4E);
+const _cream = Color(0xFFF4F3F1);
+const _flame600 = Color(0xFFD94B16);
+const _flame500 = Color(0xFFF06424);
+const _inkSoft = Color(0xFF6B6864);
 
 class ApiException implements Exception {
   const ApiException(this.message, [this.fields = const {}]);
@@ -267,6 +268,42 @@ class _OrderCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
+          if (order['distance_km'] != null)
+            Row(
+              children: [
+                Icon(
+                  Icons.route_outlined,
+                  size: 16,
+                  color: status == 'livree' ? _leaf700 : Colors.white70,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  formatDistanceKm(order['distance_km']),
+                  style: TextStyle(
+                    color: status == 'livree' ? _inkSoft : Colors.white70,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(width: 5),
+                Text(
+                  '·',
+                  style: TextStyle(
+                    color: status == 'livree' ? _inkSoft : Colors.white70,
+                  ),
+                ),
+                const SizedBox(width: 5),
+                Expanded(
+                  child: DeliveryFeeLabel(
+                    fee: order['frais_livraison'],
+                    color: status == 'livree' ? _inkSoft : Colors.white70,
+                    fontSize: 11,
+                    compact: true,
+                  ),
+                ),
+              ],
+            ),
+          if (order['distance_km'] != null) const SizedBox(height: 6),
           Row(
             children: [
               Text(
@@ -363,30 +400,35 @@ class _OrderCard extends StatelessWidget {
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: const Text('Choisir le paiement'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ...methods.map((method) {
-                final available = method['disponible'] == true;
-                return PaymentMethodCard(
-                  code: method['code'].toString(),
-                  name: method['nom'].toString(),
-                  selected: provider == method['code'],
-                  available: available,
-                  onTap: () => setDialogState(
-                    () => provider = method['code'].toString(),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 440, maxHeight: 520),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ...methods.map((method) {
+                    final available = method['disponible'] == true;
+                    return PaymentMethodCard(
+                      code: method['code'].toString(),
+                      name: method['nom'].toString(),
+                      selected: provider == method['code'],
+                      available: available,
+                      onTap: () => setDialogState(
+                        () => provider = method['code'].toString(),
+                      ),
+                    );
+                  }),
+                  TextField(
+                    controller: phone,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      labelText: 'Numéro Mobile Money',
+                      hintText: '6XXXXXXXX',
+                    ),
                   ),
-                );
-              }),
-              TextField(
-                controller: phone,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: 'Numéro Mobile Money',
-                  hintText: '6XXXXXXXX',
-                ),
+                ],
               ),
-            ],
+            ),
           ),
           actions: [
             TextButton(
@@ -730,6 +772,16 @@ class _OrderDetails extends StatelessWidget {
               );
             }),
             const Divider(),
+            if (order['distance_km'] != null) ...[
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.route_outlined, color: _leaf700),
+                title: const Text('Distance vendeur–livraison'),
+                subtitle: Text(formatDistanceKm(order['distance_km'])),
+              ),
+              DeliveryFeeLabel(fee: order['frais_livraison'], color: _leaf900),
+              const Divider(),
+            ],
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [

@@ -37,6 +37,11 @@ class HotKokiApp extends StatelessWidget {
         locale: AppPreferences.instance.locale,
         supportedLocales: const [Locale('fr'), Locale('en')],
         localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        builder: (context, child) => MediaQuery.withClampedTextScaling(
+          minScaleFactor: 0.9,
+          maxScaleFactor: 1.2,
+          child: child!,
+        ),
         theme: HotKokiTheme.light,
         // Mode sombre désactivé jusqu'à validation de sa direction visuelle.
         // darkTheme: HotKokiTheme.dark,
@@ -53,14 +58,14 @@ class HotKokiColors {
   static const leaf900 = Color(0xFF1F3524);
   static const leaf700 = Color(0xFF2E4E36);
   static const leaf100 = Color(0xFFE7EEE4);
-  static const cream = Color(0xFFFFF8E1);
-  static const cream2 = Color(0xFFFFF8EE);
-  static const flame600 = Color(0xFFC9491E);
-  static const flame500 = Color(0xFFE0672F);
-  static const flame100 = Color(0xFFFFE8E5);
-  static const muted100 = Color(0xFFECE7DA);
-  static const ink = Color(0xFF2A2117);
-  static const inkSoft = Color(0xFF6B5F4E);
+  static const cream = Color(0xFFFAF9F7);
+  static const cream2 = Color(0xFFF4F3F1);
+  static const flame600 = Color(0xFFD94B16);
+  static const flame500 = Color(0xFFF06424);
+  static const flame100 = Color(0xFFFFF0E7);
+  static const muted100 = Color(0xFFE8E5E1);
+  static const ink = Color(0xFF211F1D);
+  static const inkSoft = Color(0xFF6B6864);
 }
 
 class HotKokiTheme {
@@ -74,10 +79,67 @@ class HotKokiTheme {
         secondary: HotKokiColors.leaf700,
         surface: Colors.white,
       ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: HotKokiColors.cream2,
+        foregroundColor: HotKokiColors.leaf900,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+      ),
+      cardTheme: CardThemeData(
+        color: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        elevation: 1,
+        shadowColor: Colors.black.withValues(alpha: .08),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: HotKokiColors.muted100),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 15,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: HotKokiColors.muted100),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: HotKokiColors.muted100),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(
+            color: HotKokiColors.flame500,
+            width: 1.5,
+          ),
+        ),
+      ),
       navigationBarTheme: const NavigationBarThemeData(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        indicatorColor: HotKokiColors.flame100,
+        elevation: 8,
         labelTextStyle: WidgetStatePropertyAll(
           TextStyle(fontSize: 9, fontWeight: FontWeight.w700),
         ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: HotKokiColors.cream,
+        surfaceTintColor: Colors.transparent,
+        showDragHandle: true,
+      ),
+      dividerTheme: const DividerThemeData(
+        color: HotKokiColors.muted100,
+        thickness: 1,
       ),
       textTheme: GoogleFonts.manropeTextTheme().copyWith(
         headlineSmall: TextStyle(
@@ -343,7 +405,7 @@ class _RoleNavigationBar extends StatelessWidget {
     if (tabs.length == 1) return const SizedBox.shrink();
 
     return NavigationBar(
-      height: 76,
+      height: 78,
       selectedIndex: selectedIndex,
       onDestinationSelected: onSelected,
       backgroundColor: Theme.of(context).colorScheme.surface,
@@ -468,30 +530,39 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     final complement = await showModalBottomSheet<HomeComplement>(
       context: context,
       showDragHandle: true,
+      isScrollControlled: true,
       builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Choisissez un complément',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 8),
-              ...product.complements.map(
-                (item) => ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(
-                    Icons.radio_button_unchecked,
-                    color: HotKokiColors.flame600,
-                  ),
-                  title: Text(item.name),
-                  onTap: () => Navigator.pop(context, item),
+        child: FractionallySizedBox(
+          heightFactor: .72,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Choisissez un complément',
+                  style: Theme.of(context).textTheme.titleLarge,
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: product.complements.length,
+                    itemBuilder: (context, index) {
+                      final item = product.complements[index];
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(
+                          Icons.radio_button_unchecked,
+                          color: HotKokiColors.flame600,
+                        ),
+                        title: Text(item.name),
+                        onTap: () => Navigator.pop(context, item),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

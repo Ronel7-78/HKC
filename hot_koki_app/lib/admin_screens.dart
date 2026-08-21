@@ -15,9 +15,9 @@ import 'notifications_screen.dart';
 const _leaf900 = Color(0xFF1F3524);
 const _leaf700 = Color(0xFF2E4E36);
 const _leaf100 = Color(0xFFE7EEE4);
-const _flame600 = Color(0xFFC9491E);
-const _flame500 = Color(0xFFE0672F);
-const _inkSoft = Color(0xFF6B5F4E);
+const _flame600 = Color(0xFFD94B16);
+const _flame500 = Color(0xFFF06424);
+const _inkSoft = Color(0xFF6B6864);
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -1436,7 +1436,7 @@ class _StatCard extends StatelessWidget {
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: const Color(0xFFECE7DA)),
+      border: Border.all(color: const Color(0xFFE8E5E1)),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1607,7 +1607,8 @@ class _OrderSummary extends StatelessWidget {
           style: const TextStyle(fontWeight: FontWeight.w800),
         ),
         subtitle: Text(
-          '${user?['name'] ?? 'Client'} · ${_money(order['total'])} F',
+          '${user?['name'] ?? 'Client'} · ${_money(order['total'])} F'
+          '${order['distance_km'] == null ? '' : '\n${formatDistanceKm(order['distance_km'])} · ${deliveryFeeText(order['frais_livraison'])}'}',
         ),
         trailing: Text(
           _statusLabel(order['statut'].toString()),

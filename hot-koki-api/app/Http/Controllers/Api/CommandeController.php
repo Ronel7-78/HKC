@@ -9,6 +9,7 @@ use App\Models\Commande;
 use App\Models\CommandeItem;
 use App\Models\Produit;
 use App\Models\Vendeur;
+use App\Services\DeliveryPricingService;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -104,7 +105,7 @@ class CommandeController extends Controller
         return [$sousTotal, $lignes];
     }
 
-    public function preview(Request $request)
+    public function preview(Request $request, DeliveryPricingService $delivery)
     {
         $validator = $this->validerPanier($request);
         if ($validator->fails()) {
@@ -123,21 +124,29 @@ class CommandeController extends Controller
         }
 
         [$sousTotal, $lignes] = $this->calculerTotaux($request->items);
-        $fraisLivraison = 300;
+        $distanceKm = $delivery->displayedDistance((float) $vendeur->distance);
+        $fraisLivraison = $delivery->feeForDistance((float) $vendeur->distance);
 
         return response()->json([
             'vendeur' => [
                 'id' => $vendeur->id,
                 'nom_boutique' => $vendeur->nom_boutique,
-                'distance_km' => round($vendeur->distance, 2),
+                'distance_km' => $distanceKm,
             ],
             'sous_total' => $sousTotal,
             'frais_livraison' => $fraisLivraison,
             'total' => $sousTotal + $fraisLivraison,
+            'livraison_gratuite' => $fraisLivraison === 0,
+            'politique_livraison' => sprintf(
+                'Frais de livraison : 0 FCFA à moins de %s km, %d FCFA à partir de %s km.',
+                config('delivery.free_radius_km'),
+                config('delivery.flat_fee_xaf'),
+                config('delivery.free_radius_km'),
+            ),
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, DeliveryPricingService $delivery)
     {
         $validator = $this->validerPanier($request);
         if ($validator->fails()) {
@@ -152,7 +161,7 @@ class CommandeController extends Controller
             ], 403);
         }
 
-        $commande = DB::transaction(function () use ($client, $request) {
+        $commande = DB::transaction(function () use ($client, $request, $delivery) {
             $vendeur = $this->verrouillerVendeurEligible(
                 $request->items,
                 $request->latitude_client,
@@ -165,7 +174,8 @@ class CommandeController extends Controller
             }
 
             [$sousTotal, $lignes] = $this->calculerTotaux($request->items);
-            $fraisLivraison = 300;
+            $distanceKm = $delivery->displayedDistance((float) $vendeur->distance);
+            $fraisLivraison = $delivery->feeForDistance((float) $vendeur->distance);
 
             $commande = Commande::create([
                 'client_id' => $client->id,
@@ -174,6 +184,7 @@ class CommandeController extends Controller
                 'adresse_livraison' => $request->adresse_livraison,
                 'latitude_client' => $request->latitude_client,
                 'longitude_client' => $request->longitude_client,
+                'distance_km' => $distanceKm,
                 'sous_total' => $sousTotal,
                 'frais_livraison' => $fraisLivraison,
                 'total' => $sousTotal + $fraisLivraison,

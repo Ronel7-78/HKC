@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 const _leaf900 = Color(0xFF1F3524);
-const _cream = Color(0xFFFFF8EE);
-const _flame600 = Color(0xFFC9491E);
-const _inkSoft = Color(0xFF6B5F4E);
+const _cream = Color(0xFFF4F3F1);
+const _flame600 = Color(0xFFD94B16);
+const _inkSoft = Color(0xFF6B6864);
 
 /// Évite le flash d'un indicateur quand une requête répond presque aussitôt.
 class AppLoadingState extends StatefulWidget {
@@ -264,7 +264,7 @@ class _AppCardSkeletonState extends State<AppCardSkeleton>
           height: 104,
           margin: const EdgeInsets.fromLTRB(20, 0, 20, 10),
           decoration: BoxDecoration(
-            color: const Color(0xFFECE7DA),
+            color: const Color(0xFFE8E5E1),
             borderRadius: BorderRadius.circular(18),
           ),
         ),

@@ -30,7 +30,7 @@ class AppFeedback {
     builder: (context) => AlertDialog(
       icon: Icon(
         success ? Icons.check_circle_rounded : Icons.error_rounded,
-        color: success ? const Color(0xFFC9491E) : Colors.red.shade800,
+        color: success ? const Color(0xFFD94B16) : Colors.red.shade800,
         size: 58,
       ),
       title: Text(title, textAlign: TextAlign.center),
