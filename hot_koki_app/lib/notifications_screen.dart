@@ -45,6 +45,28 @@ class NotificationsScreen extends StatefulWidget {
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
   late Future<Map<String, dynamic>> _future;
+  final _searchController = TextEditingController();
+  String _status = 'toutes';
+  String? _category;
+  String? _period;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  String _path({int page = 1}) {
+    final query = <String, String>{
+      'statut': _status,
+      'page': '$page',
+      'categorie': ?_category,
+      'periode': ?_period,
+      if (_searchController.text.trim().isNotEmpty)
+        'recherche': _searchController.text.trim(),
+    };
+    return Uri(path: '/notifications', queryParameters: query).toString();
+  }
 
   @override
   void initState() {
@@ -55,12 +77,33 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   void _reload() {
     _future = ClientApi.request(
       'GET',
-      '/notifications',
+      _path(),
     ).then((value) => value as Map<String, dynamic>);
     _future.then((data) {
       NotificationStore.unread.value =
           int.tryParse(data['non_lues'].toString()) ?? 0;
     });
+  }
+
+  void _applyFilters() => setState(_reload);
+
+  Future<void> _loadMore(Map<String, dynamic> current) async {
+    final pagination = current['pagination'] as Map<String, dynamic>? ?? {};
+    final page = int.tryParse(pagination['page'].toString()) ?? 1;
+    final previousItems = List<dynamic>.from(
+      current['notifications'] as List<dynamic>? ?? const [],
+    );
+    setState(() {
+      _future = ClientApi.request('GET', _path(page: page + 1)).then((value) {
+        final next = value as Map<String, dynamic>;
+        next['notifications'] = [
+          ...previousItems,
+          ...List<dynamic>.from(next['notifications'] as List? ?? const []),
+        ];
+        return next;
+      });
+    });
+    await _future;
   }
 
   Future<void> _refresh() async {
@@ -112,6 +155,30 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             ],
           ),
         ),
+        FutureBuilder<Map<String, dynamic>>(
+          future: _future,
+          builder: (context, snapshot) => _NotificationFilters(
+            status: _status,
+            category: _category,
+            period: _period,
+            categories:
+                snapshot.data?['filtres']?['categories'] as List? ?? const [],
+            searchController: _searchController,
+            onStatusChanged: (value) {
+              _status = value;
+              _applyFilters();
+            },
+            onCategoryChanged: (value) {
+              _category = value;
+              _applyFilters();
+            },
+            onPeriodChanged: (value) {
+              _period = value;
+              _applyFilters();
+            },
+            onSearch: _applyFilters,
+          ),
+        ),
         Expanded(
           child: FutureBuilder<Map<String, dynamic>>(
             future: _future,
@@ -130,9 +197,22 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 onRefresh: _refresh,
                 child: ListView.separated(
                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
-                  itemCount: items.length,
+                  itemCount:
+                      items.length +
+                      ((snapshot.data?['pagination']?['a_plus'] == true)
+                          ? 1
+                          : 0),
                   separatorBuilder: (_, _) => const SizedBox(height: 9),
                   itemBuilder: (_, index) {
+                    if (index == items.length) {
+                      return Center(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _loadMore(snapshot.data!),
+                          icon: const Icon(Icons.expand_more_rounded),
+                          label: const Text('Voir les anciennes'),
+                        ),
+                      );
+                    }
                     final item = items[index] as Map<String, dynamic>;
                     return _NotificationCard(
                       notification: item,
@@ -147,6 +227,186 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       ],
     ),
   );
+}
+
+class _NotificationFilters extends StatelessWidget {
+  const _NotificationFilters({
+    required this.status,
+    required this.category,
+    required this.period,
+    required this.categories,
+    required this.searchController,
+    required this.onStatusChanged,
+    required this.onCategoryChanged,
+    required this.onPeriodChanged,
+    required this.onSearch,
+  });
+
+  final String status;
+  final String? category;
+  final String? period;
+  final List<dynamic> categories;
+  final TextEditingController searchController;
+  final ValueChanged<String> onStatusChanged;
+  final ValueChanged<String?> onCategoryChanged;
+  final ValueChanged<String?> onPeriodChanged;
+  final VoidCallback onSearch;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+    child: Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'toutes', label: Text('Toutes')),
+                  ButtonSegment(value: 'non_lues', label: Text('Non lues')),
+                  ButtonSegment(value: 'lues', label: Text('Lues')),
+                ],
+                selected: {status},
+                showSelectedIcon: false,
+                onSelectionChanged: (values) => onStatusChanged(values.first),
+                style: const ButtonStyle(
+                  visualDensity: VisualDensity(horizontal: -2, vertical: -2),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton.filledTonal(
+              tooltip: 'Choisir une période',
+              onPressed: () => _choosePeriod(context),
+              icon: Badge(
+                isLabelVisible: period != null,
+                smallSize: 7,
+                child: const Icon(Icons.tune_rounded),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 9),
+        SizedBox(
+          height: 38,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              _categoryChip(null, 'Tout', 0),
+              for (final raw in categories)
+                if (raw is Map)
+                  _categoryChip(
+                    raw['id']?.toString(),
+                    _categoryLabel(raw['id']?.toString()),
+                    int.tryParse(raw['non_lues'].toString()) ?? 0,
+                  ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 9),
+        TextField(
+          controller: searchController,
+          textInputAction: TextInputAction.search,
+          onSubmitted: (_) => onSearch(),
+          decoration: InputDecoration(
+            hintText: 'Rechercher une commande, un paiement…',
+            prefixIcon: const Icon(Icons.search_rounded),
+            suffixIcon: searchController.text.isEmpty
+                ? null
+                : IconButton(
+                    tooltip: 'Effacer',
+                    onPressed: () {
+                      searchController.clear();
+                      onSearch();
+                    },
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+            filled: true,
+            fillColor: _leaf100.withValues(alpha: .55),
+            isDense: true,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(15),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _categoryChip(String? id, String label, int unread) => Padding(
+    padding: const EdgeInsets.only(right: 7),
+    child: ChoiceChip(
+      selected: category == id,
+      onSelected: (_) => onCategoryChanged(id),
+      label: Text(unread > 0 ? '$label  $unread' : label),
+      avatar: unread > 0 && category != id
+          ? const CircleAvatar(radius: 3, backgroundColor: _flame600)
+          : null,
+      showCheckmark: false,
+      selectedColor: _leaf900,
+      labelStyle: TextStyle(
+        color: category == id ? Colors.white : _leaf900,
+        fontWeight: FontWeight.w700,
+        fontSize: 12,
+      ),
+      side: BorderSide.none,
+      backgroundColor: _leaf100,
+      visualDensity: VisualDensity.compact,
+    ),
+  );
+
+  Future<void> _choosePeriod(BuildContext context) async {
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(12, 0, 12, 8),
+                child: Text(
+                  'Afficher la période',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                ),
+              ),
+              for (final option in const <String?, String>{
+                null: 'Toutes les dates',
+                'aujourdhui': "Aujourd’hui",
+                '7j': '7 derniers jours',
+                '30j': '30 derniers jours',
+                'archives': 'Archives (+ de 30 jours)',
+              }.entries)
+                ListTile(
+                  title: Text(option.value),
+                  trailing: option.key == period
+                      ? const Icon(Icons.check_circle, color: _flame600)
+                      : null,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  onTap: () => Navigator.pop(context, option.key ?? ''),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (selected != null) onPeriodChanged(selected.isEmpty ? null : selected);
+  }
+
+  static String _categoryLabel(String? id) => switch (id) {
+    'commandes' => 'Commandes',
+    'paiements' => 'Paiements',
+    'avis' => 'Avis',
+    'compte' => 'Compte',
+    'systeme' => 'Système',
+    _ => 'Autres',
+  };
 }
 
 class _NotificationCard extends StatelessWidget {
