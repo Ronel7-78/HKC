@@ -68,4 +68,52 @@ class NotificationCenterTest extends TestCase
             'notifiable_type' => User::class,
         ]);
     }
+
+    public function test_les_notifications_peuvent_etre_filtrees_sans_nouvelle_table(): void
+    {
+        $user = User::factory()->create(['role' => 'client']);
+        $user->notify(new NotificationMetier([
+            'type' => 'commande_creee',
+            'titre' => 'Commande créée',
+            'message' => 'La commande #42 attend son paiement.',
+        ]));
+        $user->notify(new NotificationMetier([
+            'type' => 'paiement_reussi',
+            'titre' => 'Paiement confirmé',
+            'message' => 'Le paiement de la commande #41 est confirmé.',
+        ]));
+        $user->notifications()->where('data->type', 'paiement_reussi')->firstOrFail()->markAsRead();
+
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/notifications?statut=non_lues&categorie=commandes&recherche=42')
+            ->assertOk()
+            ->assertJsonCount(1, 'notifications')
+            ->assertJsonPath('notifications.0.data.type', 'commande_creee')
+            ->assertJsonPath('pagination.total', 1)
+            ->assertJsonPath('filtres.categories.0.id', 'commandes')
+            ->assertJsonPath('filtres.categories.0.non_lues', 1);
+
+        $this->getJson('/api/notifications?categorie=avis')->assertUnprocessable();
+    }
+
+    public function test_la_liste_des_notifications_est_paginatee(): void
+    {
+        $user = User::factory()->create(['role' => 'admin']);
+        foreach (range(1, 3) as $numero) {
+            $user->notify(new NotificationMetier([
+                'type' => 'test',
+                'titre' => "Notification {$numero}",
+                'message' => 'Message métier',
+            ]));
+        }
+
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/notifications?par_page=2')
+            ->assertOk()
+            ->assertJsonCount(2, 'notifications')
+            ->assertJsonPath('pagination.total', 3)
+            ->assertJsonPath('pagination.a_plus', true);
+    }
 }
