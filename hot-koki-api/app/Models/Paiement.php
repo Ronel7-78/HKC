@@ -54,11 +54,23 @@ class Paiement extends Model
         'reference_operateur',
     ];
 
-    protected $appends = ['mode_test'];
+    protected $appends = ['mode_test', 'url_paiement'];
 
     public function getModeTestAttribute(): bool
     {
-        return config('services.mtn_momo.target_environment') === 'sandbox';
+        return $this->fournisseur === self::FOURNISSEUR_ORANGE_MONEY
+            ? config('services.orange_money.environment') === 'sandbox'
+            : config('services.mtn_momo.target_environment') === 'sandbox';
+    }
+
+    public function getUrlPaiementAttribute(): ?string
+    {
+        if ($this->fournisseur !== self::FOURNISSEUR_ORANGE_MONEY
+            || ! in_array($this->statut, self::STATUTS_ACTIFS, true)) {
+            return null;
+        }
+
+        return $this->donnees_operateur['payment_url'] ?? null;
     }
 
     protected static function booted(): void

@@ -6,6 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 
 import 'api_config.dart';
 import 'app_feedback.dart';
@@ -671,7 +672,9 @@ class _PaymentStatusScreenState extends State<PaymentStatusScreen> {
               const SizedBox(height: 4),
               Text(
                 _payment['mode_test'] == true
-                    ? 'Mode Sandbox : aucun message réel n’est envoyé au téléphone. MTN simule le résultat.'
+                    ? (_isOrange
+                          ? 'Mode Sandbox : utilisez la page de test Orange Money ouverte depuis l’application.'
+                          : 'Mode Sandbox : aucun message réel n’est envoyé au téléphone. MTN simule le résultat.')
                     : 'Validez la demande reçue sur votre téléphone $_operatorName.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: _inkSoft),
@@ -694,6 +697,17 @@ class _PaymentStatusScreenState extends State<PaymentStatusScreen> {
                 ),
               ],
               const SizedBox(height: 18),
+              if (_isOrange && _payment['url_paiement'] != null)
+                FilledButton.icon(
+                  onPressed: () => launchUrl(
+                    Uri.parse(_payment['url_paiement'].toString()),
+                    mode: LaunchMode.externalApplication,
+                  ),
+                  icon: const Icon(Icons.open_in_new_rounded),
+                  label: const Text('Ouvrir Orange Money'),
+                ),
+              if (_isOrange && _payment['url_paiement'] != null)
+                const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [

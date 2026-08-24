@@ -142,7 +142,10 @@ class PaiementController extends Controller
             ], 202);
         }
 
-        if ($paiement->tentatives_statut >= config('services.mtn_momo.poll_max_attempts')) {
+        $tentativesMax = $paiement->fournisseur === Paiement::FOURNISSEUR_ORANGE_MONEY
+            ? config('services.orange_money.poll_max_attempts')
+            : config('services.mtn_momo.poll_max_attempts');
+        if ($paiement->tentatives_statut >= $tentativesMax) {
             if ($request->boolean('relancer')) {
                 $paiement->update([
                     'tentatives_statut' => 0,

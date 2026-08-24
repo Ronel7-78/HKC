@@ -53,11 +53,22 @@ return [
 
     'orange_money' => [
         'enabled' => env('ORANGE_MONEY_ENABLED', false),
-        'base_url' => env('ORANGE_MONEY_BASE_URL'),
+        'environment' => env('ORANGE_MONEY_ENVIRONMENT', 'sandbox'),
+        'base_url' => env('ORANGE_MONEY_BASE_URL', 'https://api.orange.com'),
+        'auth_base_url' => env('ORANGE_MONEY_AUTH_BASE_URL', 'https://api.orange.com'),
+        'token_path' => env('ORANGE_MONEY_TOKEN_PATH', '/oauth/v3/token'),
+        'webpay_path' => env('ORANGE_MONEY_WEBPAY_PATH', '/orange-money-webpay/dev/v1'),
+        'webpayment_path' => env('ORANGE_MONEY_WEBPAYMENT_PATH', '/webpayment'),
+        'status_path' => env('ORANGE_MONEY_STATUS_PATH', '/transactionstatus'),
+        'client_id' => env('ORANGE_MONEY_CLIENT_ID'),
+        'client_secret' => env('ORANGE_MONEY_CLIENT_SECRET'),
         'merchant_key' => env('ORANGE_MONEY_MERCHANT_KEY'),
-        'merchant_secret' => env('ORANGE_MONEY_MERCHANT_SECRET'),
         'callback_base_url' => env('ORANGE_MONEY_CALLBACK_BASE_URL'),
-        'currency' => env('ORANGE_MONEY_CURRENCY', 'XAF'),
+        'return_url' => env('ORANGE_MONEY_RETURN_URL'),
+        'cancel_url' => env('ORANGE_MONEY_CANCEL_URL'),
+        'currency' => env('ORANGE_MONEY_CURRENCY', 'OUV'),
+        'language' => env('ORANGE_MONEY_LANGUAGE', 'fr'),
+        'poll_max_attempts' => (int) env('ORANGE_MONEY_POLL_MAX_ATTEMPTS', 8),
     ],
 
 ];

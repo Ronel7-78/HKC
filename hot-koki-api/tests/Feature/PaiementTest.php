@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Jobs\VerifierPaiementMtn;
+use App\Jobs\VerifierPaiementOrange;
 use App\Models\Client;
 use App\Models\Commande;
 use App\Models\Paiement;
@@ -21,6 +22,10 @@ class PaiementTest extends TestCase
 
     private ?array $statutMtn = null;
 
+    private ?array $creationOrange = null;
+
+    private ?array $statutOrange = null;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -36,6 +41,21 @@ class PaiementTest extends TestCase
         ]);
 
         Http::fake(function (Request $request) {
+            if (str_ends_with($request->url(), '/oauth/v3/token')) {
+                return Http::response([
+                    'access_token' => 'orange-access-secret',
+                    'expires_in' => 3600,
+                ]);
+            }
+
+            if (str_ends_with($request->url(), '/webpayment') && $this->creationOrange) {
+                return Http::response($this->creationOrange, 201);
+            }
+
+            if (str_ends_with($request->url(), '/transactionstatus') && $this->statutOrange) {
+                return Http::response($this->statutOrange);
+            }
+
             if (str_ends_with($request->url(), '/collection/token/')) {
                 return Http::response([
                     'access_token' => 'token-test',
@@ -155,6 +175,94 @@ class PaiementTest extends TestCase
         $this->assertDatabaseCount('paiements', 0);
     }
 
+    public function test_orange_sandbox_cree_une_url_webpay_sans_exposer_les_tokens(): void
+    {
+        $this->configurerOrangeSandbox();
+        $this->creationOrange = [
+            'status' => 'INITIATED',
+            'payment_token' => 'orange-payment-secret',
+            'payment_url' => 'https://webpayment.orange.test/pay/123',
+            'notif_token' => 'orange-notification-secret',
+        ];
+
+        [$user, $client] = $this->creerClient();
+        $commande = $this->creerCommande($client);
+        Sanctum::actingAs($user);
+
+        $this->postJson("/api/commandes/{$commande->public_id}/paiements", [
+            'fournisseur' => Paiement::FOURNISSEUR_ORANGE_MONEY,
+            'telephone' => '690000010',
+        ])->assertCreated()
+            ->assertJsonPath('paiement.statut', Paiement::STATUT_EN_ATTENTE)
+            ->assertJsonPath('paiement.mode_test', true)
+            ->assertJsonPath('paiement.url_paiement', 'https://webpayment.orange.test/pay/123')
+            ->assertJsonMissingPath('paiement.donnees_operateur')
+            ->assertJsonMissingPath('paiement.callback_hash');
+
+        Http::assertSent(fn (Request $request) => str_ends_with($request->url(), '/webpayment')
+            && $request['currency'] === 'OUV'
+            && $request['amount'] === 1300
+            && $request['notif_url'] === 'https://api.hot-koki.test/api/webhooks/orange-money');
+    }
+
+    public function test_synchronisation_orange_confirme_le_paiement_aupres_de_loperateur(): void
+    {
+        $this->configurerOrangeSandbox();
+        $this->statutOrange = [
+            'status' => 'SUCCESS',
+            'txnid' => 'orange-transaction-1',
+        ];
+
+        [$user, $client] = $this->creerClient();
+        $commande = $this->creerCommande($client);
+        $paiement = $commande->paiements()->create([
+            'fournisseur' => Paiement::FOURNISSEUR_ORANGE_MONEY,
+            'telephone' => '237690000010',
+            'montant' => $commande->total,
+            'devise' => 'XAF',
+            'statut' => Paiement::STATUT_EN_ATTENTE,
+            'donnees_operateur' => [
+                'order_id' => 'HK-ORANGE-1',
+                'payment_token' => 'orange-payment-secret',
+                'payment_url' => 'https://webpayment.orange.test/pay/123',
+            ],
+        ]);
+        Sanctum::actingAs($user);
+
+        $this->postJson("/api/paiements/{$paiement->public_id}/synchroniser")
+            ->assertOk()
+            ->assertJsonPath('statut', Paiement::STATUT_REUSSI)
+            ->assertJsonPath('commande.statut', Commande::STATUT_RECUE)
+            ->assertJsonPath('url_paiement', null)
+            ->assertJsonMissingPath('donnees_operateur');
+    }
+
+    public function test_callback_orange_valide_declenche_uniquement_une_verification(): void
+    {
+        Queue::fake();
+        [, $client] = $this->creerClient();
+        $commande = $this->creerCommande($client);
+        $paiement = $commande->paiements()->create([
+            'fournisseur' => Paiement::FOURNISSEUR_ORANGE_MONEY,
+            'telephone' => '237690000010',
+            'montant' => $commande->total,
+            'devise' => 'XAF',
+            'statut' => Paiement::STATUT_EN_ATTENTE,
+            'callback_hash' => hash('sha256', 'notif-orange-test'),
+        ]);
+
+        $this->postJson('/api/webhooks/orange-money', [
+            'notif_token' => 'notif-orange-test',
+            'status' => 'SUCCESS',
+        ])->assertOk();
+
+        $this->assertDatabaseHas('paiements', [
+            'id' => $paiement->id,
+            'statut' => Paiement::STATUT_EN_ATTENTE,
+        ]);
+        Queue::assertPushed(VerifierPaiementOrange::class, fn ($job) => $job->paiementId === $paiement->id);
+    }
+
     public function test_tentative_restee_initiee_est_renvoyee_a_mtn_au_lieu_de_rester_bloquee(): void
     {
         [$user, $client] = $this->creerClient();
@@ -259,6 +367,29 @@ class PaiementTest extends TestCase
         $user = User::factory()->create(['role' => 'client']);
 
         return [$user, Client::create(['user_id' => $user->id, 'nom' => 'Client Test'])];
+    }
+
+    private function configurerOrangeSandbox(): void
+    {
+        config([
+            'services.orange_money.enabled' => true,
+            'services.orange_money.environment' => 'sandbox',
+            'services.orange_money.base_url' => 'https://api.orange.test',
+            'services.orange_money.auth_base_url' => 'https://api.orange.test',
+            'services.orange_money.token_path' => '/oauth/v3/token',
+            'services.orange_money.webpay_path' => '/orange-money-webpay/dev/v1',
+            'services.orange_money.webpayment_path' => '/webpayment',
+            'services.orange_money.status_path' => '/transactionstatus',
+            'services.orange_money.client_id' => 'orange-client-test',
+            'services.orange_money.client_secret' => 'orange-secret-test',
+            'services.orange_money.merchant_key' => 'orange-merchant-test',
+            'services.orange_money.callback_base_url' => 'https://api.hot-koki.test',
+            'services.orange_money.return_url' => 'https://hot-koki.test/paiement/retour',
+            'services.orange_money.cancel_url' => 'https://hot-koki.test/paiement/annulation',
+            'services.orange_money.currency' => 'OUV',
+            'services.orange_money.language' => 'fr',
+            'services.orange_money.poll_max_attempts' => 8,
+        ]);
     }
 
     private function creerCommande(Client $client): Commande

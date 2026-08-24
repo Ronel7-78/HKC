@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'api_config.dart';
 import 'app_feedback.dart';
@@ -517,12 +518,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               as Map<String, dynamic>;
       CartStore.instance.clear();
       if (!mounted) return;
+      final payment = result['paiement'] as Map<String, dynamic>;
+      final orangeUrl = Uri.tryParse(payment['url_paiement']?.toString() ?? '');
+      if (_provider == 'orange_money' && orangeUrl != null) {
+        await launchUrl(orangeUrl, mode: LaunchMode.externalApplication);
+        if (!mounted) return;
+      }
       await Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => PaymentStatusScreen(
-            payment: result['paiement'] as Map<String, dynamic>,
-          ),
+          builder: (_) => PaymentStatusScreen(payment: payment),
         ),
       );
     } catch (error) {
