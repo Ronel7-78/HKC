@@ -404,8 +404,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     super.dispose();
   }
 
-  Map<String, dynamic> _payload() {
-    final items = CartStore.instance.items;
+  Map<String, dynamic> _payload([List<CartItem>? source]) {
+    final items = source ?? CartStore.instance.items;
+    if (items.isEmpty) {
+      throw const ApiException(
+        'Votre panier est vide. Ajoutez de nouveau les produits après la réinitialisation des données.',
+      );
+    }
     return {
       'items': items
           .map(
@@ -460,6 +465,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Future<void> _confirm() async {
+    final cartItems = CartStore.instance.items;
+    if (cartItems.isEmpty) {
+      setState(() => _error = 'Votre panier est vide. Ajoutez un produit.');
+      return;
+    }
     if (_deliveryAddress.text.trim().isEmpty ||
         _deliveryLatitude == null ||
         _deliveryLongitude == null) {
@@ -488,10 +498,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     });
     try {
       final created =
-          await ClientApi.request('POST', '/commandes', body: _payload())
+          await ClientApi.request(
+                'POST',
+                '/commandes',
+                body: _payload(cartItems),
+              )
               as Map<String, dynamic>;
       final order = created['commande'] as Map<String, dynamic>;
-      CartStore.instance.clear();
       final result =
           await ClientApi.request(
                 'POST',
@@ -502,6 +515,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 },
               )
               as Map<String, dynamic>;
+      CartStore.instance.clear();
       if (!mounted) return;
       await Navigator.pushReplacement(
         context,

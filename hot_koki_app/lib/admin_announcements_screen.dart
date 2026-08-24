@@ -61,9 +61,10 @@ class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
     );
     if (confirmed != true) return;
     final id = int.parse(item['id'].toString());
+    final resourceId = apiResourceId(item);
     setState(() => _deletingIds.add(id));
     try {
-      await ClientApi.request('DELETE', '/admin/annonces/$id');
+      await ClientApi.request('DELETE', '/admin/annonces/$resourceId');
       if (!mounted) return;
       setState(_reload);
       await AppFeedback.success(
@@ -292,6 +293,7 @@ class _AnnouncementFormState extends State<_AnnouncementForm> {
             key: _form,
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              spacing: 10,
               children: [
                 Container(
                   height: 125,

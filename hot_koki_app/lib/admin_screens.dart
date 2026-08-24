@@ -518,14 +518,19 @@ class _VendorFormState extends State<_VendorForm> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
+    insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
     title: Text(editing ? 'Modifier le vendeur' : 'Nouveau vendeur'),
-    content: SizedBox(
-      width: 520,
+    content: ConstrainedBox(
+      constraints: BoxConstraints(
+        maxWidth: 520,
+        maxHeight: MediaQuery.sizeOf(context).height * .58,
+      ),
       child: Form(
         key: _form,
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            spacing: 10,
             children: [
               _requiredField(_shop, 'Nom de la boutique'),
               _requiredField(_name, 'Nom du responsable'),
@@ -930,82 +935,90 @@ class _ProductFormState extends State<_ProductForm> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
+    insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
     title: Text(
       widget.product == null ? 'Nouveau produit' : 'Modifier le produit',
     ),
-    content: SingleChildScrollView(
-      child: Form(
-        key: _form,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _ProductImageField(
-              selectedImage: _selectedImage,
-              existingImage: _removeExistingImage
-                  ? null
-                  : widget.product?['photo']?.toString(),
-              onPick: _pickImage,
-              onRemove:
-                  _selectedImage != null ||
-                      (!_removeExistingImage &&
-                          widget.product?['photo'] != null)
-                  ? () => setState(() {
-                      _selectedImage = null;
-                      _removeExistingImage = true;
-                    })
-                  : null,
-            ),
-            const SizedBox(height: 12),
-            _requiredField(_name, 'Nom du produit'),
-            TextFormField(
-              controller: _description,
-              maxLines: 3,
-              decoration: const InputDecoration(labelText: 'Description'),
-            ),
-            TextFormField(
-              controller: _price,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
+    content: ConstrainedBox(
+      constraints: BoxConstraints(
+        maxWidth: 520,
+        maxHeight: MediaQuery.sizeOf(context).height * .58,
+      ),
+      child: SingleChildScrollView(
+        child: Form(
+          key: _form,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            spacing: 10,
+            children: [
+              _ProductImageField(
+                selectedImage: _selectedImage,
+                existingImage: _removeExistingImage
+                    ? null
+                    : widget.product?['photo']?.toString(),
+                onPick: _pickImage,
+                onRemove:
+                    _selectedImage != null ||
+                        (!_removeExistingImage &&
+                            widget.product?['photo'] != null)
+                    ? () => setState(() {
+                        _selectedImage = null;
+                        _removeExistingImage = true;
+                      })
+                    : null,
               ),
-              decoration: const InputDecoration(labelText: 'Prix en F CFA'),
-              validator: (value) =>
-                  double.tryParse((value ?? '').replaceAll(',', '.')) == null
-                  ? 'Renseignez un prix valide.'
-                  : null,
-            ),
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Compléments proposés',
-                style: Theme.of(context).textTheme.titleSmall,
+              const SizedBox(height: 12),
+              _requiredField(_name, 'Nom du produit'),
+              TextFormField(
+                controller: _description,
+                maxLines: 3,
+                decoration: const InputDecoration(labelText: 'Description'),
               ),
-            ),
-            FutureBuilder<List<dynamic>>(
-              future: _complements,
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const LinearProgressIndicator();
-                }
-                return Wrap(
-                  spacing: 7,
-                  children: snapshot.data!.map((raw) {
-                    final item = raw as Map<String, dynamic>;
-                    final id = int.parse(item['id'].toString());
-                    return FilterChip(
-                      label: Text(item['nom'].toString()),
-                      selected: _selectedComplements.contains(id),
-                      onSelected: (selected) => setState(
-                        () => selected
-                            ? _selectedComplements.add(id)
-                            : _selectedComplements.remove(id),
-                      ),
-                    );
-                  }).toList(),
-                );
-              },
-            ),
-          ],
+              TextFormField(
+                controller: _price,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(labelText: 'Prix en F CFA'),
+                validator: (value) =>
+                    double.tryParse((value ?? '').replaceAll(',', '.')) == null
+                    ? 'Renseignez un prix valide.'
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Compléments proposés',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+              ),
+              FutureBuilder<List<dynamic>>(
+                future: _complements,
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const LinearProgressIndicator();
+                  }
+                  return Wrap(
+                    spacing: 7,
+                    children: snapshot.data!.map((raw) {
+                      final item = raw as Map<String, dynamic>;
+                      final id = int.parse(item['id'].toString());
+                      return FilterChip(
+                        label: Text(item['nom'].toString()),
+                        selected: _selectedComplements.contains(id),
+                        onSelected: (selected) => setState(
+                          () => selected
+                              ? _selectedComplements.add(id)
+                              : _selectedComplements.remove(id),
+                        ),
+                      );
+                    }).toList(),
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     ),
@@ -1228,6 +1241,7 @@ class _AdminAccountScreenState extends State<AdminAccountScreen> {
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              spacing: 10,
               children: [
                 _requiredField(name, 'Nom affiché'),
                 _requiredField(
@@ -1405,20 +1419,24 @@ Widget _requiredField(
   TextInputType? keyboard,
   bool obscure = false,
   int min = 1,
-}) => TextFormField(
-  controller: controller,
-  keyboardType: keyboard,
-  obscureText: obscure,
-  decoration: InputDecoration(labelText: '$label *'),
-  validator: (value) {
-    if (value == null || value.trim().isEmpty) {
-      return '$label est obligatoire.';
-    }
-    if (value.length < min) {
-      return '$label doit contenir au moins $min caractères.';
-    }
-    return null;
-  },
+}) => Padding(
+  padding: const EdgeInsets.only(bottom: 2),
+  child: TextFormField(
+    controller: controller,
+    keyboardType: keyboard,
+    obscureText: obscure,
+    scrollPadding: const EdgeInsets.only(bottom: 120),
+    decoration: InputDecoration(labelText: '$label *'),
+    validator: (value) {
+      if (value == null || value.trim().isEmpty) {
+        return '$label est obligatoire.';
+      }
+      if (value.length < min) {
+        return '$label doit contenir au moins $min caractères.';
+      }
+      return null;
+    },
+  ),
 );
 
 class _StatCard extends StatelessWidget {
