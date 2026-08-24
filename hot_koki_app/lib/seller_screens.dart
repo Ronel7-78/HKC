@@ -7,6 +7,7 @@ import 'api_config.dart';
 import 'app_feedback.dart';
 import 'app_preferences.dart';
 import 'client_screens.dart';
+import 'company_contact.dart';
 
 const _leaf900 = Color(0xFF1F3524);
 const _leaf700 = Color(0xFF2E4E36);
@@ -1102,6 +1103,8 @@ class _SellerAccountScreenState extends State<SellerAccountScreen> {
                   ),
                   const SizedBox(height: 10),
                   const PreferencesCard(),
+                  const SizedBox(height: 10),
+                  const CompanySupportCard(),
                   const SizedBox(height: 14),
                   SizedBox(
                     width: double.infinity,
@@ -1115,6 +1118,7 @@ class _SellerAccountScreenState extends State<SellerAccountScreen> {
                       ),
                     ),
                   ),
+                  const CompanyCopyrightFooter(),
                 ],
               ),
             ),

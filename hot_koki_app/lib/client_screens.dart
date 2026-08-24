@@ -11,6 +11,7 @@ import 'api_config.dart';
 import 'app_feedback.dart';
 import 'app_preferences.dart';
 import 'app_states.dart';
+import 'company_contact.dart';
 import 'delivery_fee_info.dart';
 import 'payment_method_card.dart';
 
@@ -927,6 +928,8 @@ class _ClientAccountScreenState extends State<ClientAccountScreen> {
                   ),
                   const SizedBox(height: 10),
                   const PreferencesCard(),
+                  const SizedBox(height: 10),
+                  const CompanySupportCard(),
                   const SizedBox(height: 18),
                   SizedBox(
                     width: double.infinity,
@@ -940,6 +943,7 @@ class _ClientAccountScreenState extends State<ClientAccountScreen> {
                       ),
                     ),
                   ),
+                  const CompanyCopyrightFooter(),
                 ],
               ),
             ),

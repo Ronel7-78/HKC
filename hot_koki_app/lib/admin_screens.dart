@@ -10,6 +10,7 @@ import 'admin_announcements_screen.dart';
 import 'app_feedback.dart';
 import 'app_preferences.dart';
 import 'client_screens.dart';
+import 'company_contact.dart';
 import 'notifications_screen.dart';
 
 const _leaf900 = Color(0xFF1F3524);
@@ -1396,6 +1397,8 @@ class _AdminAccountScreenState extends State<AdminAccountScreen> {
             ),
             const SizedBox(height: 8),
             const PreferencesCard(),
+            const SizedBox(height: 10),
+            const CompanySupportCard(),
             const SizedBox(height: 20),
             OutlinedButton.icon(
               onPressed: _logout,
@@ -1406,6 +1409,7 @@ class _AdminAccountScreenState extends State<AdminAccountScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
             ),
+            const CompanyCopyrightFooter(),
           ],
         );
       },
