@@ -127,6 +127,11 @@ Artisan::command('deploy:check', function () {
     if (blank(config('sanctum.token_prefix'))) {
         $errors[] = 'SANCTUM_TOKEN_PREFIX doit être renseigné pour faciliter la détection des fuites.';
     }
+    if (! is_int(config('sanctum.admin_expiration'))
+        || config('sanctum.admin_expiration') < 30
+        || config('sanctum.admin_expiration') > 1440) {
+        $errors[] = 'ADMIN_TOKEN_EXPIRATION doit être compris entre 30 minutes et 24 heures.';
+    }
     if (str_contains((string) config('app.url'), 'example.com')) {
         $errors[] = 'APP_URL contient encore le domaine d’exemple.';
     }

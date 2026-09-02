@@ -27,7 +27,7 @@ class EmailAuthController extends Controller
         $codes->consume($user, EmailAuthCode::PURPOSE_VERIFY_EMAIL, $validated['code']);
         $user->forceFill(['email_verified_at' => now()])->save();
         $user->tokens()->delete();
-        $token = $user->createToken('auth_token')->plainTextToken;
+        $token = $user->issueAuthToken();
 
         return response()->json([
             'message' => 'Adresse email vérifiée avec succès.',

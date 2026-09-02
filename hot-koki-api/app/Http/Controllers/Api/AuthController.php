@@ -50,15 +50,15 @@ class AuthController extends Controller
         }
 
         // Un compte cree par cette route est toujours un client.
-        $user = User::create([
+        $user = User::make([
             'name' => $request->name,
             'email' => mb_strtolower(trim($request->email)),
             'telephone' => $request->telephone,
             'password' => Hash::make($request->password),
-            'role' => 'client',
             'conditions_acceptees_le' => now(),
             'conditions_version' => config('legal.version'),
         ]);
+        $user->forceFill(['role' => 'client'])->save();
 
         // Le profil client est cree automatiquement avec le compte utilisateur.
         Client::create([
@@ -70,7 +70,7 @@ class AuthController extends Controller
         ]);
 
         if (! config('email_auth.verification_enabled')) {
-            $token = $user->createToken('auth_token')->plainTextToken;
+            $token = $user->issueAuthToken();
 
             return response()->json([
                 'message' => 'Compte créé. La vérification email est temporairement désactivée.',
@@ -140,7 +140,7 @@ class AuthController extends Controller
             'conditions_version' => config('legal.version'),
         ]);
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        $token = $user->issueAuthToken();
 
         return response()->json([
             'message' => 'Connexion réussie',

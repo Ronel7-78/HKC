@@ -11,7 +11,9 @@ class IsAdmin
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (!$request->user() || !$request->user()->isAdmin()) {
+        if (! $request->user()
+            || ! $request->user()->isAdmin()
+            || ! $request->user()->admin()->exists()) {
             return response()->json(['message' => 'Accès réservé aux administrateurs'], 403);
         }
 

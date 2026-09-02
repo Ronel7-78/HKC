@@ -52,6 +52,9 @@ return [
 
     'expiration' => (int) env('SANCTUM_EXPIRATION', 43200),
 
+    // Une session administrative est volontairement beaucoup plus courte.
+    'admin_expiration' => (int) env('ADMIN_TOKEN_EXPIRATION', 480),
+
     /*
     |--------------------------------------------------------------------------
     | Token Prefix

@@ -9,6 +9,8 @@ use App\Services\Payments\MtnMomoService;
 use App\Services\Payments\OrangeMoneyService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use RuntimeException;
 
@@ -160,10 +162,19 @@ class PaiementController extends Controller
                 default => throw new RuntimeException('Fournisseur de paiement inconnu.'),
             };
         } catch (RuntimeException $exception) {
+            $incident = Str::lower(Str::random(16));
+            Log::warning('Échec de synchronisation auprès de l’opérateur de paiement', [
+                'incident_id' => $incident,
+                'paiement_id' => $paiement->id,
+                'fournisseur' => $paiement->fournisseur,
+                'user_id' => $request->user()->id,
+                'exception' => $exception,
+            ]);
+
             return response()->json([
-                'message' => 'Le statut du paiement est temporairement indisponible. '.$exception->getMessage(),
+                'message' => 'Le statut du paiement est temporairement indisponible.',
                 'code' => 'STATUT_OPERATEUR_INDISPONIBLE',
-                'detail' => $exception->getMessage(),
+                'incident_id' => $incident,
                 'paiement' => $paiement->fresh(),
             ], 503);
         }

@@ -20,7 +20,6 @@ class User extends Authenticatable
         'email',
         'telephone',
         'password',
-        'role',
         'conditions_acceptees_le',
         'conditions_version',
     ];
@@ -42,9 +41,24 @@ class User extends Authenticatable
             if ($user->isDirty('email')) {
                 $user->email = mb_strtolower(trim($user->email));
                 $user->email_verified_at = null;
+            }
+            if ($user->isDirty('email') || $user->isDirty('role')) {
                 $user->tokens()->delete();
             }
         });
+    }
+
+    public function issueAuthToken(): string
+    {
+        $minutes = $this->isAdmin()
+            ? config('sanctum.admin_expiration')
+            : config('sanctum.expiration');
+
+        return $this->createToken(
+            'auth_token',
+            ['role:'.$this->role],
+            now()->addMinutes($minutes),
+        )->plainTextToken;
     }
 
     public function client()
