@@ -53,7 +53,7 @@ class EmailAuthController extends Controller
         $validated = $request->validate(['email' => ['required', 'email']], $this->messages());
         $user = User::where('email', mb_strtolower($validated['email']))->first();
 
-        if ($user && ! $user->isAdmin()) {
+        if ($user) {
             try {
                 $codes->issue($user, EmailAuthCode::PURPOSE_RESET_PASSWORD);
             } catch (ValidationException) {
@@ -75,9 +75,7 @@ class EmailAuthController extends Controller
             'password' => ['required', 'string', 'min:8', 'confirmed'],
         ], $this->messages());
 
-        $user = User::where('email', mb_strtolower($validated['email']))
-            ->whereIn('role', ['client', 'vendeur'])
-            ->first();
+        $user = User::where('email', mb_strtolower($validated['email']))->first();
         if (! $user) {
             return response()->json(['message' => 'Code invalide ou expiré.'], 422);
         }

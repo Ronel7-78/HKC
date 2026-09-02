@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LANDO RONEL - CV</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: white;
+            padding: 0;
+        }
+        
+        .container {
+            max-width: 8.5in;
+            height: 11in;
+            margin: 0 auto;
+            padding: 0.5in;
+            background: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        
+        header {
+            border-bottom: 3px solid #0066cc;
+            padding-bottom: 12px;
+            margin-bottom: 15px;
+        }
+        
+        h1 {
+            font-size: 28px;
+            color: #0066cc;
+            margin-bottom: 4px;
+            font-weight: 700;
+        }
+        
+        .contact-info {
+            font-size: 11px;
+            color: #555;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .section {
+            margin-bottom: 14px;
+        }
+        
+        .section-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #0066cc;
+            text-transform: uppercase;
+            border-bottom: 2px solid #0066cc;
+            padding-bottom: 5px;
+            margin-bottom: 8px;
+            letter-spacing: 0.5px;
+        }
+        
+        .summary {
+            font-size: 11px;
+            line-height: 1.5;
+            color: #444;
+            margin-bottom: 10px;
+        }
+        
+        .skills-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            font-size: 11px;
+        }
+        
+        .skill-category {
+            margin-bottom: 6px;
+        }
+        
+        .skill-category strong {
+            color: #0066cc;
+            display: block;
+            font-size: 10px;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+        
+        .skill-category span {
+            display: block;
+            color: #555;
+        }
+        
+        .job {
+            margin-bottom: 12px;
+            page-break-inside: avoid;
+        }
+        
+        .job-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            margin-bottom: 3px;
+        }
+        
+        .job-title {
+            font-weight: 700;
+            color: #333;
+        }
+        
+        .job-company {
+            color: #0066cc;
+            font-weight: 600;
+        }
+        
+        .job-period {
+            color: #888;
+            font-size: 10px;
+        }
+        
+        .job-description {
+            font-size: 10px;
+            color: #555;
+            margin-left: 15px;
+            line-height: 1.4;
+        }
+        
+        .job-description ul {
+            margin: 4px 0;
+            padding-left: 15px;
+        }
+        
+        .job-description li {
+            margin-bottom: 2px;
+            list-style-type: disc;
+        }
+        
+        .project {
+            margin-bottom: 10px;
+            page-break-inside: avoid;
+        }
+        
+        .project-title {
+            font-weight: 700;
+            font-size: 11px;
+            color: #333;
+            margin-bottom: 2px;
+        }
+        
+        .project-subtitle {
+            font-size: 10px;
+            color: #0066cc;
+            margin-bottom: 3px;
+        }
+        
+        .project-details {
+            font-size: 10px;
+            color: #555;
+            margin-left: 15px;
+        }
+        
+        .project-details ul {
+            margin: 2px 0;
+            padding-left: 15px;
+        }
+        
+        .project-details li {
+            margin-bottom: 2px;
+            list-style-type: disc;
+        }
+        
+        .education-item {
+            margin-bottom: 6px;
+            font-size: 11px;
+        }
+        
+        .education-item strong {
+            color: #333;
+            display: block;
+        }
+        
+        .education-item span {
+            color: #0066cc;
+            font-size: 10px;
+        }
+        
+        .highlights {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            font-size: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .highlight-item {
+            background: #f0f4ff;
+            padding: 6px;
+            border-left: 3px solid #0066cc;
+            line-height: 1.3;
+        }
+        
+        .highlight-item strong {
+            color: #0066cc;
+            display: block;
+            font-size: 9px;
+            text-transform: uppercase;
+        }
+        
+        @media print {
+            body {
+                margin: 0;
+                padding: 0;
+            }
+            .container {
+                max-width: 100%;
+                height: 100%;
+                box-shadow: none;
+                padding: 0.5in;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>LANDO RONEL</h1>
+            <div class="contact-info">
+                <span>📍 Yaoundé, Cameroon</span>
+                <span>📞 +237 658353058</span>
+                <span>📧 ronellando447@gmail.com</span>
+                <span>🔗 linkedin.com/in/ronel-lando-498581359</span>
+            </div>
+        </header>
+        
+        <div class="section">
+            <div class="summary">
+                Results-driven IT Professional with 2+ years of hands-on experience building scalable systems and securing infrastructure. Expert in <strong>Laravel backend development</strong>, <strong>AWS cloud infrastructure</strong>, and <strong>cybersecurity</strong>. Proven track record delivering production-level APIs serving 10k+ users. Fluent in French and English. Available for immediate remote engagement.
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">Technical Skills</div>
+            <div class="skills-grid">
+                <div class="skill-category">
+                    <strong>Backend Development</strong>
+                    <span>Laravel, PHP, MySQL, REST APIs, Database Optimization</span>
+                </div>
+                <div class="skill-category">
+                    <strong>Cloud & DevOps</strong>
+                    <span>AWS (EC2, RDS), Docker, Scripting, Infrastructure</span>
+                </div>
+                <div class="skill-category">
+                    <strong>Security</strong>
+                    <span>CCNA Cybersecurity, Penetration Testing, Network Security</span>
+                </div>
+                <div class="skill-category">
+                    <strong>Systems & Networking</strong>
+                    <span>Linux/Windows Server, cPanel, Network Maintenance</span>
+                </div>
+                <div class="skill-category">
+                    <strong>Soft Skills</strong>
+                    <span>Remote Communication, Leadership, Problem-Solving</span>
+                </div>
+                <div class="skill-category">
+                    <strong>Languages</strong>
+                    <span>French (Native), English (Intermediate)</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">Professional Experience</div>
+            
+            <div class="job">
+                <div class="job-header">
+                    <span class="job-title">Technicien CCTV & Security Operations</span>
+                    <span class="job-period">06/2026 – Present</span>
+                </div>
+                <div class="job-company">Spartan Security | Yaoundé, Cameroon</div>
+                <div class="job-description">
+                    <ul>
+                        <li>Deploy and maintain enterprise CCTV systems across multiple locations</li>
+                        <li>Monitor 24/7 security infrastructure with 99.5% uptime</li>
+                        <li>Provide technical troubleshooting and system optimization</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="job">
+                <div class="job-header">
+                    <span class="job-title">IT Support Specialist - Level 1/2</span>
+                    <span class="job-period">08/2025 – 06/2026</span>
+                </div>
+                <div class="job-company">EROMAT-3i | Yaoundé, Cameroon</div>
+                <div class="job-description">
+                    <ul>
+                        <li>Delivered N1/N2 technical support to 50+ end-users; 95%+ first-contact resolution</li>
+                        <li>Managed mail systems, user accounts, and infrastructure using cPanel</li>
+                        <li>Resolved complex network and system issues with minimal downtime</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">Key Projects</div>
+            
+            <div class="project">
+                <div class="project-title">E-commerce Platform API</div>
+                <div class="project-subtitle">Laravel / MySQL / AWS – 10,000+ Concurrent Users</div>
+                <div class="project-details">
+                    <ul>
+                        <li>Architected REST API with payment integration and real-time inventory</li>
+                        <li>Optimized database performance: 40% improvement in query times</li>
+                        <li>Deployed on AWS with auto-scaling and disaster recovery</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="project">
+                <div class="project-title">AWS Infrastructure Migration</div>
+                <div class="project-subtitle">On-premises to Cloud Migration</div>
+                <div class="project-details">
+                    <ul>
+                        <li>Led migration to AWS (EC2, RDS, Load Balancing)</li>
+                        <li>Reduced operational costs by 35% while improving reliability</li>
+                        <li>Designed complete disaster recovery plan with zero downtime</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">Education & Certifications</div>
+            <div class="education-item">
+                <strong>License in Network Administration & Security</strong>
+                <span>University - Cameroon</span>
+            </div>
+            <div class="education-item">
+                <strong>CCNA - Introduction to Cybersecurity</strong>
+                <span>Cisco Networking Academy</span>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="highlights">
+                <div class="highlight-item">
+                    <strong>Remote Ready</strong>
+                    Immediate start, async communication
+                </div>
+                <div class="highlight-item">
+                    <strong>Bilingual</strong>
+                    French (Native) + English
+                </div>
+                <div class="highlight-item">
+                    <strong>Polyvalent</strong>
+                    Dev, Security, Infrastructure
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,86 @@
+LANDO RONEL
+Yaoundé, Cameroun | +237 658353058 | ronellando447@gmail.com
+LinkedIn: linkedin.com/in/ronel-lando-498581359
+
+---
+
+PROFESSIONAL SUMMARY
+
+IT Professional with 2+ years of hands-on experience in networking, cybersecurity, and full-stack web development. Proven expertise in Laravel backend development, infrastructure management, and security implementation. Skilled in building scalable APIs and systems that serve 10k+ users. Proficient in both French and English with strong communication abilities. Ready for immediate remote engagement.
+
+---
+
+TECHNICAL SKILLS
+
+Backend Development: Laravel, PHP, MySQL, API REST, Database Design
+Infrastructure & DevOps: AWS, Docker, Scripting, Server Management, cPanel, Webmail
+Cybersecurity & Penetration Testing: CCNA Introduction to Cybersecurity, Penetration Testing (Intermediate), Network Security, Vulnerability Assessment
+Networking: Network Maintenance, System Administration, LAN/WAN, Router Configuration
+Tools & Platforms: Git, Linux, Windows Server, Mail Systems (Cpanel), Apache, Nginx
+Languages: French (Native), English (Intermediate)
+
+---
+
+PROFESSIONAL EXPERIENCE
+
+Technicien CCTV / Sécurité
+Spartan Security | Yaoundé, Cameroun | 06/2026 - Present
+• Deploy and maintain CCTV security systems for enterprise clients
+• Provide technical support and troubleshooting for security infrastructure
+• Ensure system uptime and optimal performance through proactive monitoring
+• Communicate complex technical issues to non-technical stakeholders
+
+IT Support Specialist - Level 1/2
+EROMAT-3i | Yaoundé, Cameroun | 08/2025 - 06/2026
+• Provided N1/N2 technical support to 50+ end-users (email, hardware, software issues)
+• Managed mail systems, user accounts, and mailbox configurations using cPanel and Webmail
+• Resolved network connectivity and system performance issues
+• Documented troubleshooting procedures and maintained knowledge base
+• Responded to support tickets with 95%+ first-contact resolution rate
+
+---
+
+KEY PROJECTS
+
+E-commerce API Platform - Laravel/MySQL/AWS
+• Architected and deployed production REST API handling 10,000+ concurrent users
+• Implemented payment integration, order management, and real-time inventory tracking
+• Optimized database queries achieving 40% performance improvement
+• Deployed on AWS with auto-scaling and monitoring
+• Led implementation of security best practices (SQL injection prevention, authentication)
+
+AWS Infrastructure Migration
+• Migrated legacy on-premises infrastructure to AWS cloud environment
+• Configured EC2 instances, RDS databases, and load balancing
+• Reduced operational costs by 35% while improving system reliability
+• Documented complete migration procedure and disaster recovery plan
+
+---
+
+EDUCATION
+
+License in Network Administration and Security (Licence en Administration et Sécurité des Réseaux)
+[University Name] | Cameroon
+
+CCNA - Introduction to Cybersecurity Certification
+Cisco Networking Academy
+
+---
+
+CORE COMPETENCIES
+
+✓ Full-stack Laravel development        ✓ AWS cloud infrastructure
+✓ API design and implementation         ✓ Penetration testing
+✓ Cybersecurity best practices          ✓ Remote collaboration
+✓ Problem-solving and troubleshooting   ✓ Cross-functional communication
+✓ Network administration                ✓ Proactive initiative-taking
+✓ Team collaboration                    ✓ Polyvalent technical skills
+
+---
+
+ADDITIONAL INFORMATION
+
+• Availability: Immediate start for remote projects
+• Work Style: Self-motivated, detail-oriented, proactive problem solver
+• Communication: Fluent in French and English, comfortable with async communication
+• Portfolio: Available on request with case studies and project demonstrations
