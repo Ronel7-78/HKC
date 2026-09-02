@@ -16,6 +16,10 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     // Middlewares utilises pour proteger les routes selon le role.
     ->withMiddleware(function (Middleware $middleware): void {
+        // Plafond global appliqué à toutes les routes API. Les routes sensibles
+        // ajoutent des limites métier plus strictes dans routes/api.php.
+        $middleware->throttleApi('api-global');
+
         // Une requete API non authentifiee doit recevoir une erreur JSON 401.
         // La redirection vers une page de connexion reste reservee aux routes web.
         $middleware->redirectGuestsTo(

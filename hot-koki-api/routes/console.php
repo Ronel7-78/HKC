@@ -100,6 +100,12 @@ Artisan::command('orange:check-env', function () {
 
 Artisan::command('deploy:check', function () {
     $errors = [];
+    if (Artisan::call('security:check-secrets') !== 0) {
+        $errors[] = 'Le contrôle automatique des secrets a échoué.';
+    }
+    if (app()->environment('production') && Artisan::call('security:check-database') !== 0) {
+        $errors[] = 'Le compte MySQL applicatif possède des privilèges excessifs ou invérifiables.';
+    }
     $environment = app()->environment();
     if (! in_array($environment, ['staging', 'production'], true)) {
         $errors[] = 'APP_ENV doit être staging ou production.';
@@ -113,8 +119,26 @@ Artisan::command('deploy:check', function () {
     if (! config('app.key')) {
         $errors[] = 'APP_KEY est absent.';
     }
+    if (! is_int(config('sanctum.expiration'))
+        || config('sanctum.expiration') < 60
+        || config('sanctum.expiration') > 43200) {
+        $errors[] = 'SANCTUM_EXPIRATION doit être compris entre 60 minutes et 30 jours.';
+    }
+    if (blank(config('sanctum.token_prefix'))) {
+        $errors[] = 'SANCTUM_TOKEN_PREFIX doit être renseigné pour faciliter la détection des fuites.';
+    }
+    if (str_contains((string) config('app.url'), 'example.com')) {
+        $errors[] = 'APP_URL contient encore le domaine d’exemple.';
+    }
     if (config('database.default') === 'sqlite') {
         $errors[] = 'SQLite ne doit pas être utilisé pour cet environnement.';
+    }
+    $database = config('database.connections.'.config('database.default'));
+    if (blank($database['username'] ?? null) || ($database['username'] ?? null) === 'root') {
+        $errors[] = 'La base doit utiliser un compte applicatif dédié, jamais root.';
+    }
+    if (mb_strlen((string) ($database['password'] ?? '')) < 16) {
+        $errors[] = 'Le mot de passe de la base doit contenir au moins 16 caractères.';
     }
     if (config('cache.default') === 'array') {
         $errors[] = 'Le cache array ne convient pas au déploiement.';
@@ -127,6 +151,10 @@ Artisan::command('deploy:check', function () {
     }
     if (in_array(config('mail.default'), ['log', 'array'], true)) {
         $errors[] = 'Un transport email réel est obligatoire pour les codes de sécurité.';
+    }
+    if (config('mail.default') === 'smtp'
+        && (blank(config('mail.mailers.smtp.username')) || blank(config('mail.mailers.smtp.password')))) {
+        $errors[] = 'Les identifiants SMTP sont incomplets.';
     }
     if (config('mail.from.address') === 'hello@example.com') {
         $errors[] = 'MAIL_FROM_ADDRESS doit utiliser une adresse Hot Koki valide.';
@@ -196,3 +224,8 @@ Schedule::call(function () {
         ->where('created_at', '<', now()->subDay())
         ->delete();
 })->daily()->name('purge-email-auth-codes')->withoutOverlapping();
+
+Schedule::command('sanctum:prune-expired --hours=24')
+    ->daily()
+    ->name('purge-sanctum-expired-tokens')
+    ->withoutOverlapping();

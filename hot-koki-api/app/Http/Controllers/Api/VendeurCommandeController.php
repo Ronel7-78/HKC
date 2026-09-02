@@ -28,9 +28,7 @@ class VendeurCommandeController extends Controller
 
     public function show(Request $request, Commande $commande)
     {
-        if (! $this->estCommandeDuVendeur($request, $commande)) {
-            return response()->json(['message' => 'Cette commande n\'est pas affectée à ce vendeur.'], 403);
-        }
+        $this->authorize('vendeur', $commande);
 
         return response()->json(
             $commande->load('client.user', 'items.complements', 'items.produit', 'paiements')
@@ -39,9 +37,7 @@ class VendeurCommandeController extends Controller
 
     public function updateStatut(Request $request, Commande $commande)
     {
-        if (! $this->estCommandeDuVendeur($request, $commande)) {
-            return response()->json(['message' => 'Cette commande n\'est pas affectée à ce vendeur.'], 403);
-        }
+        $this->authorize('vendeur', $commande);
 
         $validated = $request->validate([
             'statut' => ['required', 'string', Rule::in(Commande::STATUTS)],
@@ -74,12 +70,5 @@ class VendeurCommandeController extends Controller
             'message' => 'Statut de la commande mis à jour.',
             'commande' => $commande->fresh()->load('client.user', 'items.complements', 'items.produit', 'paiements'),
         ]);
-    }
-
-    private function estCommandeDuVendeur(Request $request, Commande $commande): bool
-    {
-        $vendeur = $request->user()->vendeur;
-
-        return $vendeur && $commande->vendeur_id === $vendeur->id;
     }
 }

@@ -21,10 +21,10 @@ class ProduitController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'nom' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'prix' => 'required|numeric|min:0',
-            'photo' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:5120',
-            'complements' => 'nullable|array',
+            'description' => 'nullable|string|max:2000',
+            'prix' => 'required|numeric|min:0|max:1000000',
+            'photo' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:5120|dimensions:max_width=4096,max_height=4096',
+            'complements' => 'nullable|array|max:50',
             'complements.*' => 'exists:complements,id',
             'synchroniser_complements' => 'sometimes|boolean',
         ], $this->messages());
@@ -61,11 +61,11 @@ class ProduitController extends Controller
 
         $validator = Validator::make($request->all(), [
             'nom' => 'sometimes|string|max:255',
-            'description' => 'sometimes|nullable|string',
-            'prix' => 'sometimes|numeric|min:0',
-            'photo' => 'sometimes|nullable|image|mimes:jpeg,jpg,png,webp|max:5120',
+            'description' => 'sometimes|nullable|string|max:2000',
+            'prix' => 'sometimes|numeric|min:0|max:1000000',
+            'photo' => 'sometimes|nullable|image|mimes:jpeg,jpg,png,webp|max:5120|dimensions:max_width=4096,max_height=4096',
             'supprimer_photo' => 'sometimes|boolean',
-            'complements' => 'sometimes|array',
+            'complements' => 'sometimes|array|max:50',
             'complements.*' => 'exists:complements,id',
             'synchroniser_complements' => 'sometimes|boolean',
         ], $this->messages());

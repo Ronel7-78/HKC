@@ -24,10 +24,8 @@ class AvisController extends Controller
 
     public function store(Request $request, Commande $commande)
     {
+        $this->authorize('client', $commande);
         $client = $request->user()->client;
-        if (! $client || $commande->client_id !== $client->id) {
-            return response()->json(['message' => 'Cette commande n’appartient pas à ce client.'], 403);
-        }
         if ($commande->statut !== Commande::STATUT_LIVREE) {
             return response()->json(['message' => 'Vous pourrez donner votre avis après la livraison.'], 422);
         }

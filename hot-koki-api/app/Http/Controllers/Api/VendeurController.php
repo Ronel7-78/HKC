@@ -31,14 +31,14 @@ class VendeurController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|required|string|max:255',
             'email' => ['sometimes', 'required', 'email', Rule::unique('users')->ignore($request->user()->id)],
-            'telephone' => ['sometimes', 'required', 'string', Rule::unique('users')->ignore($request->user()->id)],
+            'telephone' => ['sometimes', 'required', 'string', 'max:20', Rule::unique('users')->ignore($request->user()->id)],
             'nom_boutique' => 'sometimes|required|string|max:255',
-            'description' => 'sometimes|nullable|string',
+            'description' => 'sometimes|nullable|string|max:2000',
             'adresse_texte' => 'sometimes|required|string|max:255',
             'latitude' => 'sometimes|required|numeric|between:-90,90',
             'longitude' => 'sometimes|required|numeric|between:-180,180',
             'current_password' => 'required_with:password|string',
-            'password' => 'sometimes|string|min:8|confirmed',
+            'password' => 'sometimes|string|min:8|max:128|confirmed',
         ], [
             'required' => 'Le champ :attribute est obligatoire.',
             'email.email' => 'L’adresse email n’est pas valide.',

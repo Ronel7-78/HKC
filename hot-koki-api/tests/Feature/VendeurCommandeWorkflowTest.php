@@ -118,7 +118,7 @@ class VendeurCommandeWorkflowTest extends TestCase
 
         $this->patchJson("/api/vendeur/commandes/{$commandePublicId}/statut", [
             'statut' => Commande::STATUT_RECUE,
-        ])->assertForbidden();
+        ])->assertNotFound();
 
         Sanctum::actingAs($vendeurUser);
 

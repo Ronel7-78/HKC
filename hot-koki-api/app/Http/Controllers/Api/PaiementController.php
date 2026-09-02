@@ -28,11 +28,8 @@ class PaiementController extends Controller
         MtnMomoService $mtnMomo,
         OrangeMoneyService $orangeMoney,
     ) {
+        $this->authorize('client', $commande);
         $client = $request->user()->client;
-
-        if (! $client || $commande->client_id !== $client->id) {
-            return response()->json(['message' => 'Cette commande n’appartient pas à ce client.'], 403);
-        }
 
         $telephoneRegex = $request->input('fournisseur') === Paiement::FOURNISSEUR_MTN_MOMO
             && config('services.mtn_momo.target_environment') === 'sandbox'
@@ -44,7 +41,7 @@ class PaiementController extends Controller
                 Paiement::FOURNISSEUR_MTN_MOMO,
                 Paiement::FOURNISSEUR_ORANGE_MONEY,
             ])],
-            'telephone' => ['required', 'string', 'regex:'.$telephoneRegex],
+            'telephone' => ['required', 'string', 'max:20', 'regex:'.$telephoneRegex],
         ], [
             'telephone.regex' => 'Le numéro doit être un numéro camerounais valide.',
         ]);
@@ -118,9 +115,7 @@ class PaiementController extends Controller
 
     public function show(Request $request, Paiement $paiement)
     {
-        if ($paiement->commande->client_id !== $request->user()->client?->id) {
-            return response()->json(['message' => 'Ce paiement n’appartient pas à ce client.'], 403);
-        }
+        $this->authorize('client', $paiement);
 
         return response()->json($paiement->load('commande'));
     }
@@ -131,9 +126,7 @@ class PaiementController extends Controller
         MtnMomoService $mtnMomo,
         OrangeMoneyService $orangeMoney,
     ) {
-        if ($paiement->commande->client_id !== $request->user()->client?->id) {
-            return response()->json(['message' => 'Ce paiement n’appartient pas à ce client.'], 403);
-        }
+        $this->authorize('client', $paiement);
 
         if ($paiement->prochaine_verification_le?->isFuture()) {
             return response()->json([

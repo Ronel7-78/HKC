@@ -40,14 +40,14 @@ class ClientController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|required|string|max:255',
             'email' => ['sometimes', 'required', 'email', Rule::unique('users')->ignore($request->user()->id)],
-            'telephone' => ['sometimes', 'required', 'string', Rule::unique('users')->ignore($request->user()->id)],
+            'telephone' => ['sometimes', 'required', 'string', 'max:20', Rule::unique('users')->ignore($request->user()->id)],
             'nom' => 'sometimes|string|max:255',
             'prenom' => 'sometimes|nullable|string|max:255',
             'adresse_texte' => 'sometimes|nullable|string|max:255',
             'latitude' => 'sometimes|nullable|numeric',
             'longitude' => 'sometimes|nullable|numeric',
             'current_password' => 'required_with:password|string',
-            'password' => 'sometimes|string|min:8|confirmed',
+            'password' => 'sometimes|string|min:8|max:128|confirmed',
         ], [
             'name.required' => 'Le nom est obligatoire.',
             'email.required' => 'L’adresse email est obligatoire.',

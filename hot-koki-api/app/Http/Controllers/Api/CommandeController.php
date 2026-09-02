@@ -20,16 +20,16 @@ class CommandeController extends Controller
     private function validerPanier(Request $request)
     {
         return Validator::make($request->all(), [
-            'items' => 'required|array|min:1',
+            'items' => 'required|array|min:1|max:20',
             'items.*.produit_id' => 'required|exists:produits,id',
             'items.*.quantite' => 'sometimes|integer|min:1|max:20',
             // Un complement peut representer un accompagnement simple ou mixte,
             // mais une ligne de commande doit toujours en contenir exactement un.
             'items.*.complements' => 'required|array|size:1',
             'items.*.complements.*' => 'exists:complements,id',
-            'adresse_livraison' => 'required|string',
-            'latitude_client' => 'required|numeric',
-            'longitude_client' => 'required|numeric',
+            'adresse_livraison' => 'required|string|max:255',
+            'latitude_client' => 'required|numeric|between:-90,90',
+            'longitude_client' => 'required|numeric|between:-180,180',
             // Facultatif pour conserver les anciens clients. Lorsqu'il est fourni,
             // il doit correspondre au vendeur retourne par l'apercu.
             'vendeur_id' => 'sometimes|integer|exists:vendeurs,id',
@@ -259,17 +259,12 @@ class CommandeController extends Controller
      */
     public function show(Request $request, Commande $commande)
     {
+        $this->authorize('client', $commande);
         $client = $request->user()->client;
 
         if (! $client) {
             return response()->json([
                 'message' => 'Ce compte n\'a pas de profil client associé.',
-            ], 403);
-        }
-
-        if ($commande->client_id !== $client->id) {
-            return response()->json([
-                'message' => 'Cette commande n\'appartient pas à ce client.',
             ], 403);
         }
 
@@ -283,17 +278,12 @@ class CommandeController extends Controller
      */
     public function annuler(Request $request, Commande $commande)
     {
+        $this->authorize('client', $commande);
         $client = $request->user()->client;
 
         if (! $client) {
             return response()->json([
                 'message' => 'Ce compte n\'a pas de profil client associé.',
-            ], 403);
-        }
-
-        if ($commande->client_id !== $client->id) {
-            return response()->json([
-                'message' => 'Cette commande n\'appartient pas à ce client.',
             ], 403);
         }
 

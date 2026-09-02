@@ -27,20 +27,19 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 // Routes publiques
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
-Route::middleware('throttle:6,1')->group(function () {
-    Route::post('/email/verify', [EmailAuthController::class, 'verify']);
-    Route::post('/email/resend', [EmailAuthController::class, 'resend']);
-    Route::post('/forgot-password', [EmailAuthController::class, 'forgotPassword']);
-    Route::post('/reset-password', [EmailAuthController::class, 'resetPassword']);
-});
-Route::get('/health', HealthController::class);
+Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:register');
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
+Route::post('/email/verify', [EmailAuthController::class, 'verify'])->middleware('throttle:email-verify');
+Route::post('/email/resend', [EmailAuthController::class, 'resend'])->middleware('throttle:email-send');
+Route::post('/forgot-password', [EmailAuthController::class, 'forgotPassword'])->middleware('throttle:email-send');
+Route::post('/reset-password', [EmailAuthController::class, 'resetPassword'])->middleware('throttle:email-verify');
+Route::get('/health', HealthController::class)->middleware('throttle:health');
 Route::get('/catalogue', [CatalogueController::class, 'index']);
 Route::get('/accueil', AccueilController::class);
 Route::match(['post', 'put'], '/webhooks/mtn-momo/{transactionHash}', MtnMomoWebhookController::class)
+    ->middleware('throttle:webhook')
     ->where('transactionHash', '[A-Za-z0-9]{64}');
-Route::post('/webhooks/orange-money', OrangeMoneyWebhookController::class);
+Route::post('/webhooks/orange-money', OrangeMoneyWebhookController::class)->middleware('throttle:webhook');
 
 // Routes de l'utilisateur authentifie
 Route::middleware('auth:sanctum')->group(function () {
@@ -83,22 +82,23 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Routes de commande reservees au client
     Route::middleware('role:client')->prefix('commandes')->group(function () {
-        Route::post('/preview', [CommandeController::class, 'preview']);
-        Route::post('/', [CommandeController::class, 'store']);
+        Route::post('/preview', [CommandeController::class, 'preview'])->middleware('throttle:order-preview');
+        Route::post('/', [CommandeController::class, 'store'])->middleware('throttle:order-create');
         Route::get('/', [CommandeController::class, 'index']);
         Route::get('/{commande}', [CommandeController::class, 'show']);
         Route::patch('/{commande}/annuler', [CommandeController::class, 'annuler']);
-        Route::post('/{commande}/paiements', [PaiementController::class, 'store']);
-        Route::post('/{commande}/avis', [AvisController::class, 'store']);
+        Route::post('/{commande}/paiements', [PaiementController::class, 'store'])->middleware('throttle:payment-create');
+        Route::post('/{commande}/avis', [AvisController::class, 'store'])->middleware('throttle:review');
     });
 
     Route::middleware('role:client')->get('/paiements/{paiement}', [PaiementController::class, 'show']);
     Route::middleware('role:client')->get('/paiements-moyens', [PaiementController::class, 'moyens']);
-    Route::middleware('role:client')->post('/paiements/{paiement}/synchroniser', [PaiementController::class, 'synchroniser']);
+    Route::middleware(['role:client', 'throttle:payment-sync'])
+        ->post('/paiements/{paiement}/synchroniser', [PaiementController::class, 'synchroniser']);
 });
 
 // Routes de l'admin
-Route::middleware(['auth:sanctum', 'isAdmin'])->prefix('admin')->group(function () {
+Route::middleware(['auth:sanctum', 'isAdmin', 'throttle:admin'])->prefix('admin')->group(function () {
     Route::get('/dashboard', AdminDashboardController::class);
     Route::get('/commandes', [AdminDashboardController::class, 'commandes']);
     Route::get('/profile', [AdminController::class, 'show']);

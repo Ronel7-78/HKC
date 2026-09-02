@@ -1,0 +1,15 @@
+-- À exécuter avec un compte administrateur MySQL lors du déploiement.
+-- Remplacer les valeurs entre chevrons et ne jamais enregistrer le mot de passe dans Git.
+
+CREATE USER '<runtime_user>'@'127.0.0.1' IDENTIFIED BY '<random_password>';
+GRANT SELECT, INSERT, UPDATE, DELETE
+    ON `<database_name>`.*
+    TO '<runtime_user>'@'127.0.0.1';
+
+-- Utiliser ponctuellement un compte séparé pour `php artisan migrate`.
+-- Le compte runtime ci-dessus ne peut ni modifier le schéma, ni lire les
+-- autres bases, ni exporter des fichiers avec le privilège FILE.
+
+-- Sur le VPS, exécuter également `sudo mysql_secure_installation` pour
+-- supprimer les comptes anonymes et la base de test. MySQL doit écouter
+-- uniquement sur 127.0.0.1 et le pare-feu ne doit jamais ouvrir le port 3306.

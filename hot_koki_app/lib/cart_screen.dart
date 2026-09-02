@@ -520,7 +520,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       if (!mounted) return;
       final payment = result['paiement'] as Map<String, dynamic>;
       final orangeUrl = Uri.tryParse(payment['url_paiement']?.toString() ?? '');
-      if (_provider == 'orange_money' && orangeUrl != null) {
+      if (_provider == 'orange_money' &&
+          orangeUrl != null &&
+          orangeUrl.scheme == 'https' &&
+          orangeUrl.host.isNotEmpty) {
         await launchUrl(orangeUrl, mode: LaunchMode.externalApplication);
         if (!mounted) return;
       }

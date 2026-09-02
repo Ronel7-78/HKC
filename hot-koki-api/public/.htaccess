@@ -23,3 +23,12 @@
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
 </IfModule>
+
+# Limite le corps HTTP à 6 Mio, légèrement au-dessus des images autorisées.
+LimitRequestBody 6291456
+
+# Défense supplémentaire si un fichier sensible est copié par erreur dans
+# public/. La racine web doit malgré tout pointer uniquement vers ce dossier.
+<FilesMatch "(^\.env|\.bak$|\.config$|\.ini$|\.log$|\.pem$|\.key$|\.p12$|\.sql$|\.sqlite($|\.)|composer\.(json|lock)$|artisan$)">
+    Require all denied
+</FilesMatch>

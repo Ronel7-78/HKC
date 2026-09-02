@@ -1,0 +1,17 @@
+.env*
+!.env*.example
+.git
+.github
+database/*.sqlite*
+database/exports/
+storage/logs/
+storage/framework/cache/
+storage/framework/sessions/
+storage/framework/views/
+vendor/
+node_modules/
+*.bak
+*.key
+*.pem
+*.p12
+*.sql

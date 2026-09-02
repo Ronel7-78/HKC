@@ -303,9 +303,9 @@ class PaiementTest extends TestCase
         $this->postJson("/api/commandes/{$commande->public_id}/paiements", [
             'fournisseur' => Paiement::FOURNISSEUR_MTN_MOMO,
             'telephone' => '677123456',
-        ])->assertForbidden();
+        ])->assertNotFound();
 
-        $this->getJson("/api/paiements/{$paiement->public_id}")->assertForbidden();
+        $this->getJson("/api/paiements/{$paiement->public_id}")->assertNotFound();
     }
 
     public function test_synchronisation_verifie_le_succes_chez_mtn_avant_de_recevoir_la_commande(): void

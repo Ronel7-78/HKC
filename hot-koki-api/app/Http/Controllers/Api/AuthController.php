@@ -23,8 +23,8 @@ class AuthController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
-            'telephone' => 'required|string|unique:users',
-            'password' => 'required|string|min:8|confirmed',
+            'telephone' => 'required|string|max:20|unique:users',
+            'password' => 'required|string|min:8|max:128|confirmed',
             'adresse_texte' => 'required|string|max:255',
             'latitude' => 'required|numeric|between:-90,90',
             'longitude' => 'required|numeric|between:-180,180',
@@ -94,7 +94,7 @@ class AuthController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'email' => 'required|email',
-            'password' => 'required',
+            'password' => 'required|string|max:128',
             'conditions_acceptees' => 'accepted',
         ], [
             'email.required' => 'L’adresse email est obligatoire.',

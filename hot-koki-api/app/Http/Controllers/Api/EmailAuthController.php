@@ -15,7 +15,7 @@ class EmailAuthController extends Controller
     public function verify(Request $request, EmailCodeService $codes)
     {
         $validated = $request->validate([
-            'email' => ['required', 'email'],
+            'email' => ['required', 'email', 'max:255'],
             'code' => ['required', 'digits:6'],
         ], $this->messages());
 
@@ -38,7 +38,7 @@ class EmailAuthController extends Controller
 
     public function resend(Request $request, EmailCodeService $codes)
     {
-        $validated = $request->validate(['email' => ['required', 'email']], $this->messages());
+        $validated = $request->validate(['email' => ['required', 'email', 'max:255']], $this->messages());
         $user = User::where('email', mb_strtolower($validated['email']))->first();
 
         if ($user && ! $user->email_verified_at && ! $user->isAdmin()) {
@@ -50,7 +50,7 @@ class EmailAuthController extends Controller
 
     public function forgotPassword(Request $request, EmailCodeService $codes)
     {
-        $validated = $request->validate(['email' => ['required', 'email']], $this->messages());
+        $validated = $request->validate(['email' => ['required', 'email', 'max:255']], $this->messages());
         $user = User::where('email', mb_strtolower($validated['email']))->first();
 
         if ($user) {
@@ -70,9 +70,9 @@ class EmailAuthController extends Controller
     public function resetPassword(Request $request, EmailCodeService $codes)
     {
         $validated = $request->validate([
-            'email' => ['required', 'email'],
+            'email' => ['required', 'email', 'max:255'],
             'code' => ['required', 'digits:6'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'password' => ['required', 'string', 'min:8', 'max:128', 'confirmed'],
         ], $this->messages());
 
         $user = User::where('email', mb_strtolower($validated['email']))->first();

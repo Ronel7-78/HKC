@@ -699,10 +699,21 @@ class _PaymentStatusScreenState extends State<PaymentStatusScreen> {
               const SizedBox(height: 18),
               if (_isOrange && _payment['url_paiement'] != null)
                 FilledButton.icon(
-                  onPressed: () => launchUrl(
-                    Uri.parse(_payment['url_paiement'].toString()),
-                    mode: LaunchMode.externalApplication,
-                  ),
+                  onPressed: () async {
+                    final uri = Uri.tryParse(
+                      _payment['url_paiement'].toString(),
+                    );
+                    if (uri == null ||
+                        uri.scheme != 'https' ||
+                        uri.host.isEmpty) {
+                      await AppFeedback.error(
+                        context,
+                        message: 'Le lien de paiement reçu n’est pas sécurisé.',
+                      );
+                      return;
+                    }
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  },
                   icon: const Icon(Icons.open_in_new_rounded),
                   label: const Text('Ouvrir Orange Money'),
                 ),

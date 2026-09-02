@@ -66,7 +66,7 @@ class AnnonceController extends Controller
             'produit_id' => 'nullable|exists:produits,id',
             'active' => 'sometimes|boolean',
             'ordre' => 'sometimes|integer|min:0|max:1000',
-            'image' => 'sometimes|nullable|image|mimes:jpeg,jpg,png,webp|max:5120',
+            'image' => 'sometimes|nullable|image|mimes:jpeg,jpg,png,webp|max:5120|dimensions:max_width=4096,max_height=4096',
             'supprimer_image' => 'sometimes|boolean',
         ], [
             'titre.required' => 'Le titre de l’annonce est obligatoire.',

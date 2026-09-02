@@ -70,7 +70,16 @@ class Paiement extends Model
             return null;
         }
 
-        return $this->donnees_operateur['payment_url'] ?? null;
+        $url = $this->donnees_operateur['payment_url'] ?? null;
+        if (! is_string($url)) {
+            return null;
+        }
+
+        $parsed = parse_url($url);
+
+        return ($parsed['scheme'] ?? null) === 'https' && ! empty($parsed['host'])
+            ? $url
+            : null;
     }
 
     protected static function booted(): void

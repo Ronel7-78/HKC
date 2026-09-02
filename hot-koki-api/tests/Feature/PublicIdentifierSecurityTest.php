@@ -34,7 +34,7 @@ class PublicIdentifierSecurityTest extends TestCase
         $commande = $this->commande($autreClient, $vendeur);
         Sanctum::actingAs($premierUser);
 
-        $this->getJson("/api/commandes/{$commande->public_id}")->assertForbidden();
+        $this->getJson("/api/commandes/{$commande->public_id}")->assertNotFound();
     }
 
     /** @return array{User, Client, Vendeur} */

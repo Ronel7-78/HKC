@@ -46,7 +46,7 @@ class CommandeAnnulationTest extends TestCase
             ->assertJsonPath('code', 'ANNULATION_CLIENT_IMPOSSIBLE');
 
         $this->patchJson("/api/commandes/{$commandeEtrangere->public_id}/annuler")
-            ->assertForbidden();
+            ->assertNotFound();
 
         $this->assertDatabaseHas('commandes', [
             'id' => $commandeEtrangere->id,

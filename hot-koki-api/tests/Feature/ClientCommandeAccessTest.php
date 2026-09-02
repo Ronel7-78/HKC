@@ -41,8 +41,7 @@ class ClientCommandeAccessTest extends TestCase
             ->assertJsonPath('adresse_livraison', 'Bonamoussadi');
 
         $this->getJson("/api/commandes/{$commandeEtrangere->public_id}")
-            ->assertForbidden()
-            ->assertJsonPath('message', 'Cette commande n\'appartient pas à ce client.');
+            ->assertNotFound();
     }
 
     /** @return array{User, Client} */
