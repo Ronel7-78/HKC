@@ -542,7 +542,7 @@ class _VendorFormState extends State<_VendorForm> {
               ),
               _requiredField(
                 _phone,
-                'Téléphone',
+                'Téléphone (idéalement WhatsApp)',
                 keyboard: TextInputType.phone,
               ),
               if (!editing)

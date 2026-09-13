@@ -20,6 +20,7 @@ class VendeurCommandeController extends Controller
 
         return response()->json(
             $vendeur->commandes()
+                ->where('statut', '!=', Commande::STATUT_EN_ATTENTE_PAIEMENT)
                 ->with('client.user', 'items.complements', 'items.produit', 'paiements')
                 ->latest()
                 ->get()
@@ -29,6 +30,7 @@ class VendeurCommandeController extends Controller
     public function show(Request $request, Commande $commande)
     {
         $this->authorize('vendeur', $commande);
+        abort_if($commande->statut === Commande::STATUT_EN_ATTENTE_PAIEMENT, 404);
 
         return response()->json(
             $commande->load('client.user', 'items.complements', 'items.produit', 'paiements')
@@ -38,9 +40,15 @@ class VendeurCommandeController extends Controller
     public function updateStatut(Request $request, Commande $commande)
     {
         $this->authorize('vendeur', $commande);
+        abort_if($commande->statut === Commande::STATUT_EN_ATTENTE_PAIEMENT, 404);
 
         $validated = $request->validate([
-            'statut' => ['required', 'string', Rule::in(Commande::STATUTS)],
+            'statut' => ['required', 'string', Rule::in([
+                Commande::STATUT_LIVREE,
+                Commande::STATUT_ANNULEE,
+            ])],
+        ], [
+            'statut.in' => 'Le vendeur peut uniquement marquer une commande reçue comme livrée ou l’annuler.',
         ]);
 
         if (! $commande->peutPasserAuStatut($validated['statut'])) {
@@ -52,9 +60,6 @@ class VendeurCommandeController extends Controller
         $commande->update(['statut' => $validated['statut']]);
         $commande->load('client.user');
         $libelles = [
-            Commande::STATUT_RECUE => 'reçue',
-            Commande::STATUT_PREPARATION => 'en préparation',
-            Commande::STATUT_EN_LIVRAISON => 'en livraison',
             Commande::STATUT_LIVREE => 'livrée',
             Commande::STATUT_ANNULEE => 'annulée',
         ];

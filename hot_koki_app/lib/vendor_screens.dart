@@ -586,10 +586,10 @@ class _VendorMapScreenState extends State<VendorSearchScreen> {
                 ],
               ),
               RichAttributionWidget(
-              attributions: const [
-                TextSourceAttribution('OpenStreetMap contributors'),
-                TextSourceAttribution('Humanitarian OpenStreetMap Team'),
-              ],
+                attributions: const [
+                  TextSourceAttribution('OpenStreetMap contributors'),
+                  TextSourceAttribution('Humanitarian OpenStreetMap Team'),
+                ],
               ),
             ],
           ),
@@ -878,31 +878,53 @@ class VendorDetailScreen extends StatelessWidget {
                     ),
                     if (vendor.phone != null && vendor.phone!.isNotEmpty) ...[
                       const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () async {
-                            final uri = Uri(
-                              scheme: 'tel',
-                              path: vendor.phone!.replaceAll(' ', ''),
-                            );
-                            if (!await launchUrl(uri)) {
-                              if (context.mounted) {
-                                await AppFeedback.error(
-                                  context,
-                                  message:
-                                      'Impossible d’ouvrir l’application Téléphone.',
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () async {
+                                final uri = Uri(
+                                  scheme: 'tel',
+                                  path: vendor.phone!.replaceAll(' ', ''),
                                 );
-                              }
-                            }
-                          },
-                          icon: const Icon(Icons.call_rounded),
-                          label: Text('Appeler ${vendor.name}'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: _leaf700,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
+                                if (!await launchUrl(uri)) {
+                                  if (context.mounted) {
+                                    await AppFeedback.error(
+                                      context,
+                                      message:
+                                          'Impossible d’ouvrir l’application Téléphone.',
+                                    );
+                                  }
+                                }
+                              },
+                              icon: const Icon(Icons.call_rounded),
+                              label: const Text('Appeler'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: _leaf700,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => _openWhatsApp(context, vendor),
+                              icon: const Icon(Icons.chat_rounded),
+                              label: const Text('WhatsApp'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFF128C4A),
+                                side: const BorderSide(
+                                  color: Color(0xFF128C4A),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                     const SizedBox(height: 22),
@@ -929,6 +951,26 @@ class VendorDetailScreen extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+Future<void> _openWhatsApp(BuildContext context, VendorData vendor) async {
+  var digits = vendor.phone!.replaceAll(RegExp(r'[^0-9]'), '');
+  if (digits.startsWith('00')) digits = digits.substring(2);
+  if (digits.startsWith('0')) digits = digits.substring(1);
+  if (!digits.startsWith('237')) digits = '237$digits';
+
+  final message = Uri.encodeComponent(
+    'Bonjour ${vendor.name}, je vous contacte depuis Hot Koki.',
+  );
+  final uri = Uri.parse('https://wa.me/$digits?text=$message');
+  if (!await launchUrl(uri, mode: LaunchMode.externalApplication) &&
+      context.mounted) {
+    await AppFeedback.error(
+      context,
+      message:
+          'Impossible d’ouvrir WhatsApp. Vérifiez que l’application est installée.',
     );
   }
 }

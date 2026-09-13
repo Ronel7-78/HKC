@@ -34,12 +34,13 @@ class Commande extends Model
 
     protected $fillable = [
         'client_id', 'vendeur_id', 'statut', 'adresse_livraison',
-        'latitude_client', 'longitude_client', 'distance_km',
+        'latitude_client', 'longitude_client', 'distance_km', 'livraison_express',
         'sous_total', 'frais_livraison', 'total',
     ];
 
     protected $casts = [
         'distance_km' => 'decimal:3',
+        'livraison_express' => 'boolean',
         'sous_total' => 'decimal:2',
         'frais_livraison' => 'decimal:2',
         'total' => 'decimal:2',
@@ -60,35 +61,23 @@ class Commande extends Model
         return $this->hasMany(CommandeItem::class);
     }
 
-    /** Verifie les transitions que le vendeur est autorise a effectuer. */
+    /** Vérifie les transitions métier proposées au vendeur. */
     public function peutPasserAuStatut(string $nouveauStatut): bool
     {
         if (in_array($this->statut, [self::STATUT_LIVREE, self::STATUT_ANNULEE], true)) {
             return false;
         }
 
-        if ($nouveauStatut === self::STATUT_ANNULEE) {
-            return true;
-        }
-
-        $transitionSuivante = [
-            self::STATUT_RECUE => self::STATUT_PREPARATION,
-            self::STATUT_PREPARATION => self::STATUT_EN_LIVRAISON,
-            self::STATUT_EN_LIVRAISON => self::STATUT_LIVREE,
-        ];
-
-        return ($transitionSuivante[$this->statut] ?? null) === $nouveauStatut;
+        return $this->statut === self::STATUT_RECUE
+            && in_array($nouveauStatut, [self::STATUT_LIVREE, self::STATUT_ANNULEE], true);
     }
 
     /**
-     * Le client peut se retracter avant le debut de la preparation.
+     * Le client peut se rétracter uniquement tant que le paiement n'est pas confirmé.
      */
     public function peutEtreAnnuleeParClient(): bool
     {
-        return in_array($this->statut, [
-            self::STATUT_EN_ATTENTE_PAIEMENT,
-            self::STATUT_RECUE,
-        ], true);
+        return $this->statut === self::STATUT_EN_ATTENTE_PAIEMENT;
     }
 
     public function paiements()

@@ -143,7 +143,7 @@ class Paiement extends Model
                 $commande->vendeur->user,
                 'nouvelle_commande',
                 'Nouvelle commande reçue',
-                "La commande payée #{$commande->id} peut être préparée.",
+                "La commande payée #{$commande->id} est prête à être servie.",
                 ['commande_id' => $commande->id]
             );
         }

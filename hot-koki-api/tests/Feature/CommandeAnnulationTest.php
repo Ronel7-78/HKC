@@ -14,11 +14,11 @@ class CommandeAnnulationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_client_annule_sa_commande_avant_la_preparation(): void
+    public function test_client_annule_sa_commande_avant_le_paiement(): void
     {
         [$clientUser, $client] = $this->creerClient();
         $vendeur = $this->creerVendeur();
-        $commande = $this->creerCommande($client, $vendeur, Commande::STATUT_RECUE);
+        $commande = $this->creerCommande($client, $vendeur, Commande::STATUT_EN_ATTENTE_PAIEMENT);
 
         Sanctum::actingAs($clientUser);
 
@@ -31,13 +31,13 @@ class CommandeAnnulationTest extends TestCase
             ->assertJsonPath('code', 'ANNULATION_CLIENT_IMPOSSIBLE');
     }
 
-    public function test_client_ne_peut_annuler_ni_commande_etrangere_ni_commande_en_preparation(): void
+    public function test_client_ne_peut_annuler_ni_commande_etrangere_ni_commande_payee(): void
     {
         [$clientUser, $client] = $this->creerClient();
         [, $autreClient] = $this->creerClient();
         $vendeur = $this->creerVendeur();
-        $commandeEnPreparation = $this->creerCommande($client, $vendeur, Commande::STATUT_PREPARATION);
-        $commandeEtrangere = $this->creerCommande($autreClient, $vendeur, Commande::STATUT_RECUE);
+        $commandeEnPreparation = $this->creerCommande($client, $vendeur, Commande::STATUT_RECUE);
+        $commandeEtrangere = $this->creerCommande($autreClient, $vendeur, Commande::STATUT_EN_ATTENTE_PAIEMENT);
 
         Sanctum::actingAs($clientUser);
 
@@ -50,7 +50,7 @@ class CommandeAnnulationTest extends TestCase
 
         $this->assertDatabaseHas('commandes', [
             'id' => $commandeEtrangere->id,
-            'statut' => Commande::STATUT_RECUE,
+            'statut' => Commande::STATUT_EN_ATTENTE_PAIEMENT,
         ]);
     }
 
@@ -58,7 +58,7 @@ class CommandeAnnulationTest extends TestCase
     {
         [, $client] = $this->creerClient();
         [$vendeurUser, $vendeur] = $this->creerVendeurAvecUtilisateur();
-        $commande = $this->creerCommande($client, $vendeur, Commande::STATUT_EN_LIVRAISON);
+        $commande = $this->creerCommande($client, $vendeur, Commande::STATUT_RECUE);
 
         Sanctum::actingAs($vendeurUser);
 

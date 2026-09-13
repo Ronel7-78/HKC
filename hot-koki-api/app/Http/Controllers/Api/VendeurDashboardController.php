@@ -21,8 +21,13 @@ class VendeurDashboardController extends Controller
             'vendeur' => $vendeur,
             'statistiques' => [
                 'commandes_du_jour' => (clone $commandes)->whereDate('created_at', today())->count(),
-                'a_preparer' => (clone $commandes)->whereIn('statut', [Commande::STATUT_RECUE, Commande::STATUT_PREPARATION])->count(),
-                'en_livraison' => (clone $commandes)->where('statut', Commande::STATUT_EN_LIVRAISON)->count(),
+                'a_servir' => (clone $commandes)->where('statut', Commande::STATUT_RECUE)->count(),
+                // Conservé temporairement pour les anciennes versions de l'application.
+                'a_preparer' => (clone $commandes)->where('statut', Commande::STATUT_RECUE)->count(),
+                'livrees_aujourdhui' => (clone $commandes)
+                    ->where('statut', Commande::STATUT_LIVREE)
+                    ->whereDate('updated_at', today())
+                    ->count(),
                 'livrees' => (clone $commandes)->where('statut', Commande::STATUT_LIVREE)->count(),
                 'annulees' => (clone $commandes)->where('statut', Commande::STATUT_ANNULEE)->count(),
                 'chiffre_affaires' => $revenus['total'],
@@ -35,6 +40,7 @@ class VendeurDashboardController extends Controller
             ],
             'revenus' => $revenus,
             'commandes_recentes' => $vendeur->commandes()
+                ->where('statut', '!=', Commande::STATUT_EN_ATTENTE_PAIEMENT)
                 ->with('client.user', 'items.produit', 'items.complements')
                 ->latest()
                 ->limit(5)

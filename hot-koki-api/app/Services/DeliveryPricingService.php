@@ -4,11 +4,9 @@ namespace App\Services;
 
 final class DeliveryPricingService
 {
-    public function feeForDistance(float $distanceKm): int
+    public function feeForExpress(bool $express): int
     {
-        return $distanceKm < config('delivery.free_radius_km')
-            ? 0
-            : config('delivery.flat_fee_xaf');
+        return $express ? (int) config('delivery.flat_fee_xaf', 500) : 0;
     }
 
     public function displayedDistance(float $distanceKm): float

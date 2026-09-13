@@ -204,8 +204,8 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
                   ),
                   _SellerStat(
                     icon: Icons.soup_kitchen_outlined,
-                    label: 'À préparer',
-                    value: '${stats['a_preparer']}',
+                    label: 'À servir',
+                    value: '${stats['a_servir'] ?? stats['a_preparer']}',
                   ),
                   _SellerStat(
                     icon: Icons.verified_outlined,
@@ -293,26 +293,18 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
           child: ListView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            children:
-                [
-                      'toutes',
-                      'recue',
-                      'preparation',
-                      'en_livraison',
-                      'livree',
-                      'annulee',
-                    ]
-                    .map(
-                      (status) => Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        child: ChoiceChip(
-                          label: Text(_statusLabel(status)),
-                          selected: _filter == status,
-                          onSelected: (_) => setState(() => _filter = status),
-                        ),
-                      ),
-                    )
-                    .toList(),
+            children: ['toutes', 'recue', 'livree', 'annulee']
+                .map(
+                  (status) => Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: ChoiceChip(
+                      label: Text(_statusLabel(status)),
+                      selected: _filter == status,
+                      onSelected: (_) => setState(() => _filter = status),
+                    ),
+                  ),
+                )
+                .toList(),
           ),
         ),
         const SizedBox(height: 8),
@@ -378,11 +370,7 @@ class SellerOrderCard extends StatelessWidget {
   final Map<String, dynamic> order;
   final Future<void> Function()? onChanged;
   final bool compact;
-  String? get nextStatus => {
-    'recue': 'preparation',
-    'preparation': 'en_livraison',
-    'en_livraison': 'livree',
-  }[order['statut']];
+  String? get nextStatus => order['statut'] == 'recue' ? 'livree' : null;
 
   Future<void> _advance(BuildContext context) async {
     final next = nextStatus;
@@ -390,8 +378,10 @@ class SellerOrderCard extends StatelessWidget {
     final yes = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text('Passer à « ${_statusLabel(next)} » ?'),
-        content: const Text('Le client verra immédiatement ce nouveau statut.'),
+        title: const Text('Marquer cette commande comme livrée ?'),
+        content: const Text(
+          'Le client sera informé immédiatement. Cette action est définitive.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -519,9 +509,7 @@ class SellerOrderCard extends StatelessWidget {
                           Navigator.pop(context);
                           _advance(pageContext);
                         },
-                        child: Text(
-                          'Passer à « ${_statusLabel(nextStatus!)} »',
-                        ),
+                        child: Text('Marquer comme livrée'),
                       ),
                     ),
                   ),
@@ -583,7 +571,7 @@ class SellerOrderCard extends StatelessWidget {
                   if (nextStatus != null)
                     FilledButton(
                       onPressed: () => _advance(context),
-                      child: Text(_statusLabel(nextStatus!)),
+                      child: const Text('Marquer comme livrée'),
                     ),
                 ],
               ),
@@ -805,7 +793,7 @@ class _SellerAccountScreenState extends State<SellerAccountScreen> {
                     _sellerRequired(shop, 'Nom de la boutique'),
                     _sellerRequired(name, 'Nom du responsable'),
                     _sellerRequired(email, 'Email'),
-                    _sellerRequired(phone, 'Téléphone'),
+                    _sellerRequired(phone, 'Téléphone (idéalement WhatsApp)'),
                     TextFormField(
                       controller: description,
                       maxLines: 2,

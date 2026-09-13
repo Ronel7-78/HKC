@@ -124,24 +124,24 @@ class VendeurCommandeWorkflowTest extends TestCase
 
         $this->getJson('/api/vendeur/commandes')
             ->assertOk()
-            ->assertJsonCount(1)
-            ->assertJsonPath('0.id', $commandeId)
-            ->assertJsonPath('0.statut', Commande::STATUT_EN_ATTENTE_PAIEMENT);
+            ->assertJsonCount(0);
 
         $this->getJson("/api/vendeur/commandes/{$commandePublicId}")
-            ->assertOk()
-            ->assertJsonPath('id', $commandeId);
+            ->assertNotFound();
 
-        $this->changerStatut($commandePublicId, Commande::STATUT_RECUE)->assertUnprocessable();
+        $this->changerStatut($commandePublicId, Commande::STATUT_LIVREE)->assertNotFound();
 
         // En production, seul le resultat verifie chez MTN appellera cette methode.
         Paiement::findOrFail($paiement->json('paiement.id'))->confirmerReussite('mtn-test-1');
 
-        $this->changerStatut($commandePublicId, Commande::STATUT_LIVREE)
-            ->assertUnprocessable();
+        $this->getJson('/api/vendeur/commandes')
+            ->assertOk()
+            ->assertJsonCount(1)
+            ->assertJsonPath('0.id', $commandeId)
+            ->assertJsonPath('0.statut', Commande::STATUT_RECUE);
 
-        $this->changerStatut($commandePublicId, Commande::STATUT_PREPARATION)->assertOk();
-        $this->changerStatut($commandePublicId, Commande::STATUT_EN_LIVRAISON)->assertOk();
+        $this->changerStatut($commandePublicId, Commande::STATUT_PREPARATION)
+            ->assertUnprocessable();
         $this->changerStatut($commandePublicId, Commande::STATUT_LIVREE)->assertOk();
 
         $this->changerStatut($commandePublicId, Commande::STATUT_ANNULEE)

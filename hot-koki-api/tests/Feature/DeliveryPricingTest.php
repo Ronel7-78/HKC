@@ -15,28 +15,48 @@ class DeliveryPricingTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_apercu_et_creation_figent_distance_et_forfait_de_livraison(): void
+    public function test_livraison_standard_est_gratuite_independamment_de_la_distance(): void
     {
         [$payload, $vendeur] = $this->context();
 
         $preview = $this->postJson('/api/commandes/preview', $payload)
             ->assertOk()
-            ->assertJsonPath('frais_livraison', 500)
-            ->assertJsonPath('livraison_gratuite', false)
-            ->assertJsonPath('total', 1500);
+            ->assertJsonPath('frais_livraison', 0)
+            ->assertJsonPath('livraison_express', false)
+            ->assertJsonPath('livraison_gratuite', true)
+            ->assertJsonPath('total', 1000);
 
         $distance = (float) $preview->json('vendeur.distance_km');
         $this->assertGreaterThanOrEqual(3, $distance);
 
         $creation = $this->postJson('/api/commandes', $payload + ['vendeur_id' => $vendeur->id])
             ->assertCreated()
-            ->assertJsonPath('commande.frais_livraison', '500.00')
+            ->assertJsonPath('commande.frais_livraison', '0.00')
+            ->assertJsonPath('commande.livraison_express', false)
             ->assertJsonPath('commande.distance_km', number_format($distance, 3, '.', ''));
 
         $this->assertDatabaseHas('commandes', [
             'id' => $creation->json('commande.id'),
-            'frais_livraison' => 500,
+            'frais_livraison' => 0,
+            'livraison_express' => false,
         ]);
+    }
+
+    public function test_livraison_express_ajoute_un_forfait_de_500_fcfa(): void
+    {
+        [$payload, $vendeur] = $this->context();
+        $payload['livraison_express'] = true;
+
+        $this->postJson('/api/commandes/preview', $payload)
+            ->assertOk()
+            ->assertJsonPath('frais_livraison', 500)
+            ->assertJsonPath('livraison_express', true)
+            ->assertJsonPath('total', 1500);
+
+        $this->postJson('/api/commandes', $payload + ['vendeur_id' => $vendeur->id])
+            ->assertCreated()
+            ->assertJsonPath('commande.frais_livraison', '500.00')
+            ->assertJsonPath('commande.livraison_express', true);
     }
 
     /** @return array{array<string, mixed>, Vendeur} */

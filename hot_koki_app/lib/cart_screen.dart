@@ -394,6 +394,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   bool _loading = true;
   bool _submitting = false;
   bool _locating = false;
+  bool _expressDelivery = false;
   double? _deliveryLatitude;
   double? _deliveryLongitude;
   List<Map<String, dynamic>> _paymentMethods = const [];
@@ -433,7 +434,39 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       'adresse_livraison': _deliveryAddress.text.trim(),
       'latitude_client': _deliveryLatitude,
       'longitude_client': _deliveryLongitude,
+      'livraison_express': _expressDelivery,
     };
+  }
+
+  Future<void> _setExpressDelivery(bool enabled) async {
+    if (enabled) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          icon: const Icon(Icons.bolt_rounded, color: _flame600, size: 38),
+          title: const Text('Activer la livraison express ?'),
+          content: const Text(
+            'Votre commande sera traitée en priorité. Cette option ajoute '
+            '500 FCFA de frais de livraison au total de la commande.',
+            textAlign: TextAlign.center,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Garder la livraison standard'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Activer pour 500 FCFA'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+    }
+
+    setState(() => _expressDelivery = enabled);
+    await _refreshPreview();
   }
 
   Future<void> _load() async {
@@ -722,6 +755,31 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       ),
                     ),
                   ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: _expressDelivery ? _flame600 : _leaf100,
+                  ),
+                ),
+                child: SwitchListTile.adaptive(
+                  value: _expressDelivery,
+                  onChanged: _submitting ? null : _setExpressDelivery,
+                  activeThumbColor: _flame600,
+                  secondary: const Icon(Icons.bolt_rounded, color: _flame600),
+                  title: const Text(
+                    'Livraison express',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  subtitle: Text(
+                    _expressDelivery
+                        ? 'Option activée · 500 FCFA'
+                        : 'Option facultative · traitement prioritaire',
+                  ),
                 ),
               ),
               const SizedBox(height: 16),

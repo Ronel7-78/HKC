@@ -30,6 +30,7 @@ class CommandeController extends Controller
             'adresse_livraison' => 'required|string|max:255',
             'latitude_client' => 'required|numeric|between:-90,90',
             'longitude_client' => 'required|numeric|between:-180,180',
+            'livraison_express' => 'sometimes|boolean',
             // Facultatif pour conserver les anciens clients. Lorsqu'il est fourni,
             // il doit correspondre au vendeur retourne par l'apercu.
             'vendeur_id' => 'sometimes|integer|exists:vendeurs,id',
@@ -125,7 +126,8 @@ class CommandeController extends Controller
 
         [$sousTotal, $lignes] = $this->calculerTotaux($request->items);
         $distanceKm = $delivery->displayedDistance((float) $vendeur->distance);
-        $fraisLivraison = $delivery->feeForDistance((float) $vendeur->distance);
+        $livraisonExpress = $request->boolean('livraison_express');
+        $fraisLivraison = $delivery->feeForExpress($livraisonExpress);
 
         return response()->json([
             'vendeur' => [
@@ -136,13 +138,9 @@ class CommandeController extends Controller
             'sous_total' => $sousTotal,
             'frais_livraison' => $fraisLivraison,
             'total' => $sousTotal + $fraisLivraison,
-            'livraison_gratuite' => $fraisLivraison === 0,
-            'politique_livraison' => sprintf(
-                'Frais de livraison : 0 FCFA à moins de %s km, %d FCFA à partir de %s km.',
-                config('delivery.free_radius_km'),
-                config('delivery.flat_fee_xaf'),
-                config('delivery.free_radius_km'),
-            ),
+            'livraison_express' => $livraisonExpress,
+            'livraison_gratuite' => ! $livraisonExpress,
+            'politique_livraison' => 'Livraison standard : 0 FCFA. Livraison express prioritaire : 500 FCFA.',
         ]);
     }
 
@@ -175,7 +173,8 @@ class CommandeController extends Controller
 
             [$sousTotal, $lignes] = $this->calculerTotaux($request->items);
             $distanceKm = $delivery->displayedDistance((float) $vendeur->distance);
-            $fraisLivraison = $delivery->feeForDistance((float) $vendeur->distance);
+            $livraisonExpress = $request->boolean('livraison_express');
+            $fraisLivraison = $delivery->feeForExpress($livraisonExpress);
 
             $commande = Commande::create([
                 'client_id' => $client->id,
@@ -185,6 +184,7 @@ class CommandeController extends Controller
                 'latitude_client' => $request->latitude_client,
                 'longitude_client' => $request->longitude_client,
                 'distance_km' => $distanceKm,
+                'livraison_express' => $livraisonExpress,
                 'sous_total' => $sousTotal,
                 'frais_livraison' => $fraisLivraison,
                 'total' => $sousTotal + $fraisLivraison,
