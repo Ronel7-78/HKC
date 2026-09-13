@@ -34,7 +34,7 @@ class Commande extends Model
 
     protected $fillable = [
         'client_id', 'vendeur_id', 'statut', 'adresse_livraison',
-        'latitude_client', 'longitude_client', 'distance_km', 'livraison_express',
+        'latitude_client', 'longitude_client', 'distance_km', 'livraison_express', 'mode_remise',
         'sous_total', 'frais_livraison', 'total',
     ];
 

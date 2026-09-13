@@ -34,7 +34,7 @@ class AdminController extends Controller
 
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|required|string|max:255',
-            'email' => ['sometimes', 'required', 'email', Rule::unique('users')->ignore($request->user()->id)],
+            'email' => ['sometimes', 'required', 'email', 'max:255', Rule::unique('users')->ignore($request->user()->id)],
             'telephone' => ['sometimes', 'nullable', 'string', Rule::unique('users')->ignore($request->user()->id)],
             'nom' => 'sometimes|string|max:255',
             'prenom' => 'sometimes|nullable|string|max:255',

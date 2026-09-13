@@ -30,7 +30,7 @@ class VendeurController extends Controller
 
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|required|string|max:255',
-            'email' => ['sometimes', 'required', 'email', Rule::unique('users')->ignore($request->user()->id)],
+            'email' => ['sometimes', 'required', 'email', 'max:255', Rule::unique('users')->ignore($request->user()->id)],
             'telephone' => ['sometimes', 'required', 'string', 'max:20', Rule::unique('users')->ignore($request->user()->id)],
             'nom_boutique' => 'sometimes|required|string|max:255',
             'description' => 'sometimes|nullable|string|max:2000',

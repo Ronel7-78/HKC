@@ -21,12 +21,18 @@ class ClientVendeurController extends Controller
 
         $distance = '(6371 * acos(cos(radians(?)) * cos(radians(latitude)) * cos(radians(longitude) - radians(?)) + sin(radians(?)) * sin(radians(latitude))))';
         $recherche = trim((string) $request->query('q'));
+        $type = $request->query('type');
 
         $vendeurs = Vendeur::query()
             ->where('statut_compte', 'actif')
             ->where('statut_dispo', 'disponible')
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
+            ->when(in_array($type, [Vendeur::TYPE_AMBULANT, Vendeur::TYPE_POINT_FIXE], true),
+                fn ($query) => $query->where('type_vendeur', $type))
+            ->when($request->boolean('express'), fn ($query) => $query
+                ->where('type_vendeur', Vendeur::TYPE_POINT_FIXE)
+                ->where('accepte_express', true))
             ->when($recherche, fn ($query) => $query->where(function ($query) use ($recherche) {
                 $query->where('nom_boutique', 'like', "%{$recherche}%")
                     ->orWhereHas('produits', fn ($query) => $query->where('nom', 'like', "%{$recherche}%"));

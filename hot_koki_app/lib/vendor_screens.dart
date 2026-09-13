@@ -33,6 +33,8 @@ class VendorData {
     required this.latitude,
     required this.longitude,
     required this.phone,
+    required this.type,
+    required this.acceptsExpress,
   });
   final int id;
   final String publicId;
@@ -44,6 +46,8 @@ class VendorData {
   final double latitude;
   final double longitude;
   final String? phone;
+  final String type;
+  final bool acceptsExpress;
 
   factory VendorData.fromJson(Map<String, dynamic> json) => VendorData(
     id: int.parse(json['id'].toString()),
@@ -55,6 +59,8 @@ class VendorData {
     latitude: double.parse(json['latitude'].toString()),
     longitude: double.parse(json['longitude'].toString()),
     phone: (json['user'] as Map<String, dynamic>?)?['telephone']?.toString(),
+    type: json['type_vendeur']?.toString() ?? 'ambulant',
+    acceptsExpress: json['accepte_express'] == true,
     products: (json['produits'] as List<dynamic>? ?? [])
         .map((item) => VendorProduct.fromJson(item as Map<String, dynamic>))
         .toList(),
@@ -114,9 +120,15 @@ class VendorApi {
     };
   }
 
-  static Future<List<VendorData>> nearby([String query = '']) async {
+  static Future<List<VendorData>> nearby([
+    String query = '',
+    String type = 'tous',
+  ]) async {
     final uri = Uri.parse('${ApiConfig.baseUrl}/client/vendeurs').replace(
-      queryParameters: query.trim().isEmpty ? null : {'q': query.trim()},
+      queryParameters: {
+        if (query.trim().isNotEmpty) 'q': query.trim(),
+        if (type != 'tous') 'type': type,
+      },
     );
     final response = await http
         .get(uri, headers: await _headers())
@@ -365,6 +377,7 @@ class _VendorMapScreenState extends State<VendorSearchScreen> {
   int _tileGeneration = 0;
   String? _error;
   String? _locationMessage;
+  String _type = 'tous';
 
   @override
   void initState() {
@@ -467,7 +480,7 @@ class _VendorMapScreenState extends State<VendorSearchScreen> {
       });
     }
     try {
-      final vendors = await VendorApi.nearby(_search.text);
+      final vendors = await VendorApi.nearby(_search.text, _type);
       if (!mounted) return;
       setState(() {
         _vendors = vendors;
@@ -631,6 +644,33 @@ class _VendorMapScreenState extends State<VendorSearchScreen> {
                   ),
                 ),
                 const SizedBox(height: 9),
+                SizedBox(
+                  height: 38,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children:
+                        const {
+                              'tous': 'Tous',
+                              'ambulant': 'Ambulants',
+                              'point_fixe': 'Points fixes',
+                            }.entries
+                            .map(
+                              (entry) => Padding(
+                                padding: const EdgeInsets.only(right: 7),
+                                child: ChoiceChip(
+                                  label: Text(entry.value),
+                                  selected: _type == entry.key,
+                                  onSelected: (_) {
+                                    setState(() => _type = entry.key);
+                                    _fetchVendors();
+                                  },
+                                ),
+                              ),
+                            )
+                            .toList(),
+                  ),
+                ),
+                const SizedBox(height: 7),
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Container(
@@ -747,16 +787,18 @@ class _VendorMapAvatar extends StatelessWidget {
             ],
           ),
           child: Center(
-            child: Text(
-              vendor.name.trim().isEmpty
-                  ? 'V'
-                  : vendor.name.trim()[0].toUpperCase(),
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
+            child: vendor.type == 'point_fixe'
+                ? const Icon(Icons.store_rounded, color: Colors.white, size: 25)
+                : Text(
+                    vendor.name.trim().isEmpty
+                        ? 'V'
+                        : vendor.name.trim()[0].toUpperCase(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
           ),
         ),
         Container(
@@ -876,6 +918,24 @@ class VendorDetailScreen extends StatelessWidget {
                       vendor.address,
                       style: const TextStyle(color: _inkSoft),
                     ),
+                    if (vendor.type == 'point_fixe') ...[
+                      const SizedBox(height: 9),
+                      Wrap(
+                        spacing: 7,
+                        runSpacing: 7,
+                        children: [
+                          const Chip(
+                            avatar: Icon(Icons.store_rounded, size: 17),
+                            label: Text('Retrait · 0 FCFA'),
+                          ),
+                          if (vendor.acceptsExpress)
+                            const Chip(
+                              avatar: Icon(Icons.bolt_rounded, size: 17),
+                              label: Text('Express · 500 FCFA'),
+                            ),
+                        ],
+                      ),
+                    ],
                     if (vendor.phone != null && vendor.phone!.isNotEmpty) ...[
                       const SizedBox(height: 12),
                       Row(
@@ -1037,6 +1097,9 @@ class _VendorProductCard extends StatelessWidget {
       ),
     );
     if (complement == null || !context.mounted) return;
+    CartStore.instance.setDeliveryMode(
+      vendor.type == 'point_fixe' ? 'retrait' : 'standard',
+    );
     final added = CartStore.instance.add(
       CartItem(
         vendorId: vendor.id,
@@ -1047,6 +1110,8 @@ class _VendorProductCard extends StatelessWidget {
         complementId: complement.id,
         complementName: complement.name,
         photo: product.photo,
+        vendorType: vendor.type,
+        vendorAcceptsExpress: vendor.acceptsExpress,
       ),
     );
     if (added) {

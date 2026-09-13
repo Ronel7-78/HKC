@@ -11,13 +11,20 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Vendeur extends Model
 {
+    public const TYPE_AMBULANT = 'ambulant';
+
+    public const TYPE_POINT_FIXE = 'point_fixe';
+
     // SoftDeletes masque le vendeur sans detruire son historique.
     use HasFactory, HasPublicId, SoftDeletes;
 
     protected $fillable = [
         'user_id', 'nom_boutique', 'description', 'adresse_texte',
         'latitude', 'longitude', 'statut_dispo', 'statut_compte', 'note_moyenne',
+        'type_vendeur', 'accepte_express',
     ];
+
+    protected $casts = ['accepte_express' => 'boolean'];
 
     public function user()
     {

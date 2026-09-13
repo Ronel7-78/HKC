@@ -504,11 +504,15 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
   late Future<List<ProductData>> _products;
   late Future<HomeContent> _content;
   late Future<String?> _deliveryAddress;
+  String _deliveryMode = 'standard';
 
   @override
   void initState() {
     super.initState();
-    _products = CatalogueApi.fetchProducts(widget.userName != null);
+    _products = CatalogueApi.fetchProducts(
+      widget.userName != null,
+      _deliveryMode,
+    );
     _content = HomeApi.fetch();
     _deliveryAddress = _loadDeliveryAddress();
   }
@@ -518,7 +522,10 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.userName != widget.userName) {
       _deliveryAddress = _loadDeliveryAddress();
-      _products = CatalogueApi.fetchProducts(widget.userName != null);
+      _products = CatalogueApi.fetchProducts(
+        widget.userName != null,
+        _deliveryMode,
+      );
     }
   }
 
@@ -540,6 +547,51 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
         message: 'Aucun complément n’est configuré pour ce produit.',
       );
       return;
+    }
+    HomeVendorOption? selectedVendor;
+    if (product.vendors.length == 1) {
+      selectedVendor = product.vendors.first;
+    } else if (product.vendors.length > 1) {
+      selectedVendor = await showModalBottomSheet<HomeVendorOption>(
+        context: context,
+        showDragHandle: true,
+        builder: (context) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Choisissez votre vendeur',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 5),
+                const Text(
+                  'Classés par proximité. Vous gardez toujours le choix.',
+                  style: TextStyle(color: HotKokiColors.inkSoft),
+                ),
+                const SizedBox(height: 8),
+                ...product.vendors.map(
+                  (vendor) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const CircleAvatar(
+                      child: Icon(Icons.storefront_rounded),
+                    ),
+                    title: Text(vendor.name),
+                    subtitle: Text(
+                      '${vendor.distance?.toStringAsFixed(1) ?? '—'} km · ★ ${vendor.rating.toStringAsFixed(1)}',
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.pop(context, vendor),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      if (selectedVendor == null || !mounted) return;
     }
     final complement = await showModalBottomSheet<HomeComplement>(
       context: context,
@@ -582,16 +634,18 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
       ),
     );
     if (complement == null || !mounted) return;
+    CartStore.instance.setDeliveryMode(_deliveryMode);
     final added = CartStore.instance.add(
       CartItem(
-        vendorId: product.vendorId!,
-        vendorName: product.vendorName!,
+        vendorId: selectedVendor?.id ?? product.vendorId!,
+        vendorName: selectedVendor?.name ?? product.vendorName!,
         productId: product.id!,
         productName: product.name,
         unitPrice: product.price,
         complementId: complement.id,
         complementName: complement.name,
         photo: product.photoUrl,
+        vendorType: 'ambulant',
       ),
     );
     if (!mounted) return;
@@ -603,6 +657,42 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
         message: 'Terminez d’abord le panier du vendeur actuel.',
       );
     }
+  }
+
+  Future<void> _selectDeliveryMode(String mode) async {
+    if (mode == _deliveryMode) return;
+    if (mode == 'express') {
+      final accepted = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          icon: const Icon(
+            Icons.bolt_rounded,
+            color: HotKokiColors.flame600,
+            size: 38,
+          ),
+          title: const Text('Livraison express'),
+          content: const Text(
+            'Un point de vente fixe disponible prendra la commande en priorité. Des frais fixes de 500 FCFA seront ajoutés.',
+            textAlign: TextAlign.center,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Annuler'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Continuer'),
+            ),
+          ],
+        ),
+      );
+      if (accepted != true || !mounted) return;
+    }
+    setState(() {
+      _deliveryMode = mode;
+      _products = CatalogueApi.fetchProducts(widget.userName != null, mode);
+    });
   }
 
   Future<String?> _loadDeliveryAddress() async {
@@ -662,6 +752,11 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 22),
+                _HomeDeliveryMode(
+                  selected: _deliveryMode,
+                  onChanged: _selectDeliveryMode,
+                ),
+                const SizedBox(height: 22),
                 const _SectionHeader(
                   title: 'Le menu du jour',
                   action: 'Nos plats',
@@ -685,6 +780,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                     onRetry: () => setState(() {
                       _products = CatalogueApi.fetchProducts(
                         widget.userName != null,
+                        _deliveryMode,
                       );
                       _content = HomeApi.fetch();
                     }),
@@ -714,6 +810,16 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
               },
             ),
           ),
+          SliverToBoxAdapter(
+            child: FutureBuilder<HomeContent>(
+              future: _content,
+              builder: (context, snapshot) => _FixedPointsSection(
+                points: snapshot.data?.fixedPoints ?? const [],
+                authenticated: widget.userName != null,
+                onLogin: widget.onLogin,
+              ),
+            ),
+          ),
           const SliverPadding(
             padding: EdgeInsets.fromLTRB(20, 22, 20, 10),
             sliver: SliverToBoxAdapter(
@@ -734,6 +840,153 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
       ),
     );
   }
+}
+
+class _FixedPointsSection extends StatelessWidget {
+  const _FixedPointsSection({
+    required this.points,
+    required this.authenticated,
+    this.onLogin,
+  });
+  final List<HomeFixedPoint> points;
+  final bool authenticated;
+  final VoidCallback? onLogin;
+
+  @override
+  Widget build(BuildContext context) {
+    if (points.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 0, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(right: 20, bottom: 9),
+            child: _SectionHeader(
+              title: 'Points de vente fixes',
+              action: 'Retrait ou express',
+            ),
+          ),
+          SizedBox(
+            height: 132,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: points.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 10),
+              itemBuilder: (_, index) {
+                final point = points[index];
+                return InkWell(
+                  borderRadius: BorderRadius.circular(18),
+                  onTap: () {
+                    if (!authenticated) return onLogin?.call();
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => VendorDetailScreen(vendorId: point.id),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    width: 190,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
+                          Icons.store_rounded,
+                          color: HotKokiColors.flame600,
+                        ),
+                        const Spacer(),
+                        Text(
+                          point.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                        Text(
+                          '${point.products} plat${point.products > 1 ? 's' : ''} · Retrait 0 FCFA',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: HotKokiColors.inkSoft,
+                          ),
+                        ),
+                        if (point.express)
+                          const Text(
+                            'Express 500 FCFA',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: HotKokiColors.flame600,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeDeliveryMode extends StatelessWidget {
+  const _HomeDeliveryMode({required this.selected, required this.onChanged});
+  final String selected;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        'Comment recevoir votre commande ?',
+        style: TextStyle(
+          color: HotKokiColors.leaf900,
+          fontSize: 16,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+      const SizedBox(height: 9),
+      SegmentedButton<String>(
+        segments: const [
+          ButtonSegment(
+            value: 'standard',
+            icon: Icon(Icons.local_shipping_outlined),
+            label: Text('Standard'),
+          ),
+          ButtonSegment(
+            value: 'express',
+            icon: Icon(Icons.bolt_rounded),
+            label: Text('Express'),
+          ),
+          ButtonSegment(
+            value: 'retrait',
+            icon: Icon(Icons.store_rounded),
+            label: Text('Retrait'),
+          ),
+        ],
+        selected: {selected},
+        showSelectedIcon: false,
+        onSelectionChanged: (values) => onChanged(values.first),
+      ),
+      const SizedBox(height: 6),
+      Text(
+        selected == 'express'
+            ? '500 FCFA · assuré par un point de vente fixe'
+            : selected == 'retrait'
+            ? '0 FCFA · retrait dans un point de vente fixe'
+            : '0 FCFA · livraison par un vendeur ambulant',
+        style: const TextStyle(color: HotKokiColors.inkSoft, fontSize: 11),
+      ),
+    ],
+  );
 }
 
 class _HomeTopBar extends StatelessWidget {
@@ -1026,6 +1279,7 @@ class ProductData {
     this.vendorId,
     this.vendorName,
     this.complements = const [],
+    this.vendors = const [],
   });
 
   final String? photoUrl;
@@ -1039,6 +1293,7 @@ class ProductData {
   final int? vendorId;
   final String? vendorName;
   final List<HomeComplement> complements;
+  final List<HomeVendorOption> vendors;
 
   factory ProductData.fromJson(Map<String, dynamic> json) {
     final complements = (json['complements'] as List<dynamic>? ?? [])
@@ -1060,8 +1315,38 @@ class ProductData {
       vendorId: vendor == null ? null : int.tryParse(vendor['id'].toString()),
       vendorName: vendor?['nom_boutique']?.toString(),
       complements: complements,
+      vendors:
+          (json['vendeurs_disponibles'] is List
+                  ? json['vendeurs_disponibles'] as List<dynamic>
+                  : const <dynamic>[])
+              .map(
+                (item) =>
+                    HomeVendorOption.fromJson(item as Map<String, dynamic>),
+              )
+              .toList(),
     );
   }
+}
+
+class HomeVendorOption {
+  const HomeVendorOption({
+    required this.id,
+    required this.name,
+    this.distance,
+    required this.rating,
+  });
+  final int id;
+  final String name;
+  final double? distance;
+  final double rating;
+
+  factory HomeVendorOption.fromJson(Map<String, dynamic> json) =>
+      HomeVendorOption(
+        id: int.parse(json['id'].toString()),
+        name: json['nom_boutique'].toString(),
+        distance: double.tryParse(json['distance_km']?.toString() ?? ''),
+        rating: double.tryParse(json['note_moyenne']?.toString() ?? '') ?? 0,
+      );
 }
 
 class HomeComplement {
@@ -1134,9 +1419,34 @@ class HomeReview {
 }
 
 class HomeContent {
-  const HomeContent({required this.announcements, required this.reviews});
+  const HomeContent({
+    required this.announcements,
+    required this.reviews,
+    required this.fixedPoints,
+  });
   final List<HomeAnnouncement> announcements;
   final List<HomeReview> reviews;
+  final List<HomeFixedPoint> fixedPoints;
+}
+
+class HomeFixedPoint {
+  const HomeFixedPoint({
+    required this.id,
+    required this.name,
+    required this.express,
+    required this.products,
+  });
+  final String id;
+  final String name;
+  final bool express;
+  final int products;
+
+  factory HomeFixedPoint.fromJson(Map<String, dynamic> json) => HomeFixedPoint(
+    id: apiResourceId(json),
+    name: json['nom_boutique'].toString(),
+    express: json['accepte_express'] == true,
+    products: int.tryParse(json['produits_disponibles_count'].toString()) ?? 0,
+  );
 }
 
 class HomeApi {
@@ -1155,14 +1465,20 @@ class HomeApi {
       reviews: (body['avis'] as List<dynamic>? ?? [])
           .map((item) => HomeReview.fromJson(item as Map<String, dynamic>))
           .toList(),
+      fixedPoints: (body['points_fixes'] as List<dynamic>? ?? [])
+          .map((item) => HomeFixedPoint.fromJson(item as Map<String, dynamic>))
+          .toList(),
     );
   }
 }
 
 class CatalogueApi {
-  static Future<List<ProductData>> fetchProducts(bool authenticated) async {
+  static Future<List<ProductData>> fetchProducts(
+    bool authenticated, [
+    String mode = 'standard',
+  ]) async {
     final dynamic raw = authenticated
-        ? await ClientApi.request('GET', '/client/catalogue')
+        ? await ClientApi.request('GET', '/client/catalogue?mode=$mode')
         : jsonDecode(
             (await http
                     .get(Uri.parse('${ApiConfig.baseUrl}/catalogue'))

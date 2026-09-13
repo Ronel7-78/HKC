@@ -25,6 +25,8 @@ class CartItem {
     required this.complementId,
     required this.complementName,
     required this.photo,
+    this.vendorType = 'ambulant',
+    this.vendorAcceptsExpress = false,
     this.quantity = 1,
   });
 
@@ -36,6 +38,8 @@ class CartItem {
   final int complementId;
   final String complementName;
   final String? photo;
+  final String vendorType;
+  final bool vendorAcceptsExpress;
   int quantity;
 
   String get key => '$productId-$complementId';
@@ -45,6 +49,12 @@ class CartStore extends ChangeNotifier {
   CartStore._();
   static final instance = CartStore._();
   final List<CartItem> _items = [];
+  String deliveryMode = 'standard';
+
+  void setDeliveryMode(String mode) {
+    deliveryMode = mode;
+    notifyListeners();
+  }
 
   List<CartItem> get items => List.unmodifiable(_items);
   int get total =>
@@ -394,7 +404,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   bool _loading = true;
   bool _submitting = false;
   bool _locating = false;
-  bool _expressDelivery = false;
+  late String _deliveryMode;
   double? _deliveryLatitude;
   double? _deliveryLongitude;
   List<Map<String, dynamic>> _paymentMethods = const [];
@@ -403,6 +413,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   void initState() {
     super.initState();
+    _deliveryMode = CartStore.instance.deliveryMode;
     _load();
   }
 
@@ -434,12 +445,51 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       'adresse_livraison': _deliveryAddress.text.trim(),
       'latitude_client': _deliveryLatitude,
       'longitude_client': _deliveryLongitude,
-      'livraison_express': _expressDelivery,
+      'livraison_express': _deliveryMode == 'express',
+      'mode_remise': _deliveryMode == 'retrait' ? 'retrait' : 'livraison',
     };
   }
 
-  Future<void> _setExpressDelivery(bool enabled) async {
-    if (enabled) {
+  Future<void> _changeDeliveryMode() async {
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Modifier le mode de réception',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 12),
+              _DeliveryModeTile(
+                mode: 'standard',
+                current: _deliveryMode,
+                title: 'Livraison standard',
+                subtitle: '0 FCFA · vendeur ambulant',
+              ),
+              _DeliveryModeTile(
+                mode: 'express',
+                current: _deliveryMode,
+                title: 'Livraison express',
+                subtitle: '500 FCFA · point de vente fixe',
+              ),
+              _DeliveryModeTile(
+                mode: 'retrait',
+                current: _deliveryMode,
+                title: 'Retrait sur place',
+                subtitle: '0 FCFA · point de vente fixe',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (selected == null || selected == _deliveryMode || !mounted) return;
+    if (selected == 'express') {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
@@ -464,9 +514,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       );
       if (confirmed != true || !mounted) return;
     }
-
-    setState(() => _expressDelivery = enabled);
+    final previous = _deliveryMode;
+    setState(() => _deliveryMode = selected);
     await _refreshPreview();
+    if (_error != null && mounted) setState(() => _deliveryMode = previous);
   }
 
   Future<void> _load() async {
@@ -659,7 +710,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         '/commandes/preview',
         body: _payload(),
       );
-      if (mounted) setState(() => _preview = preview as Map<String, dynamic>);
+      if (mounted) {
+        setState(() {
+          _preview = preview as Map<String, dynamic>;
+          _error = null;
+        });
+      }
     } catch (error) {
       if (mounted) {
         setState(
@@ -724,6 +780,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 '${(_preview!['vendeur'] as Map)['nom_boutique']} · ${formatDistanceKm((_preview!['vendeur'] as Map)['distance_km'])}',
                 style: const TextStyle(color: _inkSoft, fontSize: 12),
               ),
+              if ((_preview!['vendeur'] as Map)['id'].toString() !=
+                  CartStore.instance.items.first.vendorId.toString())
+                const Padding(
+                  padding: EdgeInsets.only(top: 6),
+                  child: Text(
+                    'Un point de vente fixe capable de préparer tout le panier a été sélectionné pour l’express.',
+                    style: TextStyle(color: _flame600, fontSize: 11),
+                  ),
+                ),
               const SizedBox(height: 8),
               Container(
                 width: double.infinity,
@@ -762,23 +827,29 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: _expressDelivery ? _flame600 : _leaf100,
-                  ),
+                  border: Border.all(color: _leaf100),
                 ),
-                child: SwitchListTile.adaptive(
-                  value: _expressDelivery,
-                  onChanged: _submitting ? null : _setExpressDelivery,
-                  activeThumbColor: _flame600,
-                  secondary: const Icon(Icons.bolt_rounded, color: _flame600),
-                  title: const Text(
-                    'Livraison express',
-                    style: TextStyle(fontWeight: FontWeight.w800),
+                child: ListTile(
+                  leading: Icon(
+                    _deliveryMode == 'express'
+                        ? Icons.bolt_rounded
+                        : _deliveryMode == 'retrait'
+                        ? Icons.store_rounded
+                        : Icons.local_shipping_outlined,
+                    color: _flame600,
                   ),
-                  subtitle: Text(
-                    _expressDelivery
-                        ? 'Option activée · 500 FCFA'
-                        : 'Option facultative · traitement prioritaire',
+                  title: Text(
+                    _deliveryMode == 'express'
+                        ? 'Livraison express · 500 FCFA'
+                        : _deliveryMode == 'retrait'
+                        ? 'Retrait sur place · 0 FCFA'
+                        : 'Livraison standard · 0 FCFA',
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  subtitle: const Text('Mode sélectionné pour cette commande'),
+                  trailing: TextButton(
+                    onPressed: _submitting ? null : _changeDeliveryMode,
+                    child: const Text('Modifier'),
                   ),
                 ),
               ),
@@ -852,6 +923,31 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
             ],
           ),
+  );
+}
+
+class _DeliveryModeTile extends StatelessWidget {
+  const _DeliveryModeTile({
+    required this.mode,
+    required this.current,
+    required this.title,
+    required this.subtitle,
+  });
+  final String mode;
+  final String current;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+    contentPadding: EdgeInsets.zero,
+    leading: Icon(
+      current == mode ? Icons.radio_button_checked : Icons.radio_button_off,
+      color: _flame600,
+    ),
+    title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+    subtitle: Text(subtitle),
+    onTap: () => Navigator.pop(context, mode),
   );
 }
 

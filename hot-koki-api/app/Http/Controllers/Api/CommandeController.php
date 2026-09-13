@@ -31,14 +31,21 @@ class CommandeController extends Controller
             'latitude_client' => 'required|numeric|between:-90,90',
             'longitude_client' => 'required|numeric|between:-180,180',
             'livraison_express' => 'sometimes|boolean',
+            'mode_remise' => 'sometimes|in:livraison,retrait',
             // Facultatif pour conserver les anciens clients. Lorsqu'il est fourni,
             // il doit correspondre au vendeur retourne par l'apercu.
             'vendeur_id' => 'sometimes|integer|exists:vendeurs,id',
         ]);
     }
 
-    private function trouverVendeurEligible(array $items, $lat, $lng, ?int $vendeurId = null)
-    {
+    private function trouverVendeurEligible(
+        array $items,
+        $lat,
+        $lng,
+        ?int $vendeurId = null,
+        bool $express = false,
+        string $modeRemise = 'livraison',
+    ) {
         $produitIds = collect($items)->pluck('produit_id')->unique();
 
         // Formule de Haversine utilisee pour calculer la distance en kilometres.
@@ -46,6 +53,13 @@ class CommandeController extends Controller
         $calculDistance = '( 6371 * acos( cos( radians(?) ) * cos( radians(latitude) ) * cos( radians(longitude) - radians(?) ) + sin( radians(?) ) * sin( radians(latitude) ) ) )';
 
         return Vendeur::when($vendeurId, fn ($query) => $query->whereKey($vendeurId))
+            ->when($modeRemise === 'retrait', fn ($query) => $query
+                ->where('type_vendeur', Vendeur::TYPE_POINT_FIXE))
+            ->when($modeRemise === 'livraison' && $express, fn ($query) => $query
+                ->where('type_vendeur', Vendeur::TYPE_POINT_FIXE)
+                ->where('accepte_express', true))
+            ->when($modeRemise === 'livraison' && ! $express, fn ($query) => $query
+                ->where('type_vendeur', Vendeur::TYPE_AMBULANT))
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
             ->where('statut_compte', 'actif')
@@ -63,9 +77,15 @@ class CommandeController extends Controller
      * Reverifie l'eligibilite sous verrou pour qu'un changement de disponibilite
      * entre l'apercu et la creation ne produise pas une mauvaise affectation.
      */
-    private function verrouillerVendeurEligible(array $items, $lat, $lng, ?int $vendeurId = null)
-    {
-        $vendeur = $this->trouverVendeurEligible($items, $lat, $lng, $vendeurId);
+    private function verrouillerVendeurEligible(
+        array $items,
+        $lat,
+        $lng,
+        ?int $vendeurId = null,
+        bool $express = false,
+        string $modeRemise = 'livraison',
+    ) {
+        $vendeur = $this->trouverVendeurEligible($items, $lat, $lng, $vendeurId, $express, $modeRemise);
 
         if (! $vendeur) {
             return null;
@@ -73,7 +93,7 @@ class CommandeController extends Controller
 
         Vendeur::whereKey($vendeur->id)->lockForUpdate()->first();
 
-        return $this->trouverVendeurEligible($items, $lat, $lng, $vendeur->id);
+        return $this->trouverVendeurEligible($items, $lat, $lng, $vendeur->id, $express, $modeRemise);
     }
 
     private function calculerTotaux(array $items)
@@ -113,8 +133,18 @@ class CommandeController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
+        $express = $request->boolean('livraison_express');
+        $modeRemise = $request->input('mode_remise', 'livraison');
+        $vendeurId = $modeRemise === 'retrait'
+            ? null
+            : ($express ? null : ($request->integer('vendeur_id') ?: null));
         $vendeur = $this->trouverVendeurEligible(
-            $request->items, $request->latitude_client, $request->longitude_client
+            $request->items,
+            $request->latitude_client,
+            $request->longitude_client,
+            $vendeurId,
+            $express,
+            $modeRemise,
         );
 
         if (! $vendeur) {
@@ -126,7 +156,7 @@ class CommandeController extends Controller
 
         [$sousTotal, $lignes] = $this->calculerTotaux($request->items);
         $distanceKm = $delivery->displayedDistance((float) $vendeur->distance);
-        $livraisonExpress = $request->boolean('livraison_express');
+        $livraisonExpress = $express;
         $fraisLivraison = $delivery->feeForExpress($livraisonExpress);
 
         return response()->json([
@@ -139,6 +169,7 @@ class CommandeController extends Controller
             'frais_livraison' => $fraisLivraison,
             'total' => $sousTotal + $fraisLivraison,
             'livraison_express' => $livraisonExpress,
+            'mode_remise' => $modeRemise,
             'livraison_gratuite' => ! $livraisonExpress,
             'politique_livraison' => 'Livraison standard : 0 FCFA. Livraison express prioritaire : 500 FCFA.',
         ]);
@@ -160,11 +191,18 @@ class CommandeController extends Controller
         }
 
         $commande = DB::transaction(function () use ($client, $request, $delivery) {
+            $express = $request->boolean('livraison_express');
+            $modeRemise = $request->input('mode_remise', 'livraison');
+            $vendeurId = $modeRemise === 'retrait'
+                ? null
+                : ($express ? null : ($request->integer('vendeur_id') ?: null));
             $vendeur = $this->verrouillerVendeurEligible(
                 $request->items,
                 $request->latitude_client,
                 $request->longitude_client,
-                $request->integer('vendeur_id') ?: null,
+                $vendeurId,
+                $express,
+                $modeRemise,
             );
 
             if (! $vendeur) {
@@ -173,7 +211,7 @@ class CommandeController extends Controller
 
             [$sousTotal, $lignes] = $this->calculerTotaux($request->items);
             $distanceKm = $delivery->displayedDistance((float) $vendeur->distance);
-            $livraisonExpress = $request->boolean('livraison_express');
+            $livraisonExpress = $express;
             $fraisLivraison = $delivery->feeForExpress($livraisonExpress);
 
             $commande = Commande::create([
@@ -185,6 +223,7 @@ class CommandeController extends Controller
                 'longitude_client' => $request->longitude_client,
                 'distance_km' => $distanceKm,
                 'livraison_express' => $livraisonExpress,
+                'mode_remise' => $modeRemise,
                 'sous_total' => $sousTotal,
                 'frais_livraison' => $fraisLivraison,
                 'total' => $sousTotal + $fraisLivraison,

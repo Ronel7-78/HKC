@@ -391,6 +391,8 @@ class _VendorFormState extends State<_VendorForm> {
   bool _saving = false;
   bool _locating = false;
   late String _status;
+  late String _vendorType;
+  late bool _acceptsExpress;
 
   bool get editing => widget.vendor != null;
   @override
@@ -410,6 +412,8 @@ class _VendorFormState extends State<_VendorForm> {
     _latitude = double.tryParse(vendor['latitude']?.toString() ?? '');
     _longitude = double.tryParse(vendor['longitude']?.toString() ?? '');
     _status = vendor['statut_compte']?.toString() ?? 'actif';
+    _vendorType = vendor['type_vendeur']?.toString() ?? 'ambulant';
+    _acceptsExpress = vendor['accepte_express'] == true;
   }
 
   @override
@@ -489,6 +493,8 @@ class _VendorFormState extends State<_VendorForm> {
       'description': _description.text.trim(),
       'latitude': _latitude,
       'longitude': _longitude,
+      'type_vendeur': _vendorType,
+      'accepte_express': _vendorType == 'point_fixe' && _acceptsExpress,
       if (editing) 'statut_compte': _status,
       if (!editing) ...{
         'password': _password.text,
@@ -558,6 +564,32 @@ class _VendorFormState extends State<_VendorForm> {
                 decoration: const InputDecoration(labelText: 'Description'),
               ),
               _requiredField(_address, 'Adresse de la boutique'),
+              DropdownButtonFormField<String>(
+                initialValue: _vendorType,
+                decoration: const InputDecoration(labelText: 'Type de vendeur'),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'ambulant',
+                    child: Text('Vendeur ambulant'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'point_fixe',
+                    child: Text('Point de vente fixe'),
+                  ),
+                ],
+                onChanged: (value) => setState(() {
+                  _vendorType = value!;
+                  if (value != 'point_fixe') _acceptsExpress = false;
+                }),
+              ),
+              if (_vendorType == 'point_fixe')
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  value: _acceptsExpress,
+                  onChanged: (value) => setState(() => _acceptsExpress = value),
+                  title: const Text('Accepte les livraisons express'),
+                  subtitle: const Text('Forfait client : 500 FCFA'),
+                ),
               const SizedBox(height: 6),
               OutlinedButton.icon(
                 onPressed: _locating ? null : _locate,

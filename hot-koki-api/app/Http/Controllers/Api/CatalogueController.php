@@ -38,20 +38,28 @@ class CatalogueController extends Controller
     public function client(Request $request)
     {
         $client = $request->user()->client;
+        $mode = $request->query('mode', 'standard');
         $produits = Produit::query()
             ->with('complements:id,nom')
             ->orderBy('nom')
             ->get()
-            ->map(function (Produit $produit) use ($client) {
+            ->map(function (Produit $produit) use ($client, $mode) {
                 $vendeurs = Vendeur::query()
                     ->where('statut_compte', 'actif')
                     ->where('statut_dispo', 'disponible')
+                    ->when($mode === 'standard', fn ($query) => $query
+                        ->where('type_vendeur', Vendeur::TYPE_AMBULANT))
+                    ->when($mode === 'express', fn ($query) => $query
+                        ->where('type_vendeur', Vendeur::TYPE_POINT_FIXE)
+                        ->where('accepte_express', true))
+                    ->when($mode === 'retrait', fn ($query) => $query
+                        ->where('type_vendeur', Vendeur::TYPE_POINT_FIXE))
                     ->whereHas('produits', fn ($query) => $query
                         ->whereKey($produit->id)
                         ->where('vendeur_produits.statut', 'disponible'))
                     ->get();
 
-                $vendeur = $vendeurs->sortBy(function (Vendeur $vendeur) use ($client) {
+                $vendeursTries = $vendeurs->sortBy(function (Vendeur $vendeur) use ($client) {
                     if (! $client?->latitude || ! $client?->longitude || ! $vendeur->latitude || ! $vendeur->longitude) {
                         return PHP_FLOAT_MAX;
                     }
@@ -62,7 +70,8 @@ class CatalogueController extends Controller
                         (float) $vendeur->latitude,
                         (float) $vendeur->longitude,
                     );
-                })->first();
+                })->values();
+                $vendeur = $vendeursTries->first();
 
                 return [
                     'id' => $produit->id,
@@ -76,6 +85,19 @@ class CatalogueController extends Controller
                         'id' => $vendeur->id,
                         'nom_boutique' => $vendeur->nom_boutique,
                     ] : null,
+                    'vendeurs_disponibles' => $vendeursTries->map(fn (Vendeur $option) => [
+                        'id' => $option->id,
+                        'nom_boutique' => $option->nom_boutique,
+                        'note_moyenne' => $option->note_moyenne,
+                        'distance_km' => (! $client?->latitude || ! $client?->longitude || ! $option->latitude || ! $option->longitude)
+                            ? null
+                            : round($this->distanceKm(
+                                (float) $client->latitude,
+                                (float) $client->longitude,
+                                (float) $option->latitude,
+                                (float) $option->longitude,
+                            ), 2),
+                    ])->all(),
                 ];
             });
 

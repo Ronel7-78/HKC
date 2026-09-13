@@ -42,6 +42,8 @@ class VendeurController extends Controller
             'adresse_texte' => 'nullable|string|max:255',
             'latitude' => 'nullable|numeric',
             'longitude' => 'nullable|numeric',
+            'type_vendeur' => ['sometimes', Rule::in([Vendeur::TYPE_AMBULANT, Vendeur::TYPE_POINT_FIXE])],
+            'accepte_express' => 'sometimes|boolean',
         ], $this->messages());
 
         if ($validator->fails()) {
@@ -68,6 +70,8 @@ class VendeurController extends Controller
                 'adresse_texte' => $request->adresse_texte,
                 'latitude' => $request->latitude,
                 'longitude' => $request->longitude,
+                'type_vendeur' => $request->input('type_vendeur', Vendeur::TYPE_AMBULANT),
+                'accepte_express' => $request->boolean('accepte_express'),
             ]);
         });
 
@@ -104,7 +108,7 @@ class VendeurController extends Controller
                 'sometimes',
                 'string',
                 'email',
-                'max:20',
+                'max:255',
                 Rule::unique('users', 'email')->ignore($vendeur->user_id),
             ],
             'telephone' => [
@@ -119,6 +123,8 @@ class VendeurController extends Controller
             'latitude' => 'sometimes|nullable|numeric',
             'longitude' => 'sometimes|nullable|numeric',
             'statut_compte' => 'sometimes|in:actif,suspendu',
+            'type_vendeur' => ['sometimes', Rule::in([Vendeur::TYPE_AMBULANT, Vendeur::TYPE_POINT_FIXE])],
+            'accepte_express' => 'sometimes|boolean',
         ], $this->messages());
 
         if ($validator->fails()) {
@@ -141,6 +147,8 @@ class VendeurController extends Controller
                 'latitude',
                 'longitude',
                 'statut_compte',
+                'type_vendeur',
+                'accepte_express',
             ]));
 
             // Une suspension prend effet immediatement sur les sessions existantes.

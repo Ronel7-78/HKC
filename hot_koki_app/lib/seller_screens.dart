@@ -371,6 +371,9 @@ class SellerOrderCard extends StatelessWidget {
   final Future<void> Function()? onChanged;
   final bool compact;
   String? get nextStatus => order['statut'] == 'recue' ? 'livree' : null;
+  String get deliveryAction => order['mode_remise'] == 'retrait'
+      ? 'Commande remise'
+      : 'Marquer comme livrée';
 
   Future<void> _advance(BuildContext context) async {
     final next = nextStatus;
@@ -378,7 +381,7 @@ class SellerOrderCard extends StatelessWidget {
     final yes = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Marquer cette commande comme livrée ?'),
+        title: Text('$deliveryAction ?'),
         content: const Text(
           'Le client sera informé immédiatement. Cette action est définitive.',
         ),
@@ -509,7 +512,7 @@ class SellerOrderCard extends StatelessWidget {
                           Navigator.pop(context);
                           _advance(pageContext);
                         },
-                        child: Text('Marquer comme livrée'),
+                        child: Text(deliveryAction),
                       ),
                     ),
                   ),
@@ -553,6 +556,18 @@ class SellerOrderCard extends StatelessWidget {
                             fontWeight: FontWeight.w700,
                           ),
                         ),
+                      Text(
+                        order['mode_remise'] == 'retrait'
+                            ? 'RETRAIT SUR PLACE · 0 FCFA'
+                            : order['livraison_express'] == true
+                            ? 'EXPRESS · 500 FCFA'
+                            : 'LIVRAISON STANDARD · 0 FCFA',
+                        style: const TextStyle(
+                          color: _flame600,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -571,7 +586,7 @@ class SellerOrderCard extends StatelessWidget {
                   if (nextStatus != null)
                     FilledButton(
                       onPressed: () => _advance(context),
-                      child: const Text('Marquer comme livrée'),
+                      child: Text(deliveryAction),
                     ),
                 ],
               ),
