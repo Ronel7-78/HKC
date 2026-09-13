@@ -18,6 +18,14 @@ String deliveryFeeText(dynamic value) {
 
 class ApiConfig {
   static const _definedBaseUrl = String.fromEnvironment('API_BASE_URL');
+  static const mapTileUrl = String.fromEnvironment(
+    'MAP_TILE_URL',
+    defaultValue: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  );
+  static const mapFallbackTileUrl = String.fromEnvironment(
+    'MAP_FALLBACK_TILE_URL',
+    defaultValue: 'https://a.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
+  );
 
   static String get baseUrl {
     if (_definedBaseUrl.isNotEmpty) {

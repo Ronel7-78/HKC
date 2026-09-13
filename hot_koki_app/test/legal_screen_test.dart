@@ -11,7 +11,7 @@ void main() {
     );
 
     expect(find.text('Conditions d’utilisation de Hot Koki'), findsOneWidget);
-    expect(find.text('Version du 20 août 2026'), findsOneWidget);
+    expect(find.text('Version du ${LegalScreen.version}'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.text('4. Paiements Mobile Money'),
       300,

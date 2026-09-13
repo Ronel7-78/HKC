@@ -89,7 +89,9 @@ class CartStore extends ChangeNotifier {
 }
 
 class CartScreen extends StatelessWidget {
-  const CartScreen({super.key});
+  const CartScreen({super.key, this.onShowOrders});
+
+  final VoidCallback? onShowOrders;
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -164,7 +166,8 @@ class CartScreen extends StatelessWidget {
                             _CartLine(item: cart.items[index]),
                       ),
               ),
-              if (cart.items.isNotEmpty) _CartSummary(cart: cart),
+              if (cart.items.isNotEmpty)
+                _CartSummary(cart: cart, onShowOrders: onShowOrders),
             ],
           );
         },
@@ -279,8 +282,9 @@ class _QuantityButton extends StatelessWidget {
 }
 
 class _CartSummary extends StatelessWidget {
-  const _CartSummary({required this.cart});
+  const _CartSummary({required this.cart, this.onShowOrders});
   final CartStore cart;
+  final VoidCallback? onShowOrders;
   @override
   Widget build(BuildContext context) => Container(
     margin: const EdgeInsets.fromLTRB(16, 0, 16, 14),
@@ -343,7 +347,9 @@ class _CartSummary extends StatelessWidget {
           child: FilledButton(
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const CheckoutScreen()),
+              MaterialPageRoute(
+                builder: (_) => CheckoutScreen(onShowOrders: onShowOrders),
+              ),
             ),
             style: FilledButton.styleFrom(
               backgroundColor: _flame600,
@@ -373,7 +379,8 @@ class _EmptyCart extends StatelessWidget {
 }
 
 class CheckoutScreen extends StatefulWidget {
-  const CheckoutScreen({super.key});
+  const CheckoutScreen({super.key, this.onShowOrders});
+  final VoidCallback? onShowOrders;
   @override
   State<CheckoutScreen> createState() => _CheckoutScreenState();
 }
@@ -530,7 +537,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       await Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => PaymentStatusScreen(payment: payment),
+          builder: (_) => PaymentStatusScreen(
+            payment: payment,
+            onReturnToOrders: widget.onShowOrders,
+          ),
         ),
       );
     } catch (error) {

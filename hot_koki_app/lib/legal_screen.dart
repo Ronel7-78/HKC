@@ -10,7 +10,7 @@ class LegalScreen extends StatelessWidget {
   const LegalScreen({super.key, required this.document});
   final LegalDocument document;
 
-  static const version = '20 août 2026';
+  static const version = ' 10 Septembre 2026';
 
   @override
   Widget build(BuildContext context) {

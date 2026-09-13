@@ -345,7 +345,8 @@ class _VendorCard extends StatelessWidget {
 }
 
 class VendorSearchScreen extends StatefulWidget {
-  const VendorSearchScreen({super.key});
+  const VendorSearchScreen({super.key, this.onShowOrders});
+  final VoidCallback? onShowOrders;
 
   @override
   State<VendorSearchScreen> createState() => _VendorMapScreenState();
@@ -359,7 +360,11 @@ class _VendorMapScreenState extends State<VendorSearchScreen> {
   Timer? _refreshTimer;
   Timer? _searchTimer;
   bool _loading = true;
+  bool _locating = false;
+  int _tileErrors = 0;
+  int _tileGeneration = 0;
   String? _error;
+  String? _locationMessage;
 
   @override
   void initState() {
@@ -382,27 +387,76 @@ class _VendorMapScreenState extends State<VendorSearchScreen> {
   }
 
   Future<void> _loadPosition() async {
+    if (_locating) return;
+    if (mounted) {
+      setState(() {
+        _locating = true;
+        _locationMessage = null;
+      });
+    }
     try {
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        throw Exception(
+          'Activez la localisation du téléphone pour afficher votre position.',
+        );
+      }
       var permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
       }
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
-        return;
+        throw Exception(
+          permission == LocationPermission.deniedForever
+              ? 'La localisation est bloquée dans les paramètres du téléphone.'
+              : 'La permission de localisation a été refusée.',
+        );
+      }
+      final lastKnown = await Geolocator.getLastKnownPosition();
+      if (lastKnown != null && mounted) {
+        setState(() => _position = lastKnown);
+        _mapController.move(
+          LatLng(lastKnown.latitude, lastKnown.longitude),
+          13,
+        );
       }
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 12),
+          accuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 20),
         ),
       );
       if (!mounted) return;
-      setState(() => _position = position);
+      setState(() {
+        _position = position;
+        _locating = false;
+        _locationMessage = null;
+      });
       _mapController.move(LatLng(position.latitude, position.longitude), 13);
-    } catch (_) {
-      // La carte reste disponible même si la localisation du téléphone échoue.
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _locating = false;
+        _locationMessage = error is TimeoutException
+            ? 'Le GPS tarde à répondre. La carte reste utilisable ; réessayez à l’extérieur.'
+            : error.toString().replaceFirst('Exception: ', '');
+      });
     }
+  }
+
+  void _onTileError(Object tile, Object error, StackTrace? stackTrace) {
+    if (_tileErrors >= 6) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _tileErrors >= 6) return;
+      setState(() => _tileErrors++);
+    });
+  }
+
+  void _retryTiles() {
+    setState(() {
+      _tileErrors = 0;
+      _tileGeneration++;
+    });
   }
 
   Future<void> _fetchVendors({bool silent = false}) async {
@@ -474,62 +528,71 @@ class _VendorMapScreenState extends State<VendorSearchScreen> {
   Widget build(BuildContext context) => Scaffold(
     body: Stack(
       children: [
-        FlutterMap(
-          mapController: _mapController,
-          options: MapOptions(
-            initialCenter: _initialCenter,
-            initialZoom: 12,
-            minZoom: 4,
-            maxZoom: 19,
-          ),
-          children: [
-            TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.hotkoki.hot_koki_app',
+        ColoredBox(
+          color: const Color(0xFFE7EEE4),
+          child: FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: _initialCenter,
+              initialZoom: 12,
+              minZoom: 4,
+              maxZoom: 19,
             ),
-            MarkerLayer(
-              markers: [
-                if (_position != null)
-                  Marker(
-                    point: LatLng(_position!.latitude, _position!.longitude),
-                    width: 28,
-                    height: 28,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade600,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 4),
-                        boxShadow: const [
-                          BoxShadow(color: Colors.black26, blurRadius: 7),
-                        ],
+            children: [
+              TileLayer(
+                key: ValueKey(_tileGeneration),
+                urlTemplate: ApiConfig.mapTileUrl,
+                fallbackUrl: ApiConfig.mapFallbackTileUrl,
+                userAgentPackageName: 'com.hotkoki.app',
+                errorTileCallback: _onTileError,
+              ),
+              MarkerLayer(
+                markers: [
+                  if (_position != null)
+                    Marker(
+                      point: LatLng(_position!.latitude, _position!.longitude),
+                      width: 28,
+                      height: 28,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade600,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 4),
+                          boxShadow: const [
+                            BoxShadow(color: Colors.black26, blurRadius: 7),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                ..._vendors.map(
-                  (vendor) => Marker(
-                    point: LatLng(vendor.latitude, vendor.longitude),
-                    width: 70,
-                    height: 70,
-                    child: _VendorMapAvatar(
-                      vendor: vendor,
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              VendorDetailScreen(vendorId: vendor.publicId),
+                  ..._vendors.map(
+                    (vendor) => Marker(
+                      point: LatLng(vendor.latitude, vendor.longitude),
+                      width: 70,
+                      height: 70,
+                      child: _VendorMapAvatar(
+                        vendor: vendor,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => VendorDetailScreen(
+                              vendorId: vendor.publicId,
+                              onShowOrders: widget.onShowOrders,
+                            ),
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
-            ),
-            RichAttributionWidget(
+                ],
+              ),
+              RichAttributionWidget(
               attributions: const [
                 TextSourceAttribution('OpenStreetMap contributors'),
+                TextSourceAttribution('Humanitarian OpenStreetMap Team'),
               ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
         SafeArea(
           child: Padding(
@@ -607,6 +670,27 @@ class _VendorMapScreenState extends State<VendorSearchScreen> {
               onRetry: () => _fetchVendors(),
             ),
           )
+        else if (_tileErrors >= 6)
+          Positioned(
+            left: 16,
+            right: 16,
+            bottom: 24,
+            child: _MapMessage(
+              message:
+                  'Le fond de carte ne répond pas. Vérifiez la connexion puis réessayez.',
+              onRetry: _retryTiles,
+            ),
+          )
+        else if (_locationMessage != null && _position == null)
+          Positioned(
+            left: 16,
+            right: 16,
+            bottom: 24,
+            child: _MapMessage(
+              message: _locationMessage!,
+              onRetry: _loadPosition,
+            ),
+          )
         else if (!_loading && _vendors.isEmpty)
           const Positioned(
             left: 16,
@@ -621,10 +705,15 @@ class _VendorMapScreenState extends State<VendorSearchScreen> {
           bottom: 22,
           child: FloatingActionButton.small(
             heroTag: 'map-location',
-            onPressed: _loadPosition,
+            onPressed: _locating ? null : _loadPosition,
             backgroundColor: Colors.white,
             foregroundColor: _leaf700,
-            child: const Icon(Icons.my_location),
+            child: _locating
+                ? const Padding(
+                    padding: EdgeInsets.all(9),
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.my_location),
           ),
         ),
       ],
@@ -715,8 +804,13 @@ class _MapMessage extends StatelessWidget {
 }
 
 class VendorDetailScreen extends StatelessWidget {
-  const VendorDetailScreen({super.key, required this.vendorId});
+  const VendorDetailScreen({
+    super.key,
+    required this.vendorId,
+    this.onShowOrders,
+  });
   final String vendorId;
+  final VoidCallback? onShowOrders;
 
   @override
   Widget build(BuildContext context) {
@@ -822,8 +916,11 @@ class VendorDetailScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
                     ...vendor.products.map(
-                      (product) =>
-                          _VendorProductCard(vendor: vendor, product: product),
+                      (product) => _VendorProductCard(
+                        vendor: vendor,
+                        product: product,
+                        onShowOrders: onShowOrders,
+                      ),
                     ),
                   ],
                 ),
@@ -837,9 +934,14 @@ class VendorDetailScreen extends StatelessWidget {
 }
 
 class _VendorProductCard extends StatelessWidget {
-  const _VendorProductCard({required this.vendor, required this.product});
+  const _VendorProductCard({
+    required this.vendor,
+    required this.product,
+    this.onShowOrders,
+  });
   final VendorData vendor;
   final VendorProduct product;
+  final VoidCallback? onShowOrders;
 
   Future<void> _addToCart(BuildContext context) async {
     if (product.complements.isEmpty) {
@@ -906,10 +1008,11 @@ class _VendorProductCard extends StatelessWidget {
       ),
     );
     if (added) {
-      await AppFeedback.success(
+      await Navigator.push(
         context,
-        title: 'Ajouté au panier',
-        message: '${product.name} a bien été ajouté.',
+        MaterialPageRoute(
+          builder: (_) => CartScreen(onShowOrders: onShowOrders),
+        ),
       );
     } else {
       await AppFeedback.error(

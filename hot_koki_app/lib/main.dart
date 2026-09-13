@@ -178,6 +178,7 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
+  int _ordersGeneration = 0;
   UserRole? _role;
   String? _userName;
   bool _restoringSession = true;
@@ -253,6 +254,25 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
+  void _showClientOrders() {
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    if (mounted) {
+      setState(() {
+        _ordersGeneration++;
+        _currentIndex = 1;
+      });
+    }
+  }
+
+  void _openCart() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CartScreen(onShowOrders: _showClientOrders),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _notificationTimer?.cancel();
@@ -280,23 +300,17 @@ class _MainShellState extends State<MainShell> {
           AppTab(
             context.tr('home'),
             Icons.home_rounded,
-            ClientHomeScreen(
-              userName: _userName,
-              onCart: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const CartScreen()),
-              ),
-            ),
+            ClientHomeScreen(userName: _userName, onCart: _openCart),
           ),
           AppTab(
             context.tr('order'),
             Icons.receipt_long_rounded,
-            const ClientOrdersScreen(),
+            ClientOrdersScreen(key: ValueKey(_ordersGeneration)),
           ),
           AppTab(
             context.tr('search'),
             Icons.search_rounded,
-            const VendorSearchScreen(),
+            VendorSearchScreen(onShowOrders: _showClientOrders),
           ),
           AppTab(
             context.tr('notification'),
@@ -582,11 +596,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     );
     if (!mounted) return;
     if (added) {
-      await AppFeedback.success(
-        context,
-        title: 'Ajouté au panier',
-        message: '${product.name} a été ajouté depuis l’accueil.',
-      );
+      widget.onCart?.call();
     } else {
       await AppFeedback.error(
         context,

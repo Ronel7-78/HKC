@@ -556,8 +556,13 @@ class _OrderCard extends StatelessWidget {
 }
 
 class PaymentStatusScreen extends StatefulWidget {
-  const PaymentStatusScreen({super.key, required this.payment});
+  const PaymentStatusScreen({
+    super.key,
+    required this.payment,
+    this.onReturnToOrders,
+  });
   final Map<String, dynamic> payment;
+  final VoidCallback? onReturnToOrders;
   @override
   State<PaymentStatusScreen> createState() => _PaymentStatusScreenState();
 }
@@ -627,126 +632,145 @@ class _PaymentStatusScreenState extends State<PaymentStatusScreen> {
     super.dispose();
   }
 
+  void _returnToOrders() {
+    final callback = widget.onReturnToOrders;
+    if (callback != null) {
+      callback();
+    } else {
+      Navigator.pop(context);
+    }
+  }
+
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: _cream,
-    appBar: AppBar(title: Text('Paiement $_operatorName')),
-    body: Center(
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              _terminal
-                  ? (_payment['statut'] == 'reussi'
-                        ? Icons.check_circle
-                        : Icons.error)
-                  : Icons.phone_android,
-              size: 72,
-              color: _payment['statut'] == 'reussi' ? _leaf700 : _flame500,
-            ),
-            const SizedBox(height: 18),
-            Text(
-              _paymentLabel(_payment['statut'].toString()),
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 21,
-                fontWeight: FontWeight.w800,
-                color: _leaf900,
+  Widget build(BuildContext context) => PopScope(
+    canPop: widget.onReturnToOrders == null,
+    onPopInvokedWithResult: (didPop, result) {
+      if (!didPop && widget.onReturnToOrders != null) _returnToOrders();
+    },
+    child: Scaffold(
+      backgroundColor: _cream,
+      appBar: AppBar(title: Text('Paiement $_operatorName')),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _terminal
+                    ? (_payment['statut'] == 'reussi'
+                          ? Icons.check_circle
+                          : Icons.error)
+                    : Icons.phone_android,
+                size: 72,
+                color: _payment['statut'] == 'reussi' ? _leaf700 : _flame500,
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Référence ${_payment['reference_interne']}',
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: _inkSoft),
-            ),
-            const SizedBox(height: 20),
-            if (!_terminal)
-              const AppLoadingState(
-                label: 'Confirmation sécurisée en cours…',
-                compact: true,
-              ),
-            if (!_terminal) ...[
-              const SizedBox(height: 4),
+              const SizedBox(height: 18),
               Text(
-                _payment['mode_test'] == true
-                    ? (_isOrange
-                          ? 'Mode Sandbox : utilisez la page de test Orange Money ouverte depuis l’application.'
-                          : 'Mode Sandbox : aucun message réel n’est envoyé au téléphone. MTN simule le résultat.')
-                    : 'Validez la demande reçue sur votre téléphone $_operatorName.',
+                _paymentLabel(_payment['statut'].toString()),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 21,
+                  fontWeight: FontWeight.w800,
+                  color: _leaf900,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Référence ${_payment['reference_interne']}',
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: _inkSoft),
               ),
-              if (_startedAt != null &&
-                  DateTime.now().difference(_startedAt!).inSeconds >= 10) ...[
-                const SizedBox(height: 8),
-                const Text(
-                  'La confirmation peut prendre quelques instants. Vous pouvez quitter cet écran : le suivi continuera.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: _inkSoft, fontSize: 12),
+              const SizedBox(height: 20),
+              if (!_terminal)
+                const AppLoadingState(
+                  label: 'Confirmation sécurisée en cours…',
+                  compact: true,
                 ),
-              ],
-              if (_statusMessage != null) ...[
-                const SizedBox(height: 10),
+              if (!_terminal) ...[
+                const SizedBox(height: 4),
                 Text(
-                  _statusMessage!,
+                  _payment['mode_test'] == true
+                      ? (_isOrange
+                            ? 'Mode Sandbox : utilisez la page de test Orange Money ouverte depuis l’application.'
+                            : 'Mode Sandbox : aucun message réel n’est envoyé au téléphone. MTN simule le résultat.')
+                      : 'Validez la demande reçue sur votre téléphone $_operatorName.',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: _flame600, fontSize: 12),
+                  style: const TextStyle(color: _inkSoft),
                 ),
-              ],
-              const SizedBox(height: 18),
-              if (_isOrange && _payment['url_paiement'] != null)
-                FilledButton.icon(
-                  onPressed: () async {
-                    final uri = Uri.tryParse(
-                      _payment['url_paiement'].toString(),
-                    );
-                    if (uri == null ||
-                        uri.scheme != 'https' ||
-                        uri.host.isEmpty) {
-                      await AppFeedback.error(
-                        context,
-                        message: 'Le lien de paiement reçu n’est pas sécurisé.',
-                      );
-                      return;
-                    }
-                    await launchUrl(uri, mode: LaunchMode.externalApplication);
-                  },
-                  icon: const Icon(Icons.open_in_new_rounded),
-                  label: const Text('Ouvrir Orange Money'),
-                ),
-              if (_isOrange && _payment['url_paiement'] != null)
-                const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (_statusMessage != null)
-                    TextButton.icon(
-                      onPressed: () {
-                        setState(() {
-                          _pollingStopped = false;
-                          _statusMessage = null;
-                        });
-                        _sync(relancer: true);
-                      },
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Revérifier'),
-                    ),
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Revenir aux commandes'),
+                if (_startedAt != null &&
+                    DateTime.now().difference(_startedAt!).inSeconds >= 10) ...[
+                  const SizedBox(height: 8),
+                  const Text(
+                    'La confirmation peut prendre quelques instants. Vous pouvez quitter cet écran : le suivi continuera.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: _inkSoft, fontSize: 12),
                   ),
                 ],
-              ),
+                if (_statusMessage != null) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    _statusMessage!,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: _flame600, fontSize: 12),
+                  ),
+                ],
+                const SizedBox(height: 18),
+                if (_isOrange && _payment['url_paiement'] != null)
+                  FilledButton.icon(
+                    onPressed: () async {
+                      final uri = Uri.tryParse(
+                        _payment['url_paiement'].toString(),
+                      );
+                      if (uri == null ||
+                          uri.scheme != 'https' ||
+                          uri.host.isEmpty) {
+                        await AppFeedback.error(
+                          context,
+                          message:
+                              'Le lien de paiement reçu n’est pas sécurisé.',
+                        );
+                        return;
+                      }
+                      await launchUrl(
+                        uri,
+                        mode: LaunchMode.externalApplication,
+                      );
+                    },
+                    icon: const Icon(Icons.open_in_new_rounded),
+                    label: const Text('Ouvrir Orange Money'),
+                  ),
+                if (_isOrange && _payment['url_paiement'] != null)
+                  const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (_statusMessage != null)
+                      TextButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            _pollingStopped = false;
+                            _statusMessage = null;
+                          });
+                          _sync(relancer: true);
+                        },
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Revérifier'),
+                      ),
+                    TextButton(
+                      onPressed: _returnToOrders,
+                      child: const Text('Revenir aux commandes'),
+                    ),
+                  ],
+                ),
+              ],
+              if (_terminal)
+                FilledButton(
+                  onPressed: _returnToOrders,
+                  child: const Text('Retour aux commandes'),
+                ),
             ],
-            if (_terminal)
-              FilledButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Retour aux commandes'),
-              ),
-          ],
+          ),
         ),
       ),
     ),
