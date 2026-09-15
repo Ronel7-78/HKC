@@ -50,6 +50,7 @@ class AdminDashboardTest extends TestCase
     {
         Carbon::setTestNow('2026-08-19 12:00:00');
         $admin = User::factory()->create(['role' => 'admin']);
+        Admin::create(['user_id' => $admin->id, 'nom' => 'Administrateur']);
         $client = Client::create([
             'user_id' => User::factory()->create(['role' => 'client'])->id,
             'nom' => 'Cliente rapports',

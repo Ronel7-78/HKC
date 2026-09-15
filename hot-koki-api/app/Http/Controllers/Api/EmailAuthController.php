@@ -41,7 +41,7 @@ class EmailAuthController extends Controller
         $validated = $request->validate(['email' => ['required', 'email', 'max:255']], $this->messages());
         $user = User::where('email', mb_strtolower($validated['email']))->first();
 
-        if ($user && ! $user->email_verified_at && ! $user->isAdmin()) {
+        if ($user && ! $user->email_verified_at) {
             $codes->issue($user, EmailAuthCode::PURPOSE_VERIFY_EMAIL);
         }
 

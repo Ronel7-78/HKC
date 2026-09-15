@@ -12,6 +12,7 @@ use App\Services\EmailCodeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
@@ -90,7 +91,7 @@ class AuthController extends Controller
     }
 
     // Connexion
-    public function login(Request $request)
+    public function login(Request $request, EmailCodeService $codes)
     {
         $validator = Validator::make($request->all(), [
             'email' => 'required|email|max:255',
@@ -113,11 +114,20 @@ class AuthController extends Controller
             return response()->json(['message' => 'Identifiants incorrects'], 401);
         }
 
-        if (config('email_auth.verification_enabled') && ! $user->isAdmin() && ! $user->email_verified_at) {
+        if (config('email_auth.verification_enabled') && ! $user->email_verified_at) {
+            try {
+                $codes->issue($user, EmailAuthCode::PURPOSE_VERIFY_EMAIL);
+                $message = 'Un code de vérification vient d’être envoyé à votre adresse email.';
+            } catch (ValidationException) {
+                // Un code encore valide a déjà été envoyé durant la dernière minute.
+                $message = 'Un code a déjà été envoyé récemment. Consultez votre boîte mail ou demandez un nouvel envoi.';
+            }
+
             return response()->json([
-                'message' => 'Vérifiez votre adresse email avant de vous connecter.',
+                'message' => $message,
                 'code' => 'EMAIL_NON_VERIFIE',
                 'email' => $user->email,
+                'verification_requise' => true,
             ], 403);
         }
 

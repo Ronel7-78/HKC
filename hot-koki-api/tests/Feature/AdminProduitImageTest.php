@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Admin;
 use App\Models\Produit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -17,7 +18,9 @@ class AdminProduitImageTest extends TestCase
     public function test_admin_peut_ajouter_remplacer_et_retirer_la_photo_du_produit(): void
     {
         Storage::fake('public');
-        Sanctum::actingAs(User::factory()->create(['role' => 'admin']));
+        $admin = User::factory()->create(['role' => 'admin']);
+        Admin::create(['user_id' => $admin->id, 'nom' => 'Administrateur']);
+        Sanctum::actingAs($admin);
 
         $creation = $this->post('/api/admin/produits', [
             'nom' => 'Koki royal',

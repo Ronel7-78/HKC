@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Models\Vendeur;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -44,19 +45,22 @@ class AdminVendeurManagementTest extends TestCase
      */
     public function test_admin_can_create_a_vendeur(): void
     {
-        Sanctum::actingAs(User::factory()->create(['role' => 'admin']));
+        Notification::fake();
+        Sanctum::actingAs($this->admin());
 
         $response = $this->postJson('/api/admin/vendeurs', $this->vendeurData());
 
         $response->assertCreated()
             ->assertJsonPath('vendeur.nom_boutique', 'Koki du quartier')
-            ->assertJsonPath('vendeur.user.role', 'vendeur');
+            ->assertJsonPath('vendeur.user.role', 'vendeur')
+            ->assertJsonPath('verification_requise', true);
 
         $this->assertDatabaseHas('users', [
             'email' => 'vendeur@example.com',
             'role' => 'vendeur',
         ]);
         $this->assertDatabaseHas('vendeurs', ['nom_boutique' => 'Koki du quartier']);
+        $this->assertNull(User::where('email', 'vendeur@example.com')->firstOrFail()->email_verified_at);
     }
 
     /**
@@ -75,7 +79,7 @@ class AdminVendeurManagementTest extends TestCase
      */
     public function test_admin_soft_deletes_vendeur_and_revokes_tokens(): void
     {
-        $admin = User::factory()->create(['role' => 'admin']);
+        $admin = $this->admin();
         $user = User::factory()->create(['role' => 'vendeur']);
         $vendeur = Vendeur::create([
             'user_id' => $user->id,
@@ -134,5 +138,13 @@ class AdminVendeurManagementTest extends TestCase
             'password_confirmation' => 'password',
             'nom_boutique' => 'Koki du quartier',
         ];
+    }
+
+    private function admin(): User
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $admin->admin()->create(['nom' => 'Admin', 'prenom' => 'Test']);
+
+        return $admin;
     }
 }

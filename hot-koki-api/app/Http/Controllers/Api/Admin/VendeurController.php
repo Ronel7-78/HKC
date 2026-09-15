@@ -5,8 +5,10 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\EmailAuthCode;
 use App\Models\User;
 use App\Models\Vendeur;
+use App\Services\EmailCodeService;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -29,7 +31,7 @@ class VendeurController extends Controller
     /**
      * Cree le compte utilisateur et le profil du vendeur en une transaction.
      */
-    public function store(Request $request)
+    public function store(Request $request, EmailCodeService $codes)
     {
         // Les identifiants temporaires sont definis par l'administrateur.
         $validator = Validator::make($request->all(), [
@@ -60,7 +62,6 @@ class VendeurController extends Controller
             ]);
             $user->forceFill([
                 'role' => 'vendeur',
-                'email_verified_at' => now(),
             ])->save();
 
             return Vendeur::create([
@@ -82,9 +83,16 @@ class VendeurController extends Controller
             'Votre espace vendeur a été créé. Complétez votre catalogue et votre disponibilité.'
         );
 
+        if (config('email_auth.verification_enabled')) {
+            $codes->issue($vendeur->user, EmailAuthCode::PURPOSE_VERIFY_EMAIL);
+        }
+
         return response()->json([
-            'message' => 'Vendeur créé avec succès',
+            'message' => config('email_auth.verification_enabled')
+                ? 'Vendeur créé. Un code de vérification a été envoyé à son adresse email.'
+                : 'Vendeur créé avec succès',
             'vendeur' => $vendeur->load('user'),
+            'verification_requise' => (bool) config('email_auth.verification_enabled'),
         ], 201);
     }
 

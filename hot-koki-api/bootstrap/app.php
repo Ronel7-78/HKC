@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureEmailIsVerified;
 use App\Http\Middleware\EnsureUserHasRole;
 use App\Http\Middleware\IsAdmin;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -39,6 +40,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
             // Protege les espaces client et vendeur avec le meme middleware.
             'role' => EnsureUserHasRole::class,
+            'email.verified' => EnsureEmailIsVerified::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

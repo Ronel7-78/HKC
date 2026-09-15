@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Admin;
 use App\Models\Annonce;
 use App\Models\Avis;
 use App\Models\Client;
@@ -54,6 +55,7 @@ class AccueilTest extends TestCase
     public function test_admin_gere_les_annonces_et_client_recoit_un_vendeur_commandable(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
+        Admin::create(['user_id' => $admin->id, 'nom' => 'Administrateur']);
         Sanctum::actingAs($admin);
         $creation = $this->postJson('/api/admin/annonces', [
             'type' => 'promotion',

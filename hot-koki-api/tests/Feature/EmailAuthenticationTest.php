@@ -36,6 +36,8 @@ class EmailAuthenticationTest extends TestCase
             'conditions_acceptees' => true,
         ])->assertForbidden()->assertJsonPath('code', 'EMAIL_NON_VERIFIE');
 
+        Notification::assertSentTo($user, EmailAuthenticationCode::class, 1);
+
         $code = $this->sentCode($user, EmailAuthCode::PURPOSE_VERIFY_EMAIL);
         $this->postJson('/api/email/verify', ['email' => $user->email, 'code' => '000000'])
             ->assertUnprocessable();
@@ -48,6 +50,42 @@ class EmailAuthenticationTest extends TestCase
         $this->assertNotNull($user->fresh()->email_verified_at);
         $this->postJson('/api/email/verify', ['email' => $user->email, 'code' => $code])
             ->assertUnprocessable();
+    }
+
+    public function test_un_ancien_compte_non_verifie_recoit_un_code_a_sa_prochaine_connexion(): void
+    {
+        $user = User::factory()->unverified()->create([
+            'role' => 'client',
+            'email' => 'ancien@hotkoki.test',
+            'password' => 'Password-123',
+        ]);
+        $user->client()->create(['nom' => 'Ancien client']);
+
+        $this->postJson('/api/login', [
+            'email' => $user->email,
+            'password' => 'Password-123',
+            'conditions_acceptees' => true,
+        ])->assertForbidden()
+            ->assertJsonPath('code', 'EMAIL_NON_VERIFIE')
+            ->assertJsonPath('verification_requise', true);
+
+        Notification::assertSentTo($user, EmailAuthenticationCode::class);
+    }
+
+    public function test_un_ancien_token_ne_permet_pas_de_contourner_la_verification_email(): void
+    {
+        $user = User::factory()->unverified()->create(['role' => 'client']);
+        $user->client()->create(['nom' => 'Client non vérifié']);
+        $token = $user->createToken('ancien-token')->plainTextToken;
+
+        $this->withToken($token)->getJson('/api/me')
+            ->assertForbidden()
+            ->assertJsonPath('code', 'EMAIL_NON_VERIFIE');
+
+        $this->assertDatabaseMissing('personal_access_tokens', [
+            'tokenable_type' => User::class,
+            'tokenable_id' => $user->id,
+        ]);
     }
 
     public function test_inscription_et_connexion_fonctionnent_sans_smtp_quand_la_verification_est_desactivee(): void
