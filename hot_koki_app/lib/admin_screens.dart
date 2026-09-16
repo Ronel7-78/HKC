@@ -1584,11 +1584,16 @@ class _VendorRevenueRow extends StatelessWidget {
                   ],
                 ),
               ),
-              Text(
-                '${_money(revenue['total'])} F',
-                style: const TextStyle(
-                  color: _flame600,
-                  fontWeight: FontWeight.w900,
+              Flexible(
+                child: Text(
+                  '${_money(revenue['total'])} F',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                  style: const TextStyle(
+                    color: _flame600,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
               ),
             ],

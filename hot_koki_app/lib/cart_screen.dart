@@ -660,18 +660,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         await launchUrl(orangeUrl, mode: LaunchMode.externalApplication);
         if (!mounted) return;
       }
-      await AppFeedback.success(
+      await Navigator.pushReplacement(
         context,
-        title: 'Commande enregistrée',
-        message:
-            'La demande de paiement a été envoyée. Retrouvez immédiatement son suivi dans vos commandes.',
+        MaterialPageRoute(
+          builder: (_) => PaymentStatusScreen(
+            payment: payment,
+            onReturnToOrders: widget.onShowOrders,
+          ),
+        ),
       );
-      if (!mounted) return;
-      if (widget.onShowOrders case final callback?) {
-        callback();
-      } else {
-        Navigator.of(context).popUntil((route) => route.isFirst);
-      }
     } catch (error) {
       if (mounted) {
         final message = error.toString().replaceFirst('Exception: ', '');

@@ -329,7 +329,11 @@ class _OrderCard extends StatelessWidget {
               ],
             ),
           if (order['distance_km'] != null) const SizedBox(height: 6),
-          Row(
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
             children: [
               Text(
                 '${_money(order['total'])} F CFA',
@@ -338,7 +342,6 @@ class _OrderCard extends StatelessWidget {
                   color: status == 'livree' ? _flame600 : Colors.white,
                 ),
               ),
-              const Spacer(),
               TextButton(
                 onPressed: () => _showDetails(context),
                 child: const Text('Détails'),
@@ -765,8 +768,11 @@ class _PaymentStatusScreenState extends State<PaymentStatusScreen> {
                   ),
                 if (_isOrange && _payment['url_paiement'] != null)
                   const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 4,
+                  runSpacing: 4,
                   children: [
                     if (_statusMessage != null)
                       TextButton.icon(

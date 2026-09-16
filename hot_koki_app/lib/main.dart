@@ -266,13 +266,19 @@ class _MainShellState extends State<MainShell> {
   }
 
   void _showClientOrders() {
-    Navigator.of(context).popUntil((route) => route.isFirst);
-    if (mounted) {
-      setState(() {
-        _ordersGeneration++;
-        _currentIndex = 1;
-      });
-    }
+    if (!mounted) return;
+    setState(() {
+      _ordersGeneration++;
+      _currentIndex = 1;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        Navigator.of(
+          context,
+          rootNavigator: true,
+        ).popUntil((route) => route.isFirst);
+      }
+    });
   }
 
   void _openCart() {
@@ -1276,14 +1282,19 @@ class _SectionHeader extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          title,
-          style: const TextStyle(
-            color: HotKokiColors.leaf900,
-            fontSize: 17,
-            fontWeight: FontWeight.w800,
+        Expanded(
+          child: Text(
+            title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: HotKokiColors.leaf900,
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ),
+        const SizedBox(width: 8),
         Text(
           action,
           style: const TextStyle(

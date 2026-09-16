@@ -485,17 +485,21 @@ class SellerOrderCard extends StatelessWidget {
                 }),
                 const Divider(),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'Total',
-                      style: TextStyle(fontWeight: FontWeight.w900),
+                    const Expanded(
+                      child: Text(
+                        'Total',
+                        style: TextStyle(fontWeight: FontWeight.w900),
+                      ),
                     ),
-                    Text(
-                      '${_money(order['total'])} F CFA',
-                      style: const TextStyle(
-                        color: _flame600,
-                        fontWeight: FontWeight.w900,
+                    Flexible(
+                      child: Text(
+                        '${_money(order['total'])} F CFA',
+                        textAlign: TextAlign.end,
+                        style: const TextStyle(
+                          color: _flame600,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
                     ),
                   ],
@@ -539,6 +543,8 @@ class SellerOrderCard extends StatelessWidget {
                     children: [
                       Text(
                         '#${order['id']} · ${user?['name'] ?? client?['nom'] ?? 'Client'}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontWeight: FontWeight.w900),
                       ),
                       Text(
@@ -572,13 +578,16 @@ class SellerOrderCard extends StatelessWidget {
             ),
             if (!compact) ...[
               const SizedBox(height: 9),
-              Row(
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
                 children: [
-                  TextButton(
+                  OutlinedButton(
                     onPressed: () => _details(context),
                     child: const Text('Voir le détail'),
                   ),
-                  const Spacer(),
                   if (nextStatus != null)
                     FilledButton(
                       onPressed: () => _advance(context),
