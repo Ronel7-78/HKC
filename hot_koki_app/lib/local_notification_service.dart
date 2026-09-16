@@ -7,6 +7,14 @@ class LocalNotificationService {
       FlutterLocalNotificationsPlugin();
   static bool _initialized = false;
 
+  static Future<void> initializeSafely() async {
+    try {
+      await initialize().timeout(const Duration(seconds: 3));
+    } catch (_) {
+      // Une notification est optionnelle et ne doit jamais bloquer l'interface.
+    }
+  }
+
   static Future<void> initialize() async {
     if (_initialized) return;
 

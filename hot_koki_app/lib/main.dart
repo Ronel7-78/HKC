@@ -21,9 +21,13 @@ import 'vendor_screens.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await LocalNotificationService.initialize();
-  await AppPreferences.instance.load();
+  try {
+    await AppPreferences.instance.load().timeout(const Duration(seconds: 3));
+  } catch (_) {
+    // Les préférences ne doivent jamais empêcher l'application de démarrer.
+  }
   runApp(const HotKokiApp());
+  unawaited(LocalNotificationService.initializeSafely());
 }
 
 class HotKokiApp extends StatelessWidget {
