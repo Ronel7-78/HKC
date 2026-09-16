@@ -210,8 +210,8 @@ class _CartLine extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(11),
           child: SizedBox(
-            width: 72,
-            height: 72,
+            width: 62,
+            height: 62,
             child: item.photo == null
                 ? const ColoredBox(
                     color: _leaf100,
@@ -220,21 +220,47 @@ class _CartLine extends StatelessWidget {
                 : Image.network(item.photo!, fit: BoxFit.cover),
           ),
         ),
-        const SizedBox(width: 13),
+        const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                item.productName,
-                style: const TextStyle(fontWeight: FontWeight.w700),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      item.productName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: IconButton(
+                      tooltip: 'Retirer du panier',
+                      padding: EdgeInsets.zero,
+                      onPressed: () => CartStore.instance.remove(item.key),
+                      icon: const Icon(
+                        Icons.close_rounded,
+                        color: _inkSoft,
+                        size: 19,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               Text(
                 item.complementName,
                 style: const TextStyle(color: _inkSoft, fontSize: 11),
               ),
               const SizedBox(height: 7),
-              Row(
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 7,
                 children: [
                   Text(
                     '${item.unitPrice * item.quantity} F CFA',
@@ -243,34 +269,36 @@ class _CartLine extends StatelessWidget {
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const Spacer(),
-                  _QuantityButton(
-                    icon: Icons.remove,
-                    onPressed: () =>
-                        CartStore.instance.changeQuantity(item.key, -1),
-                  ),
                   SizedBox(
-                    width: 30,
-                    child: Text(
-                      '${item.quantity}',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    width: 90,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        _QuantityButton(
+                          icon: Icons.remove,
+                          onPressed: () =>
+                              CartStore.instance.changeQuantity(item.key, -1),
+                        ),
+                        SizedBox(
+                          width: 30,
+                          child: Text(
+                            '${item.quantity}',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                        ),
+                        _QuantityButton(
+                          icon: Icons.add,
+                          onPressed: () =>
+                              CartStore.instance.changeQuantity(item.key, 1),
+                        ),
+                      ],
                     ),
-                  ),
-                  _QuantityButton(
-                    icon: Icons.add,
-                    onPressed: () =>
-                        CartStore.instance.changeQuantity(item.key, 1),
                   ),
                 ],
               ),
             ],
           ),
-        ),
-        IconButton(
-          tooltip: 'Retirer du panier',
-          onPressed: () => CartStore.instance.remove(item.key),
-          icon: const Icon(Icons.close_rounded, color: _inkSoft, size: 20),
         ),
       ],
     ),
@@ -286,6 +314,11 @@ class _QuantityButton extends StatelessWidget {
     visualDensity: VisualDensity.compact,
     constraints: const BoxConstraints.tightFor(width: 30, height: 30),
     padding: EdgeInsets.zero,
+    style: IconButton.styleFrom(
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      minimumSize: const Size(30, 30),
+      maximumSize: const Size(30, 30),
+    ),
     onPressed: onPressed,
     icon: Icon(icon, size: 17),
   );
@@ -313,21 +346,32 @@ class _CartSummary extends StatelessWidget {
     child: Column(
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Sous-total', style: TextStyle(color: _inkSoft)),
-            Text(
-              '${cart.total} F CFA',
-              style: const TextStyle(fontWeight: FontWeight.w700),
+            const Expanded(
+              child: Text('Sous-total', style: TextStyle(color: _inkSoft)),
+            ),
+            Flexible(
+              child: Text(
+                '${cart.total} F CFA',
+                textAlign: TextAlign.end,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
             ),
           ],
         ),
         const SizedBox(height: 7),
         const Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Livraison', style: TextStyle(color: _inkSoft)),
-            Text('Calculée à l’étape suivante', style: TextStyle(fontSize: 11)),
+            Expanded(
+              child: Text('Livraison', style: TextStyle(color: _inkSoft)),
+            ),
+            Flexible(
+              child: Text(
+                'Calculée à l’étape suivante',
+                textAlign: TextAlign.end,
+                style: TextStyle(fontSize: 11),
+              ),
+            ),
           ],
         ),
         const Padding(
@@ -335,18 +379,22 @@ class _CartSummary extends StatelessWidget {
           child: Divider(height: 1),
         ),
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Total provisoire',
-              style: TextStyle(color: _leaf900, fontWeight: FontWeight.w800),
+            const Expanded(
+              child: Text(
+                'Total provisoire',
+                style: TextStyle(color: _leaf900, fontWeight: FontWeight.w800),
+              ),
             ),
-            Text(
-              '${cart.total} F CFA',
-              style: const TextStyle(
-                color: _flame600,
-                fontSize: 19,
-                fontWeight: FontWeight.w900,
+            Flexible(
+              child: Text(
+                '${cart.total} F CFA',
+                textAlign: TextAlign.end,
+                style: const TextStyle(
+                  color: _flame600,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
             ),
           ],
@@ -612,15 +660,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         await launchUrl(orangeUrl, mode: LaunchMode.externalApplication);
         if (!mounted) return;
       }
-      await Navigator.pushReplacement(
+      await AppFeedback.success(
         context,
-        MaterialPageRoute(
-          builder: (_) => PaymentStatusScreen(
-            payment: payment,
-            onReturnToOrders: widget.onShowOrders,
-          ),
-        ),
+        title: 'Commande enregistrée',
+        message:
+            'La demande de paiement a été envoyée. Retrouvez immédiatement son suivi dans vos commandes.',
       );
+      if (!mounted) return;
+      if (widget.onShowOrders case final callback?) {
+        callback();
+      } else {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
     } catch (error) {
       if (mounted) {
         final message = error.toString().replaceFirst('Exception: ', '');

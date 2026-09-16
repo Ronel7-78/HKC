@@ -66,6 +66,22 @@ class PushNotificationService {
               : 'android',
         },
       );
+
+      final confirmationShown = await ClientApi.storage.read(
+        key: 'push_confirmation_shown',
+      );
+      if (confirmationShown != 'true') {
+        await LocalNotificationService.show(
+          title: 'Notifications activées',
+          body:
+              'Vous recevrez ici le suivi de vos commandes et paiements Hot Koki.',
+          payload: 'notifications_activees',
+        );
+        await ClientApi.storage.write(
+          key: 'push_confirmation_shown',
+          value: 'true',
+        );
+      }
     } catch (_) {
       // L'enregistrement sera retenté à la prochaine ouverture/session.
     }

@@ -148,15 +148,26 @@ class _ClientOrdersScreenState extends State<ClientOrdersScreen> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
+        Padding(
           padding: EdgeInsets.fromLTRB(20, 20, 20, 14),
-          child: Text(
-            'Mes commandes',
-            style: TextStyle(
-              color: _leaf900,
-              fontSize: 25,
-              fontWeight: FontWeight.w800,
-            ),
+          child: Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Mes commandes',
+                  style: TextStyle(
+                    color: _leaf900,
+                    fontSize: 25,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              IconButton.filledTonal(
+                tooltip: 'Actualiser les commandes',
+                onPressed: _refresh,
+                icon: const Icon(Icons.refresh_rounded),
+              ),
+            ],
           ),
         ),
         Expanded(
@@ -181,16 +192,28 @@ class _ClientOrdersScreenState extends State<ClientOrdersScreen> {
               }
               final orders = snapshot.data ?? [];
               if (orders.isEmpty) {
-                return const AppEmptyState(
-                  title: 'Aucune commande pour le moment',
-                  message:
-                      'Votre prochaine commande apparaîtra ici avec son suivi en temps réel.',
-                  icon: Icons.receipt_long_outlined,
+                return RefreshIndicator(
+                  onRefresh: _refresh,
+                  child: const CustomScrollView(
+                    physics: AlwaysScrollableScrollPhysics(),
+                    slivers: [
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: AppEmptyState(
+                          title: 'Aucune commande pour le moment',
+                          message:
+                              'Votre prochaine commande apparaîtra ici avec son suivi en temps réel.',
+                          icon: Icons.receipt_long_outlined,
+                        ),
+                      ),
+                    ],
+                  ),
                 );
               }
               return RefreshIndicator(
                 onRefresh: _refresh,
                 child: ListView.separated(
+                  physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
                   itemCount: orders.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 12),
