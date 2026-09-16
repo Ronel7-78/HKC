@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\MtnMomoWebhookController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OrangeMoneyWebhookController;
 use App\Http\Controllers\Api\PaiementController;
+use App\Http\Controllers\Api\PushTokenController;
 use App\Http\Controllers\Api\VendeurCommandeController;
 use App\Http\Controllers\Api\VendeurController;
 use App\Http\Controllers\Api\VendeurDashboardController;
@@ -51,6 +52,8 @@ Route::middleware(['auth:sanctum', 'email.verified'])->group(function () {
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::patch('/notifications/tout-lire', [NotificationController::class, 'toutMarquerLu']);
     Route::patch('/notifications/{notification}/lire', [NotificationController::class, 'marquerLue']);
+    Route::post('/notifications/appareil', [PushTokenController::class, 'store']);
+    Route::delete('/notifications/appareil', [PushTokenController::class, 'destroy']);
 
     // Routes reservees au client
     Route::middleware('role:client')->prefix('client')->group(function () {

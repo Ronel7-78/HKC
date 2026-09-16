@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
@@ -16,11 +17,13 @@ import 'cart_screen.dart';
 import 'client_screens.dart';
 import 'notifications_screen.dart';
 import 'local_notification_service.dart';
+import 'push_notification_service.dart';
 import 'seller_screens.dart';
 import 'vendor_screens.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   try {
     await AppPreferences.instance.load().timeout(const Duration(seconds: 3));
   } catch (_) {
@@ -28,6 +31,7 @@ Future<void> main() async {
   }
   runApp(const HotKokiApp());
   unawaited(LocalNotificationService.initializeSafely());
+  unawaited(PushNotificationService.initializeSafely());
 }
 
 class HotKokiApp extends StatelessWidget {
@@ -254,7 +258,7 @@ class _MainShellState extends State<MainShell> {
 
   void _startNotificationRefresh() {
     _notificationTimer?.cancel();
-    LocalNotificationService.requestPermissions();
+    unawaited(PushNotificationService.registerAuthenticatedDevice());
     _notificationTimer = Timer.periodic(
       const Duration(seconds: 30),
       (_) => NotificationStore.refresh(),

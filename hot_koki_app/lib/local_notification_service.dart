@@ -28,6 +28,21 @@ class LocalNotificationService {
     );
 
     await _plugin.initialize(settings: settings);
+    await _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
+        ?.createNotificationChannel(
+          const AndroidNotificationChannel(
+            'hot_koki_updates_v1',
+            'Notifications Hot Koki',
+            description:
+                'Commandes, paiements, avis et informations importantes',
+            importance: Importance.high,
+            playSound: true,
+            enableVibration: true,
+          ),
+        );
     _initialized = true;
   }
 

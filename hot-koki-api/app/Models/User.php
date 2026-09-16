@@ -76,6 +76,11 @@ class User extends Authenticatable
         return $this->hasOne(Admin::class);
     }
 
+    public function pushTokens()
+    {
+        return $this->hasMany(PushToken::class);
+    }
+
     public function isAdmin()
     {
         return $this->role === 'admin';

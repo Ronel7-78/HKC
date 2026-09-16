@@ -162,6 +162,10 @@ class AuthController extends Controller
     // Déconnexion
     public function logout(Request $request)
     {
+        $accessTokenId = $request->user()->currentAccessToken()?->id;
+        if ($accessTokenId) {
+            $request->user()->pushTokens()->where('access_token_id', $accessTokenId)->delete();
+        }
         $request->user()->currentAccessToken()->delete();
 
         return response()->json(['message' => 'Déconnexion réussie']);

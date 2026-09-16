@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-
 import 'client_screens.dart';
-import 'local_notification_service.dart';
 
 const _leaf900 = Color(0xFF1F3524);
 const _leaf100 = Color(0xFFE7EEE4);
@@ -12,39 +9,16 @@ const _inkSoft = Color(0xFF6B6864);
 
 class NotificationStore {
   static final unread = ValueNotifier<int>(0);
-  static bool _initialized = false;
 
   static void reset() {
     unread.value = 0;
-    _initialized = false;
   }
 
   static Future<void> refresh() async {
     try {
       final data = await ClientApi.request('GET', '/notifications');
       final count = int.tryParse(data['non_lues'].toString()) ?? 0;
-      if (_initialized && count > unread.value) {
-        final notifications =
-            data['notifications'] as List<dynamic>? ?? const [];
-        final latest = notifications.isEmpty
-            ? null
-            : notifications.first as Map<String, dynamic>;
-        final content = latest?['data'] as Map<String, dynamic>?;
-        try {
-          await LocalNotificationService.show(
-            title: content?['titre']?.toString() ?? 'Nouvelle notification',
-            body:
-                content?['message']?.toString() ??
-                'Une nouvelle information est disponible dans Hot Koki.',
-            payload: latest?['id']?.toString(),
-          );
-          await HapticFeedback.mediumImpact();
-        } catch (_) {
-          // Le compteur reste fonctionnel si les notifications sont refusées.
-        }
-      }
       unread.value = count;
-      _initialized = true;
     } catch (_) {}
   }
 }

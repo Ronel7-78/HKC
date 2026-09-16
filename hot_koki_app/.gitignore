@@ -43,3 +43,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Configurations Firebase injectées localement ou par le CI, jamais publiées.
+**/google-services.json
+**/GoogleService-Info.plist
