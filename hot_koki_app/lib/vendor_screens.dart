@@ -924,10 +924,6 @@ class VendorDetailScreen extends StatelessWidget {
                         spacing: 7,
                         runSpacing: 7,
                         children: [
-                          const Chip(
-                            avatar: Icon(Icons.store_rounded, size: 17),
-                            label: Text('Retrait · 0 FCFA'),
-                          ),
                           if (vendor.acceptsExpress)
                             const Chip(
                               avatar: Icon(Icons.bolt_rounded, size: 17),
@@ -1098,7 +1094,9 @@ class _VendorProductCard extends StatelessWidget {
     );
     if (complement == null || !context.mounted) return;
     CartStore.instance.setDeliveryMode(
-      vendor.type == 'point_fixe' ? 'retrait' : 'standard',
+      vendor.type == 'point_fixe' && vendor.acceptsExpress
+          ? 'express'
+          : 'standard',
     );
     final added = CartStore.instance.add(
       CartItem(
@@ -1175,8 +1173,12 @@ class _VendorProductCard extends StatelessWidget {
           style: const TextStyle(color: _flame600, fontWeight: FontWeight.w800),
         ),
         IconButton(
-          tooltip: 'Ajouter au panier',
-          onPressed: () => _addToCart(context),
+          tooltip: vendor.type == 'point_fixe' && !vendor.acceptsExpress
+              ? 'Livraison express indisponible'
+              : 'Ajouter au panier',
+          onPressed: vendor.type == 'point_fixe' && !vendor.acceptsExpress
+              ? null
+              : () => _addToCart(context),
           icon: const Icon(Icons.add_circle, color: _flame600),
         ),
       ],

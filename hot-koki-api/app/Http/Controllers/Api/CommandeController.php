@@ -31,7 +31,7 @@ class CommandeController extends Controller
             'latitude_client' => 'required|numeric|between:-90,90',
             'longitude_client' => 'required|numeric|between:-180,180',
             'livraison_express' => 'sometimes|boolean',
-            'mode_remise' => 'sometimes|in:livraison,retrait',
+            'mode_remise' => 'sometimes|in:livraison',
             // Facultatif pour conserver les anciens clients. Lorsqu'il est fourni,
             // il doit correspondre au vendeur retourne par l'apercu.
             'vendeur_id' => 'sometimes|integer|exists:vendeurs,id',
@@ -44,7 +44,6 @@ class CommandeController extends Controller
         $lng,
         ?int $vendeurId = null,
         bool $express = false,
-        string $modeRemise = 'livraison',
     ) {
         $produitIds = collect($items)->pluck('produit_id')->unique();
 
@@ -53,12 +52,10 @@ class CommandeController extends Controller
         $calculDistance = '( 6371 * acos( cos( radians(?) ) * cos( radians(latitude) ) * cos( radians(longitude) - radians(?) ) + sin( radians(?) ) * sin( radians(latitude) ) ) )';
 
         return Vendeur::when($vendeurId, fn ($query) => $query->whereKey($vendeurId))
-            ->when($modeRemise === 'retrait', fn ($query) => $query
-                ->where('type_vendeur', Vendeur::TYPE_POINT_FIXE))
-            ->when($modeRemise === 'livraison' && $express, fn ($query) => $query
+            ->when($express, fn ($query) => $query
                 ->where('type_vendeur', Vendeur::TYPE_POINT_FIXE)
                 ->where('accepte_express', true))
-            ->when($modeRemise === 'livraison' && ! $express, fn ($query) => $query
+            ->when(! $express, fn ($query) => $query
                 ->where('type_vendeur', Vendeur::TYPE_AMBULANT))
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
@@ -83,9 +80,8 @@ class CommandeController extends Controller
         $lng,
         ?int $vendeurId = null,
         bool $express = false,
-        string $modeRemise = 'livraison',
     ) {
-        $vendeur = $this->trouverVendeurEligible($items, $lat, $lng, $vendeurId, $express, $modeRemise);
+        $vendeur = $this->trouverVendeurEligible($items, $lat, $lng, $vendeurId, $express);
 
         if (! $vendeur) {
             return null;
@@ -93,7 +89,7 @@ class CommandeController extends Controller
 
         Vendeur::whereKey($vendeur->id)->lockForUpdate()->first();
 
-        return $this->trouverVendeurEligible($items, $lat, $lng, $vendeur->id, $express, $modeRemise);
+        return $this->trouverVendeurEligible($items, $lat, $lng, $vendeur->id, $express);
     }
 
     private function calculerTotaux(array $items)
@@ -134,17 +130,14 @@ class CommandeController extends Controller
         }
 
         $express = $request->boolean('livraison_express');
-        $modeRemise = $request->input('mode_remise', 'livraison');
-        $vendeurId = $modeRemise === 'retrait'
-            ? null
-            : ($express ? null : ($request->integer('vendeur_id') ?: null));
+        $modeRemise = 'livraison';
+        $vendeurId = $express ? null : ($request->integer('vendeur_id') ?: null);
         $vendeur = $this->trouverVendeurEligible(
             $request->items,
             $request->latitude_client,
             $request->longitude_client,
             $vendeurId,
             $express,
-            $modeRemise,
         );
 
         if (! $vendeur) {
@@ -192,17 +185,14 @@ class CommandeController extends Controller
 
         $commande = DB::transaction(function () use ($client, $request, $delivery) {
             $express = $request->boolean('livraison_express');
-            $modeRemise = $request->input('mode_remise', 'livraison');
-            $vendeurId = $modeRemise === 'retrait'
-                ? null
-                : ($express ? null : ($request->integer('vendeur_id') ?: null));
+            $modeRemise = 'livraison';
+            $vendeurId = $express ? null : ($request->integer('vendeur_id') ?: null);
             $vendeur = $this->verrouillerVendeurEligible(
                 $request->items,
                 $request->latitude_client,
                 $request->longitude_client,
                 $vendeurId,
                 $express,
-                $modeRemise,
             );
 
             if (! $vendeur) {

@@ -27,6 +27,7 @@ class AccueilController extends Controller
                 ->get(),
             'points_fixes' => Vendeur::query()
                 ->where('type_vendeur', Vendeur::TYPE_POINT_FIXE)
+                ->where('accepte_express', true)
                 ->where('statut_compte', 'actif')
                 ->where('statut_dispo', 'disponible')
                 ->with('user:id,telephone')

@@ -371,9 +371,7 @@ class SellerOrderCard extends StatelessWidget {
   final Future<void> Function()? onChanged;
   final bool compact;
   String? get nextStatus => order['statut'] == 'recue' ? 'livree' : null;
-  String get deliveryAction => order['mode_remise'] == 'retrait'
-      ? 'Commande remise'
-      : 'Marquer comme livrée';
+  String get deliveryAction => 'Marquer comme livrée';
 
   Future<void> _advance(BuildContext context) async {
     final next = nextStatus;
@@ -557,9 +555,7 @@ class SellerOrderCard extends StatelessWidget {
                           ),
                         ),
                       Text(
-                        order['mode_remise'] == 'retrait'
-                            ? 'RETRAIT SUR PLACE · 0 FCFA'
-                            : order['livraison_express'] == true
+                        order['livraison_express'] == true
                             ? 'EXPRESS · 500 FCFA'
                             : 'LIVRAISON STANDARD · 0 FCFA',
                         style: const TextStyle(

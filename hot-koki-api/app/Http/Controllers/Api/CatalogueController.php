@@ -39,6 +39,9 @@ class CatalogueController extends Controller
     {
         $client = $request->user()->client;
         $mode = $request->query('mode', 'standard');
+        if (! in_array($mode, ['standard', 'express'], true)) {
+            $mode = 'standard';
+        }
         $produits = Produit::query()
             ->with('complements:id,nom')
             ->orderBy('nom')
@@ -52,8 +55,6 @@ class CatalogueController extends Controller
                     ->when($mode === 'express', fn ($query) => $query
                         ->where('type_vendeur', Vendeur::TYPE_POINT_FIXE)
                         ->where('accepte_express', true))
-                    ->when($mode === 'retrait', fn ($query) => $query
-                        ->where('type_vendeur', Vendeur::TYPE_POINT_FIXE))
                     ->whereHas('produits', fn ($query) => $query
                         ->whereKey($produit->id)
                         ->where('vendeur_produits.statut', 'disponible'))

@@ -73,6 +73,16 @@ class DeliveryPricingTest extends TestCase
             ->assertJsonPath('commande.vendeur_id', $pointFixe->id);
     }
 
+    public function test_retrait_sur_place_nest_plus_accepte(): void
+    {
+        [$payload] = $this->context();
+        $payload['mode_remise'] = 'retrait';
+
+        $this->postJson('/api/commandes/preview', $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('mode_remise');
+    }
+
     /** @return array{array<string, mixed>, Vendeur} */
     private function context(): array
     {

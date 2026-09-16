@@ -864,7 +864,7 @@ class _FixedPointsSection extends StatelessWidget {
             padding: EdgeInsets.only(right: 20, bottom: 9),
             child: _SectionHeader(
               title: 'Points de vente fixes',
-              action: 'Retrait ou express',
+              action: 'Livraison express',
             ),
           ),
           SizedBox(
@@ -908,21 +908,20 @@ class _FixedPointsSection extends StatelessWidget {
                           style: const TextStyle(fontWeight: FontWeight.w800),
                         ),
                         Text(
-                          '${point.products} plat${point.products > 1 ? 's' : ''} · Retrait 0 FCFA',
+                          '${point.products} plat${point.products > 1 ? 's' : ''} · Point fixe',
                           style: const TextStyle(
                             fontSize: 10,
                             color: HotKokiColors.inkSoft,
                           ),
                         ),
-                        if (point.express)
-                          const Text(
-                            'Express 500 FCFA',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: HotKokiColors.flame600,
-                              fontWeight: FontWeight.w700,
-                            ),
+                        const Text(
+                          'Express 500 FCFA',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: HotKokiColors.flame600,
+                            fontWeight: FontWeight.w700,
                           ),
+                        ),
                       ],
                     ),
                   ),
@@ -966,11 +965,6 @@ class _HomeDeliveryMode extends StatelessWidget {
             icon: Icon(Icons.bolt_rounded),
             label: Text('Express'),
           ),
-          ButtonSegment(
-            value: 'retrait',
-            icon: Icon(Icons.store_rounded),
-            label: Text('Retrait'),
-          ),
         ],
         selected: {selected},
         showSelectedIcon: false,
@@ -980,8 +974,6 @@ class _HomeDeliveryMode extends StatelessWidget {
       Text(
         selected == 'express'
             ? '500 FCFA · assuré par un point de vente fixe'
-            : selected == 'retrait'
-            ? '0 FCFA · retrait dans un point de vente fixe'
             : '0 FCFA · livraison par un vendeur ambulant',
         style: const TextStyle(color: HotKokiColors.inkSoft, fontSize: 11),
       ),

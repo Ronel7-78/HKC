@@ -446,7 +446,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       'latitude_client': _deliveryLatitude,
       'longitude_client': _deliveryLongitude,
       'livraison_express': _deliveryMode == 'express',
-      'mode_remise': _deliveryMode == 'retrait' ? 'retrait' : 'livraison',
+      'mode_remise': 'livraison',
     };
   }
 
@@ -476,12 +476,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 current: _deliveryMode,
                 title: 'Livraison express',
                 subtitle: '500 FCFA · point de vente fixe',
-              ),
-              _DeliveryModeTile(
-                mode: 'retrait',
-                current: _deliveryMode,
-                title: 'Retrait sur place',
-                subtitle: '0 FCFA · point de vente fixe',
               ),
             ],
           ),
@@ -833,16 +827,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   leading: Icon(
                     _deliveryMode == 'express'
                         ? Icons.bolt_rounded
-                        : _deliveryMode == 'retrait'
-                        ? Icons.store_rounded
                         : Icons.local_shipping_outlined,
                     color: _flame600,
                   ),
                   title: Text(
                     _deliveryMode == 'express'
                         ? 'Livraison express · 500 FCFA'
-                        : _deliveryMode == 'retrait'
-                        ? 'Retrait sur place · 0 FCFA'
                         : 'Livraison standard · 0 FCFA',
                     style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
