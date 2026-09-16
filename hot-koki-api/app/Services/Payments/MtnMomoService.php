@@ -6,6 +6,7 @@ use App\Models\Paiement;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use RuntimeException;
 
@@ -56,10 +57,23 @@ class MtnMomoService
         }
 
         if ($response->status() !== 202) {
+            $details = $this->detailsErreur($response->json());
+            Log::warning('MTN RequestToPay refusé', [
+                'paiement_id' => $paiement->id,
+                'http_status' => $response->status(),
+                'target_environment' => config('services.mtn_momo.target_environment'),
+                'callback_host' => parse_url(
+                    (string) config('services.mtn_momo.callback_base_url'),
+                    PHP_URL_HOST,
+                ),
+                'operateur' => $details,
+            ]);
+
             $paiement->terminer(
                 Paiement::STATUT_ECHOUE,
                 'MTN_HTTP_'.$response->status(),
                 'MTN MoMo a refusé l’initiation du paiement.',
+                $details,
             );
 
             throw new RuntimeException('MTN MoMo a refusé l’initiation du paiement.');
@@ -209,5 +223,22 @@ class MtnMomoService
         if (! str_starts_with($callback, 'https://') || ! parse_url($callback, PHP_URL_HOST)) {
             throw new RuntimeException('Le callback MTN MoMo doit être une URL HTTPS publique valide.');
         }
+    }
+
+    private function detailsErreur(mixed $donnees): array
+    {
+        if (! is_array($donnees)) {
+            return [];
+        }
+
+        return collect(['code', 'reason', 'message'])
+            ->mapWithKeys(function (string $cle) use ($donnees): array {
+                $valeur = $donnees[$cle] ?? null;
+
+                return is_scalar($valeur) && $valeur !== ''
+                    ? [$cle => mb_substr((string) $valeur, 0, 200)]
+                    : [];
+            })
+            ->all();
     }
 }

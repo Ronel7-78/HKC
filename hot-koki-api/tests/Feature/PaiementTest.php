@@ -22,6 +22,10 @@ class PaiementTest extends TestCase
 
     private ?array $statutMtn = null;
 
+    private ?array $creationMtn = null;
+
+    private int $creationMtnStatus = 202;
+
     private ?array $creationOrange = null;
 
     private ?array $statutOrange = null;
@@ -61,6 +65,10 @@ class PaiementTest extends TestCase
                     'access_token' => 'token-test',
                     'expires_in' => 3600,
                 ]);
+            }
+
+            if (str_ends_with($request->url(), '/collection/v1_0/requesttopay') && $this->creationMtn) {
+                return Http::response($this->creationMtn, $this->creationMtnStatus);
             }
 
             if ($request->method() === 'GET' && $this->statutMtn) {
@@ -111,6 +119,33 @@ class PaiementTest extends TestCase
                 && $request['currency'] === 'EUR'
                 && $request['payer']['partyId'] === '237677123456';
         });
+    }
+
+    public function test_refus_mtn_conserve_un_diagnostic_sans_exposer_de_secret(): void
+    {
+        $this->creationMtn = [
+            'code' => 'INVALID_CALLBACK_URL_HOST',
+            'message' => 'Callback host mismatch',
+        ];
+        $this->creationMtnStatus = 400;
+
+        [$user, $client] = $this->creerClient();
+        $commande = $this->creerCommande($client);
+        Sanctum::actingAs($user);
+
+        $this->postJson("/api/commandes/{$commande->public_id}/paiements", [
+            'fournisseur' => Paiement::FOURNISSEUR_MTN_MOMO,
+            'telephone' => '+237677123456',
+        ])->assertStatus(502)
+            ->assertJsonPath('code', 'OPERATEUR_INDISPONIBLE');
+
+        $paiement = Paiement::where('commande_id', $commande->id)->firstOrFail();
+        $this->assertSame('MTN_HTTP_400', $paiement->code_erreur);
+        $this->assertSame('INVALID_CALLBACK_URL_HOST', $paiement->donnees_operateur['code']);
+        $this->assertStringNotContainsString(
+            'token-test',
+            json_encode($paiement->donnees_operateur),
+        );
     }
 
     public function test_paiement_reussi_fait_passer_la_commande_a_recue_une_seule_fois(): void

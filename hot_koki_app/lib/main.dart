@@ -15,11 +15,13 @@ import 'auth_screen.dart';
 import 'cart_screen.dart';
 import 'client_screens.dart';
 import 'notifications_screen.dart';
+import 'local_notification_service.dart';
 import 'seller_screens.dart';
 import 'vendor_screens.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await LocalNotificationService.initialize();
   await AppPreferences.instance.load();
   runApp(const HotKokiApp());
 }
@@ -248,6 +250,7 @@ class _MainShellState extends State<MainShell> {
 
   void _startNotificationRefresh() {
     _notificationTimer?.cancel();
+    LocalNotificationService.requestPermissions();
     _notificationTimer = Timer.periodic(
       const Duration(seconds: 30),
       (_) => NotificationStore.refresh(),
