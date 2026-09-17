@@ -883,7 +883,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   );
                 }
                 return SizedBox(
-                  height: 376,
+                  height: 354,
                   child: ListView.separated(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     scrollDirection: Axis.horizontal,
@@ -2146,11 +2146,11 @@ class ProductCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: HotKokiColors.leaf700,
-                        fontSize: 10,
+                        fontSize: 11,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const Spacer(),
+                    const SizedBox(height: 12),
                     SizedBox(
                       width: double.infinity,
                       height: 38,

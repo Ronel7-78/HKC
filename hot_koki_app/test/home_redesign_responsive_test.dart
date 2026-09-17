@@ -30,7 +30,7 @@ void main() {
           body: Center(
             child: SizedBox(
               width: 250,
-              height: 376,
+              height: 354,
               child: ProductCard(product: product, onAdd: _noop),
             ),
           ),
