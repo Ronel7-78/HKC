@@ -20,6 +20,7 @@ import 'local_notification_service.dart';
 import 'push_notification_service.dart';
 import 'seller_screens.dart';
 import 'vendor_screens.dart';
+import 'vendor_location_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -217,6 +218,9 @@ class _MainShellState extends State<MainShell> {
           });
           NotificationStore.refresh();
           _startNotificationRefresh();
+          if (_role == UserRole.vendeur) {
+            unawaited(VendorLocationService.start());
+          }
         }
       }
     } catch (_) {
@@ -234,6 +238,7 @@ class _MainShellState extends State<MainShell> {
   void _logout() {
     _notificationTimer?.cancel();
     NotificationStore.reset();
+    unawaited(VendorLocationService.stop());
     setState(() {
       _role = null;
       _userName = null;
@@ -254,6 +259,9 @@ class _MainShellState extends State<MainShell> {
     });
     NotificationStore.refresh();
     _startNotificationRefresh();
+    if (_role == UserRole.vendeur) {
+      unawaited(VendorLocationService.start());
+    }
   }
 
   void _startNotificationRefresh() {
@@ -306,6 +314,7 @@ class _MainShellState extends State<MainShell> {
   @override
   void dispose() {
     _notificationTimer?.cancel();
+    unawaited(VendorLocationService.stop());
     super.dispose();
   }
 

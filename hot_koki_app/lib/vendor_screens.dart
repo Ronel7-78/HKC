@@ -35,6 +35,8 @@ class VendorData {
     required this.phone,
     required this.type,
     required this.acceptsExpress,
+    required this.positionStatus,
+    required this.positionUpdatedAt,
   });
   final int id;
   final String publicId;
@@ -48,6 +50,8 @@ class VendorData {
   final String? phone;
   final String type;
   final bool acceptsExpress;
+  final String positionStatus;
+  final DateTime? positionUpdatedAt;
 
   factory VendorData.fromJson(Map<String, dynamic> json) => VendorData(
     id: int.parse(json['id'].toString()),
@@ -61,6 +65,10 @@ class VendorData {
     phone: (json['user'] as Map<String, dynamic>?)?['telephone']?.toString(),
     type: json['type_vendeur']?.toString() ?? 'ambulant',
     acceptsExpress: json['accepte_express'] == true,
+    positionStatus: json['position_status']?.toString() ?? 'enregistree',
+    positionUpdatedAt: DateTime.tryParse(
+      json['position_updated_at']?.toString() ?? '',
+    ),
     products: (json['produits'] as List<dynamic>? ?? [])
         .map((item) => VendorProduct.fromJson(item as Map<String, dynamic>))
         .toList(),
@@ -845,6 +853,69 @@ class _MapMessage extends StatelessWidget {
   );
 }
 
+class _VendorPositionChip extends StatelessWidget {
+  const _VendorPositionChip({required this.vendor});
+
+  final VendorData vendor;
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, label, color) = switch (vendor.positionStatus) {
+      'live' => (Icons.gps_fixed_rounded, 'Position en direct', Colors.green),
+      'derniere_position' => (
+        Icons.history_rounded,
+        _lastUpdateLabel(vendor.positionUpdatedAt),
+        _flame600,
+      ),
+      'fixe' => (
+        Icons.store_mall_directory_rounded,
+        'Point de vente fixe',
+        _leaf700,
+      ),
+      _ => (Icons.location_on_outlined, 'Position enregistrée', _inkSoft),
+    };
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: .10),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 15, color: color),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _lastUpdateLabel(DateTime? value) {
+    if (value == null) return 'Dernière position connue';
+    final minutes = DateTime.now().difference(value.toLocal()).inMinutes;
+    if (minutes < 1) return 'Mise à jour à l’instant';
+    if (minutes < 60) return 'Mise à jour il y a $minutes min';
+    final hours = minutes ~/ 60;
+    if (hours < 24) return 'Mise à jour il y a $hours h';
+    return 'Dernière position connue';
+  }
+}
+
 class VendorDetailScreen extends StatelessWidget {
   const VendorDetailScreen({
     super.key,
@@ -913,6 +984,8 @@ class VendorDetailScreen extends StatelessWidget {
                       '⭐ ${vendor.rating.toStringAsFixed(1)}  ·  ${vendor.distance?.toStringAsFixed(1) ?? '—'} km',
                       style: const TextStyle(color: _inkSoft),
                     ),
+                    const SizedBox(height: 7),
+                    _VendorPositionChip(vendor: vendor),
                     const SizedBox(height: 7),
                     Text(
                       vendor.address,

@@ -72,6 +72,8 @@ Route::middleware(['auth:sanctum', 'email.verified'])->group(function () {
         Route::get('/profile', [VendeurController::class, 'show']);
         Route::put('/profile', [VendeurController::class, 'update']);
         Route::patch('/disponibilite', [VendeurController::class, 'updateDisponibilite']);
+        Route::patch('/position', [VendeurController::class, 'updatePosition'])
+            ->middleware('throttle:60,1');
 
         // Stock du vendeur
         Route::get('/produits', [VendeurProduitController::class, 'index']);

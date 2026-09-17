@@ -96,4 +96,34 @@ class VendeurController extends Controller
             'statut_dispo' => $vendeur->statut_dispo,
         ]);
     }
+
+    public function updatePosition(Request $request)
+    {
+        $vendeur = $request->user()->vendeur;
+        if (! $vendeur) {
+            return response()->json(['message' => 'Profil vendeur introuvable.'], 404);
+        }
+        if ($vendeur->type_vendeur !== \App\Models\Vendeur::TYPE_AMBULANT) {
+            return response()->json(['message' => 'Un point de vente utilise sa position fixe.'], 422);
+        }
+        if ($vendeur->statut_compte !== 'actif' || $vendeur->statut_dispo !== 'disponible') {
+            return response()->json(['message' => 'La position live est désactivée lorsque le vendeur est indisponible.'], 422);
+        }
+
+        $validated = $request->validate([
+            'latitude' => 'required|numeric|between:-90,90',
+            'longitude' => 'required|numeric|between:-180,180',
+        ]);
+
+        $vendeur->update([
+            'live_latitude' => $validated['latitude'],
+            'live_longitude' => $validated['longitude'],
+            'location_updated_at' => now(),
+        ]);
+
+        return response()->json([
+            'message' => 'Position actualisée.',
+            'location_updated_at' => $vendeur->location_updated_at?->toIso8601String(),
+        ]);
+    }
 }

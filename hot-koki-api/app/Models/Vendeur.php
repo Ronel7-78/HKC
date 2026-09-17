@@ -21,10 +21,14 @@ class Vendeur extends Model
     protected $fillable = [
         'user_id', 'nom_boutique', 'description', 'adresse_texte',
         'latitude', 'longitude', 'statut_dispo', 'statut_compte', 'note_moyenne',
-        'type_vendeur', 'accepte_express',
+        'type_vendeur', 'accepte_express', 'live_latitude', 'live_longitude',
+        'location_updated_at',
     ];
 
-    protected $casts = ['accepte_express' => 'boolean'];
+    protected $casts = [
+        'accepte_express' => 'boolean',
+        'location_updated_at' => 'datetime',
+    ];
 
     public function user()
     {

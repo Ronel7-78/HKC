@@ -51,4 +51,51 @@ class ClientVendeurTest extends TestCase
             ->assertOk()
             ->assertJsonPath('vendeur.id', $vendeur->id);
     }
+
+    public function test_vendeur_ambulant_publie_sa_position_live_sans_ecraser_sa_position_fixe(): void
+    {
+        $user = User::factory()->create(['role' => 'vendeur']);
+        $vendeur = Vendeur::create([
+            'user_id' => $user->id,
+            'nom_boutique' => 'Vendeur mobile',
+            'type_vendeur' => Vendeur::TYPE_AMBULANT,
+            'latitude' => 4.5000,
+            'longitude' => 11.5000,
+            'statut_compte' => 'actif',
+            'statut_dispo' => 'disponible',
+        ]);
+        Sanctum::actingAs($user);
+
+        $this->patchJson('/api/vendeur/position', [
+            'latitude' => 4.6000,
+            'longitude' => 11.6000,
+        ])->assertOk()->assertJsonPath('message', 'Position actualisée.');
+
+        $vendeur->refresh();
+        $this->assertEquals(4.5, $vendeur->latitude);
+        $this->assertEquals(11.5, $vendeur->longitude);
+        $this->assertEquals(4.6, $vendeur->live_latitude);
+        $this->assertEquals(11.6, $vendeur->live_longitude);
+        $this->assertNotNull($vendeur->location_updated_at);
+    }
+
+    public function test_point_fixe_ne_peut_pas_publier_de_position_live(): void
+    {
+        $user = User::factory()->create(['role' => 'vendeur']);
+        Vendeur::create([
+            'user_id' => $user->id,
+            'nom_boutique' => 'Boutique fixe',
+            'type_vendeur' => Vendeur::TYPE_POINT_FIXE,
+            'latitude' => 4.5000,
+            'longitude' => 11.5000,
+            'statut_compte' => 'actif',
+            'statut_dispo' => 'disponible',
+        ]);
+        Sanctum::actingAs($user);
+
+        $this->patchJson('/api/vendeur/position', [
+            'latitude' => 4.6000,
+            'longitude' => 11.6000,
+        ])->assertUnprocessable();
+    }
 }

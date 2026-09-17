@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
@@ -8,6 +10,7 @@ import 'app_feedback.dart';
 import 'app_preferences.dart';
 import 'client_screens.dart';
 import 'company_contact.dart';
+import 'vendor_location_service.dart';
 
 const _leaf900 = Color(0xFF1F3524);
 const _leaf700 = Color(0xFF2E4E36);
@@ -44,6 +47,11 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
         '/vendeur/disponibilite',
         body: {'statut_dispo': value},
       );
+      if (value == 'disponible') {
+        unawaited(VendorLocationService.restart());
+      } else {
+        unawaited(VendorLocationService.stop());
+      }
       if (!mounted) return;
       await AppFeedback.success(
         context,
