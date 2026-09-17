@@ -883,7 +883,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   );
                 }
                 return SizedBox(
-                  height: 342,
+                  height: 376,
                   child: ListView.separated(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     scrollDirection: Axis.horizontal,
@@ -1808,9 +1808,18 @@ class HomeApi {
     final response = await http
         .get(Uri.parse('${ApiConfig.baseUrl}/avis-publics?par_page=50'))
         .timeout(const Duration(seconds: 8));
-    if (response.statusCode != 200) throw Exception('Avis indisponibles');
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
-    return (body['data'] as List<dynamic>? ?? [])
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      return (body['data'] as List<dynamic>? ?? [])
+          .map((item) => HomeReview.fromJson(item as Map<String, dynamic>))
+          .toList();
+    }
+    final fallback = await http
+        .get(Uri.parse('${ApiConfig.baseUrl}/accueil'))
+        .timeout(const Duration(seconds: 8));
+    if (fallback.statusCode != 200) throw Exception('Avis indisponibles');
+    final body = jsonDecode(fallback.body) as Map<String, dynamic>;
+    return (body['avis'] as List<dynamic>? ?? [])
         .map((item) => HomeReview.fromJson(item as Map<String, dynamic>))
         .toList();
   }
@@ -2117,6 +2126,28 @@ class ProductCard extends StatelessWidget {
                         color: HotKokiColors.inkSoft,
                         fontSize: 10,
                         height: 1.3,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Complément(s)',
+                      style: TextStyle(
+                        color: HotKokiColors.inkSoft,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      product.sides.isEmpty
+                          ? 'À sélectionner lors de la commande'
+                          : product.sides.join('  •  '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: HotKokiColors.leaf700,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                     const Spacer(),
