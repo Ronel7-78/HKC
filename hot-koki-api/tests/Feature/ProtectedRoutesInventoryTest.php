@@ -10,6 +10,7 @@ class ProtectedRoutesInventoryTest extends TestCase
 {
     private const PUBLIC_API_ROUTES = [
         'api/accueil',
+        'api/avis-publics',
         'api/catalogue',
         'api/email/resend',
         'api/email/verify',

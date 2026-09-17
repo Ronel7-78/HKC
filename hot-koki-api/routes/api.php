@@ -37,6 +37,7 @@ Route::post('/reset-password', [EmailAuthController::class, 'resetPassword'])->m
 Route::get('/health', HealthController::class)->middleware('throttle:health');
 Route::get('/catalogue', [CatalogueController::class, 'index']);
 Route::get('/accueil', AccueilController::class);
+Route::get('/avis-publics', [AccueilController::class, 'avis']);
 Route::match(['post', 'put'], '/webhooks/mtn-momo/{transactionHash}', MtnMomoWebhookController::class)
     ->middleware('throttle:webhook')
     ->where('transactionHash', '[A-Za-z0-9]{64}');

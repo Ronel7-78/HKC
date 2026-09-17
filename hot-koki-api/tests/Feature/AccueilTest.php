@@ -99,6 +99,23 @@ class AccueilTest extends TestCase
             ->assertJsonPath('produits.0.complements.0.id', $complement->id);
     }
 
+    public function test_la_page_publique_des_avis_est_paginee(): void
+    {
+        [$client, $vendeur, $commande] = $this->contexteCommande();
+        Avis::create([
+            'commande_id' => $commande->id,
+            'client_id' => $client->id,
+            'vendeur_id' => $vendeur->id,
+            'note' => 5,
+            'commentaire' => 'Une excellente expérience.',
+        ]);
+
+        $this->getJson('/api/avis-publics')
+            ->assertOk()
+            ->assertJsonPath('data.0.commentaire', 'Une excellente expérience.')
+            ->assertJsonPath('data.0.vendeur.nom_boutique', 'Koki Test');
+    }
+
     /** @return array{Client, Vendeur, Commande} */
     private function contexteCommande(): array
     {

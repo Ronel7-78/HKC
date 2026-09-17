@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Annonce;
 use App\Models\Avis;
 use App\Models\Vendeur;
+use Illuminate\Http\Request;
 
 class AccueilController extends Controller
 {
@@ -37,5 +38,17 @@ class AccueilController extends Controller
                 ->limit(6)
                 ->get(),
         ]);
+    }
+
+    public function avis(Request $request)
+    {
+        return response()->json(
+            Avis::query()
+                ->whereNotNull('commentaire')
+                ->where('commentaire', '<>', '')
+                ->with('client.user:id,name', 'vendeur:id,nom_boutique')
+                ->latest()
+                ->paginate(min(max((int) $request->query('par_page', 20), 1), 50))
+        );
     }
 }
