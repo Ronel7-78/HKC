@@ -1000,7 +1000,7 @@ class VendorDetailScreen extends StatelessWidget {
                           if (vendor.acceptsExpress)
                             const Chip(
                               avatar: Icon(Icons.bolt_rounded, size: 17),
-                              label: Text('Express · 500 FCFA'),
+                              label: Text('Livraison Express · 500 FCFA'),
                             ),
                         ],
                       ),

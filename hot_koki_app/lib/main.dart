@@ -1058,7 +1058,7 @@ class _FixedPointsSection extends StatelessWidget {
                                   if (point.express)
                                     const _MiniFeature(
                                       icon: Icons.bolt_rounded,
-                                      label: 'Express',
+                                      label: 'Livraison Express',
                                     ),
                                   const Spacer(),
                                   const Text(
@@ -1125,7 +1125,7 @@ class _HomeDeliveryMode extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       const Text(
-        'Comment recevoir votre commande ?',
+        'Comment recevoir votre commande ? (Type de Livraison)',
         style: TextStyle(
           color: HotKokiColors.leaf900,
           fontSize: 16,

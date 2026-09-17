@@ -570,7 +570,7 @@ class SellerOrderCard extends StatelessWidget {
                         ),
                       Text(
                         order['livraison_express'] == true
-                            ? 'EXPRESS · 500 FCFA'
+                            ? 'LIVRAISON EXPRESS · 500 FCFA'
                             : 'LIVRAISON STANDARD · 0 FCFA',
                         style: const TextStyle(
                           color: _flame600,
