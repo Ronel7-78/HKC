@@ -109,6 +109,7 @@ Route::middleware(['auth:sanctum', 'isAdmin', 'throttle:admin'])->prefix('admin'
     Route::get('/dashboard', AdminDashboardController::class);
     Route::get('/commandes', [AdminDashboardController::class, 'commandes']);
     Route::get('/paiements', [AdminPaiementController::class, 'index']);
+    Route::get('/paiements-export', [AdminPaiementController::class, 'export']);
     Route::get('/paiements/{paiement}', [AdminPaiementController::class, 'show']);
     Route::get('/profile', [AdminController::class, 'show']);
     Route::put('/profile', [AdminController::class, 'update']);

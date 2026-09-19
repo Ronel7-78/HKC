@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import 'api_config.dart';
 import 'admin_announcements_screen.dart';
@@ -241,6 +243,7 @@ class _AdminTransactionsScreenState extends State<AdminTransactionsScreen> {
   final _search = TextEditingController();
   String? _provider;
   String? _status;
+  bool _exporting = false;
   late Future<Map<String, dynamic>> _future;
 
   @override
@@ -256,12 +259,7 @@ class _AdminTransactionsScreenState extends State<AdminTransactionsScreen> {
   }
 
   void _reload() {
-    final query = <String, String>{
-      if (_search.text.trim().isNotEmpty) 'recherche': _search.text.trim(),
-      'fournisseur': ?_provider,
-      'statut': ?_status,
-      'par_page': '50',
-    };
+    final query = _filters();
     final suffix = Uri(queryParameters: query).query;
     _future = ClientApi.request(
       'GET',
@@ -277,6 +275,44 @@ class _AdminTransactionsScreenState extends State<AdminTransactionsScreen> {
   void _applyFilters() {
     FocusScope.of(context).unfocus();
     setState(_reload);
+  }
+
+  Map<String, String> _filters({bool paginate = true}) => <String, String>{
+    if (_search.text.trim().isNotEmpty) 'recherche': _search.text.trim(),
+    'fournisseur': ?_provider,
+    'statut': ?_status,
+    if (paginate) 'par_page': '50',
+  };
+
+  Future<void> _exportCsv() async {
+    if (_exporting) return;
+    setState(() => _exporting = true);
+    try {
+      final suffix = Uri(queryParameters: _filters(paginate: false)).query;
+      final bytes = await ClientApi.download(
+        '/admin/paiements-export${suffix.isEmpty ? '' : '?$suffix'}',
+      );
+      final now = DateTime.now();
+      String two(int value) => value.toString().padLeft(2, '0');
+      final filename =
+          'transactions-hot-koki-${now.year}-${two(now.month)}-${two(now.day)}-'
+          '${two(now.hour)}${two(now.minute)}${two(now.second)}.csv';
+      final directory = await getTemporaryDirectory();
+      final file = File('${directory.path}/$filename');
+      await file.writeAsBytes(bytes, flush: true);
+      await SharePlus.instance.share(
+        ShareParams(
+          title: 'Export des transactions Hot Koki',
+          subject: 'Historique des transactions Hot Koki',
+          text: 'Export CSV des transactions Hot Koki.',
+          files: [XFile(file.path, mimeType: 'text/csv', name: filename)],
+        ),
+      );
+    } catch (error) {
+      if (mounted) await AppFeedback.error(context, message: error);
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
   }
 
   Future<void> _showDetails(Map<String, dynamic> payment) async {
@@ -298,7 +334,21 @@ class _AdminTransactionsScreenState extends State<AdminTransactionsScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Transactions')),
+    appBar: AppBar(
+      title: const Text('Transactions'),
+      actions: [
+        IconButton(
+          tooltip: 'Exporter en CSV',
+          onPressed: _exporting ? null : _exportCsv,
+          icon: _exporting
+              ? const SizedBox.square(
+                  dimension: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.download_rounded),
+        ),
+      ],
+    ),
     body: RefreshIndicator(
       onRefresh: _refresh,
       child: ListView(

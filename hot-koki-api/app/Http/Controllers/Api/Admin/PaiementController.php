@@ -12,7 +12,75 @@ class PaiementController extends Controller
 {
     public function index(Request $request)
     {
-        $validated = $request->validate([
+        $validated = $this->validerFiltres($request, true);
+        $query = $this->requeteFiltree($validated)->latest();
+
+        $paiements = $query->paginate($validated['par_page'] ?? 30)->withQueryString();
+        $paiements->through(fn (Paiement $paiement) => $this->presenter($paiement));
+
+        return response()->json($paiements);
+    }
+
+    public function export(Request $request)
+    {
+        $validated = $this->validerFiltres($request);
+        $filename = 'transactions-hot-koki-'.now()->format('Y-m-d-His').'.csv';
+
+        return response()->streamDownload(function () use ($validated): void {
+            $output = fopen('php://output', 'wb');
+            fwrite($output, "\xEF\xBB\xBF");
+            fputcsv($output, [
+                'Référence Hot Koki',
+                'Référence opérateur',
+                'Opérateur',
+                'Commande',
+                'Client',
+                'Vendeur',
+                'Téléphone masqué',
+                'Montant payé',
+                'Devise',
+                'Statut',
+                'Code erreur',
+                'Date initiation',
+                'Date confirmation',
+                'Date création',
+            ], ';');
+
+            $this->requeteFiltree($validated)
+                ->orderBy('id')
+                ->chunkById(500, function ($paiements) use ($output): void {
+                    foreach ($paiements as $paiement) {
+                        $commande = $paiement->commande;
+                        fputcsv($output, array_map($this->securiserCelluleCsv(...), [
+                            $paiement->public_id,
+                            $paiement->reference_operateur,
+                            $paiement->fournisseur === Paiement::FOURNISSEUR_ORANGE_MONEY ? 'Orange Money' : 'MTN MoMo',
+                            $commande?->public_id,
+                            $commande?->client?->user?->name,
+                            $commande?->vendeur?->nom_boutique,
+                            $paiement->telephone_masque,
+                            $paiement->montant,
+                            $paiement->devise,
+                            $paiement->statut,
+                            $paiement->code_erreur,
+                            $paiement->initie_le?->format('d/m/Y H:i:s'),
+                            $paiement->confirme_le?->format('d/m/Y H:i:s'),
+                            $paiement->created_at?->format('d/m/Y H:i:s'),
+                        ]), ';');
+                    }
+                });
+
+            fclose($output);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Cache-Control' => 'private, no-store, max-age=0',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
+    private function validerFiltres(Request $request, bool $avecPagination = false): array
+    {
+        return $request->validate([
             'fournisseur' => ['nullable', Rule::in([
                 Paiement::FOURNISSEUR_MTN_MOMO,
                 Paiement::FOURNISSEUR_ORANGE_MONEY,
@@ -31,10 +99,15 @@ class PaiementController extends Controller
             'montant_min' => ['nullable', 'numeric', 'min:0'],
             'montant_max' => ['nullable', 'numeric', 'gte:montant_min'],
             'recherche' => ['nullable', 'string', 'max:255'],
-            'par_page' => ['nullable', 'integer', 'min:10', 'max:100'],
+            'par_page' => $avecPagination
+                ? ['nullable', 'integer', 'min:10', 'max:100']
+                : ['prohibited'],
         ]);
+    }
 
-        $query = Paiement::query()
+    private function requeteFiltree(array $validated): Builder
+    {
+        return Paiement::query()
             ->with([
                 'commande:id,public_id,client_id,vendeur_id,total,frais_livraison,statut',
                 'commande.client:id,user_id',
@@ -63,13 +136,7 @@ class PaiementController extends Controller
                                 ->where('name', 'like', "%{$value}%")
                                 ->orWhere('email', 'like', "%{$value}%")));
                 });
-            })
-            ->latest();
-
-        $paiements = $query->paginate($validated['par_page'] ?? 30)->withQueryString();
-        $paiements->through(fn (Paiement $paiement) => $this->presenter($paiement));
-
-        return response()->json($paiements);
+            });
     }
 
     public function show(Paiement $paiement)
@@ -126,5 +193,12 @@ class PaiementController extends Controller
                 'nom' => $commande->vendeur->nom_boutique,
             ] : null,
         ];
+    }
+
+    private function securiserCelluleCsv(mixed $value): string
+    {
+        $value = (string) ($value ?? '');
+
+        return preg_match('/^[=+\-@\t\r]/u', $value) === 1 ? "'{$value}" : $value;
     }
 }

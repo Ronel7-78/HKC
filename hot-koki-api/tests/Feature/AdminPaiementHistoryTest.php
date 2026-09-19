@@ -64,6 +64,28 @@ class AdminPaiementHistoryTest extends TestCase
         $this->getJson('/api/admin/paiements')->assertForbidden();
     }
 
+    public function test_admin_exporte_un_csv_filtre_et_sans_donnee_sensible(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        Admin::create(['user_id' => $admin->id, 'nom' => 'Administrateur']);
+        [, $mtn] = $this->createPayment(Paiement::FOURNISSEUR_MTN_MOMO, Paiement::STATUT_REUSSI, 4500);
+        $this->createPayment(Paiement::FOURNISSEUR_ORANGE_MONEY, Paiement::STATUT_ECHOUE, 2000);
+
+        Sanctum::actingAs($admin);
+
+        $response = $this->get('/api/admin/paiements-export?fournisseur=mtn_momo');
+        $response->assertOk()
+            ->assertHeader('content-type', 'text/csv; charset=UTF-8');
+
+        $csv = $response->streamedContent();
+        $this->assertStringContainsString('Référence Hot Koki', $csv);
+        $this->assertStringContainsString($mtn->public_id, $csv);
+        $this->assertStringContainsString('MTN MoMo', $csv);
+        $this->assertStringNotContainsString('Orange Money', $csv);
+        $this->assertStringNotContainsString('237670000000', $csv);
+        $this->assertStringNotContainsString('montant attribuable', mb_strtolower($csv));
+    }
+
     private function createPayment(string $provider, string $status, int $amount): array
     {
         $client = Client::create([

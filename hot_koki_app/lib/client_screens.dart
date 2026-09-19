@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -59,6 +60,16 @@ class ClientApi {
     };
     final response = await request.timeout(const Duration(seconds: 20));
     return _decodeResponse(response);
+  }
+
+  static Future<Uint8List> download(String path) async {
+    final response = await http
+        .get(Uri.parse('${ApiConfig.baseUrl}$path'), headers: await headers())
+        .timeout(const Duration(seconds: 45));
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      _decodeResponse(response);
+    }
+    return response.bodyBytes;
   }
 
   static Future<dynamic> multipart(
