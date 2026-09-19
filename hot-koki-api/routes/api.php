@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AccueilController;
 use App\Http\Controllers\Api\Admin\AnnonceController as AdminAnnonceController;
 use App\Http\Controllers\Api\Admin\ComplementController;
 use App\Http\Controllers\Api\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Api\Admin\PaiementController as AdminPaiementController;
 use App\Http\Controllers\Api\Admin\ProduitController as AdminProduitController;
 use App\Http\Controllers\Api\Admin\VendeurController as AdminVendeurController;
 use App\Http\Controllers\Api\AdminController;
@@ -107,6 +108,8 @@ Route::middleware(['auth:sanctum', 'email.verified'])->group(function () {
 Route::middleware(['auth:sanctum', 'isAdmin', 'throttle:admin'])->prefix('admin')->group(function () {
     Route::get('/dashboard', AdminDashboardController::class);
     Route::get('/commandes', [AdminDashboardController::class, 'commandes']);
+    Route::get('/paiements', [AdminPaiementController::class, 'index']);
+    Route::get('/paiements/{paiement}', [AdminPaiementController::class, 'show']);
     Route::get('/profile', [AdminController::class, 'show']);
     Route::put('/profile', [AdminController::class, 'update']);
 

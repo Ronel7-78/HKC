@@ -181,6 +181,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   ),
                 ],
               ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const AdminTransactionsScreen(),
+                  ),
+                ),
+                icon: const Icon(Icons.manage_search_rounded),
+                label: const Text('Historique des transactions'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _leaf700,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                ),
+              ),
               const SizedBox(height: 24),
               const _AdminSectionTitle('Chiffre d’affaires par vendeur'),
               const SizedBox(height: 9),
@@ -212,6 +227,406 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       },
     ),
   );
+}
+
+class AdminTransactionsScreen extends StatefulWidget {
+  const AdminTransactionsScreen({super.key});
+
+  @override
+  State<AdminTransactionsScreen> createState() =>
+      _AdminTransactionsScreenState();
+}
+
+class _AdminTransactionsScreenState extends State<AdminTransactionsScreen> {
+  final _search = TextEditingController();
+  String? _provider;
+  String? _status;
+  late Future<Map<String, dynamic>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  void _reload() {
+    final query = <String, String>{
+      if (_search.text.trim().isNotEmpty) 'recherche': _search.text.trim(),
+      'fournisseur': ?_provider,
+      'statut': ?_status,
+      'par_page': '50',
+    };
+    final suffix = Uri(queryParameters: query).query;
+    _future = ClientApi.request(
+      'GET',
+      '/admin/paiements${suffix.isEmpty ? '' : '?$suffix'}',
+    ).then((value) => value as Map<String, dynamic>);
+  }
+
+  Future<void> _refresh() async {
+    setState(_reload);
+    await _future;
+  }
+
+  void _applyFilters() {
+    FocusScope.of(context).unfocus();
+    setState(_reload);
+  }
+
+  Future<void> _showDetails(Map<String, dynamic> payment) async {
+    try {
+      final details =
+          await ClientApi.request('GET', '/admin/paiements/${payment['id']}')
+              as Map<String, dynamic>;
+      if (!mounted) return;
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        builder: (_) => _TransactionDetails(payment: details),
+      );
+    } catch (error) {
+      if (mounted) await AppFeedback.error(context, message: error);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Transactions')),
+    body: RefreshIndicator(
+      onRefresh: _refresh,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+        children: [
+          TextField(
+            controller: _search,
+            textInputAction: TextInputAction.search,
+            onSubmitted: (_) => _applyFilters(),
+            decoration: InputDecoration(
+              hintText: 'Référence, client ou vendeur',
+              prefixIcon: const Icon(Icons.search_rounded),
+              suffixIcon: IconButton(
+                tooltip: 'Rechercher',
+                onPressed: _applyFilters,
+                icon: const Icon(Icons.arrow_forward_rounded),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String?>(
+                  initialValue: _provider,
+                  decoration: const InputDecoration(labelText: 'Opérateur'),
+                  items: const [
+                    DropdownMenuItem(value: null, child: Text('Tous')),
+                    DropdownMenuItem(
+                      value: 'mtn_momo',
+                      child: Text('MTN MoMo'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'orange_money',
+                      child: Text('Orange Money'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    _provider = value;
+                    _applyFilters();
+                  },
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: DropdownButtonFormField<String?>(
+                  initialValue: _status,
+                  decoration: const InputDecoration(labelText: 'Statut'),
+                  items: const [
+                    DropdownMenuItem(value: null, child: Text('Tous')),
+                    DropdownMenuItem(value: 'initie', child: Text('Initiée')),
+                    DropdownMenuItem(
+                      value: 'en_attente',
+                      child: Text('En attente'),
+                    ),
+                    DropdownMenuItem(value: 'reussi', child: Text('Réussie')),
+                    DropdownMenuItem(value: 'echoue', child: Text('Échouée')),
+                    DropdownMenuItem(value: 'expire', child: Text('Expirée')),
+                    DropdownMenuItem(value: 'annule', child: Text('Annulée')),
+                  ],
+                  onChanged: (value) {
+                    _status = value;
+                    _applyFilters();
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          FutureBuilder<Map<String, dynamic>>(
+            future: _future,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Padding(
+                  padding: EdgeInsets.only(top: 80),
+                  child: Center(
+                    child: CircularProgressIndicator(color: _flame500),
+                  ),
+                );
+              }
+              if (snapshot.hasError) {
+                return _AdminError(
+                  error: snapshot.error!,
+                  retry: () => setState(_reload),
+                );
+              }
+              final rows = snapshot.data?['data'] as List<dynamic>? ?? const [];
+              if (rows.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.only(top: 70),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.receipt_long_outlined,
+                        size: 48,
+                        color: _inkSoft,
+                      ),
+                      SizedBox(height: 10),
+                      Text('Aucune transaction pour ces critères.'),
+                    ],
+                  ),
+                );
+              }
+              return Column(
+                children: rows
+                    .map(
+                      (raw) => _TransactionCard(
+                        payment: raw as Map<String, dynamic>,
+                        onTap: () => _showDetails(raw),
+                      ),
+                    )
+                    .toList(),
+              );
+            },
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _TransactionCard extends StatelessWidget {
+  const _TransactionCard({required this.payment, required this.onTap});
+
+  final Map<String, dynamic> payment;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final vendor = payment['vendeur'] as Map<String, dynamic>?;
+    final client = payment['client'] as Map<String, dynamic>?;
+    final status = payment['statut']?.toString() ?? '';
+    final successful = status == 'reussi';
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: ListTile(
+        onTap: onTap,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        leading: CircleAvatar(
+          backgroundColor: successful ? _leaf100 : const Color(0xFFFFECE4),
+          child: Icon(
+            payment['operateur'] == 'orange_money'
+                ? Icons.account_balance_wallet_rounded
+                : Icons.phone_android_rounded,
+            color: successful ? _leaf700 : _flame600,
+          ),
+        ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                vendor?['nom']?.toString() ?? 'Vendeur',
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '${_money(payment['montant'])} ${payment['devise'] ?? 'XAF'}',
+              style: const TextStyle(
+                color: _leaf900,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+        subtitle: Text(
+          '${_providerLabel(payment['operateur'])} · ${_paymentStatusLabel(status)}\n'
+          '${client?['nom'] ?? 'Client'} · ${payment['telephone_masque'] ?? 'Numéro masqué'}',
+        ),
+        isThreeLine: true,
+        trailing: const Icon(Icons.chevron_right_rounded),
+      ),
+    );
+  }
+}
+
+class _TransactionDetails extends StatelessWidget {
+  const _TransactionDetails({required this.payment});
+
+  final Map<String, dynamic> payment;
+
+  @override
+  Widget build(BuildContext context) {
+    final events = payment['evenements'] as List<dynamic>? ?? const [];
+    final vendor = payment['vendeur'] as Map<String, dynamic>?;
+    final client = payment['client'] as Map<String, dynamic>?;
+    final order = payment['commande'] as Map<String, dynamic>?;
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: .82,
+      maxChildSize: .96,
+      builder: (_, controller) => ListView(
+        controller: controller,
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 30),
+        children: [
+          Center(
+            child: Container(
+              width: 42,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.black26,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          const Text(
+            'Détail de la transaction',
+            style: TextStyle(
+              color: _leaf900,
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _TransactionInfo('Opérateur', _providerLabel(payment['operateur'])),
+          _TransactionInfo(
+            'Statut',
+            _paymentStatusLabel(payment['statut']?.toString() ?? ''),
+          ),
+          _TransactionInfo(
+            'Montant payé',
+            '${_money(payment['montant'])} ${payment['devise'] ?? 'XAF'}',
+          ),
+          _TransactionInfo('Vendeur', vendor?['nom']?.toString() ?? '—'),
+          _TransactionInfo('Client', client?['nom']?.toString() ?? '—'),
+          _TransactionInfo(
+            'Téléphone payeur',
+            payment['telephone_masque']?.toString() ?? '—',
+          ),
+          _TransactionInfo(
+            'Référence Hot Koki',
+            payment['reference_hot_koki']?.toString() ?? '—',
+          ),
+          _TransactionInfo(
+            'Référence opérateur',
+            payment['reference_operateur']?.toString() ?? 'Non attribuée',
+          ),
+          _TransactionInfo('Commande', order?['id']?.toString() ?? '—'),
+          if (payment['message_erreur'] != null)
+            _TransactionInfo('Motif', payment['message_erreur'].toString()),
+          const SizedBox(height: 20),
+          const Text(
+            'Chronologie',
+            style: TextStyle(
+              color: _leaf900,
+              fontSize: 17,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (events.isEmpty)
+            const Text(
+              'Aucun changement de statut enregistré.',
+              style: TextStyle(color: _inkSoft),
+            )
+          else
+            ...events.map((raw) {
+              final event = raw as Map<String, dynamic>;
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.circle, size: 12, color: _flame500),
+                title: Text(
+                  _paymentStatusLabel(event['nouveau_statut'].toString()),
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                subtitle: Text(
+                  [
+                    if (event['message'] != null) event['message'].toString(),
+                    _formatTransactionDate(event['date']),
+                  ].where((value) => value.isNotEmpty).join('\n'),
+                ),
+              );
+            }),
+        ],
+      ),
+    );
+  }
+}
+
+class _TransactionInfo extends StatelessWidget {
+  const _TransactionInfo(this.label, this.value);
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 130,
+          child: Text(label, style: const TextStyle(color: _inkSoft)),
+        ),
+        Expanded(
+          child: SelectableText(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+String _providerLabel(dynamic value) =>
+    value == 'orange_money' ? 'Orange Money' : 'MTN MoMo';
+
+String _paymentStatusLabel(String value) =>
+    {
+      'initie': 'Initiée',
+      'en_attente': 'En attente',
+      'reussi': 'Réussie',
+      'echoue': 'Échouée',
+      'expire': 'Expirée',
+      'annule': 'Annulée',
+    }[value] ??
+    value;
+
+String _formatTransactionDate(dynamic value) {
+  final date = DateTime.tryParse(value?.toString() ?? '')?.toLocal();
+  if (date == null) return '';
+  String two(int number) => number.toString().padLeft(2, '0');
+  return '${two(date.day)}/${two(date.month)}/${date.year} '
+      '${two(date.hour)}:${two(date.minute)}';
 }
 
 class AdminVendorsScreen extends StatefulWidget {

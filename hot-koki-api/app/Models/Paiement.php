@@ -88,11 +88,39 @@ class Paiement extends Model
             $paiement->reference_interne ??= (string) Str::uuid();
             $paiement->telephone_masque ??= substr($paiement->telephone, 0, 5).'****'.substr($paiement->telephone, -3);
         });
+
+        static::created(function (Paiement $paiement): void {
+            $paiement->evenements()->create([
+                'nouveau_statut' => $paiement->statut ?? self::STATUT_INITIE,
+                'source' => 'systeme',
+                'code' => $paiement->code_erreur,
+                'message' => 'Demande de paiement enregistrée.',
+            ]);
+        });
+
+        static::updated(function (Paiement $paiement): void {
+            if (! $paiement->wasChanged(['statut', 'code_erreur', 'message_erreur'])) {
+                return;
+            }
+
+            $paiement->evenements()->create([
+                'ancien_statut' => $paiement->getOriginal('statut'),
+                'nouveau_statut' => $paiement->statut,
+                'source' => 'systeme',
+                'code' => $paiement->code_erreur,
+                'message' => $paiement->message_erreur,
+            ]);
+        });
     }
 
     public function commande()
     {
         return $this->belongsTo(Commande::class);
+    }
+
+    public function evenements()
+    {
+        return $this->hasMany(PaiementEvenement::class)->oldest();
     }
 
     /**
