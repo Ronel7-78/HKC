@@ -13,9 +13,17 @@ Services permanents :
 - `php artisan schedule:run` chaque minute ;
 - certificat HTTPS avec renouvellement automatique.
 
-Le déploiement exécute `scripts/deploy.sh`. Avant la première mise en ligne,
-remplacer les domaines `example.com`, créer `APP_KEY`, provisionner la base,
-Redis, le stockage objet et les secrets MTN propres à l’environnement.
+Le déploiement exécute `scripts/deploy.sh`. Les domaines retenus sont :
+
+- site public / URL à communiquer dans les dossiers KYC : `https://hotkokichaud.digital` ;
+- API de production : `https://api.hotkokichaud.digital` ;
+- API de staging : `https://api-staging.hotkokichaud.digital`.
+
+Avant la première mise en ligne, créer une `APP_KEY` différente du staging,
+provisionner une base, Redis et un stockage objet isolés, puis injecter les
+secrets propres à la production. Ne jamais recopier les identifiants sandbox.
+Les paiements restent désactivés tant que les opérateurs n'ont pas livré et
+validé les paramètres de production.
 
 ## Flutter Android
 
@@ -29,14 +37,14 @@ Staging :
 
 ```bash
 flutter build appbundle --flavor staging --release \
-  --dart-define=API_BASE_URL=https://staging-api.example.com/api
+  --dart-define=API_BASE_URL=https://api-staging.hotkokichaud.digital/api
 ```
 
 Production :
 
 ```bash
 flutter build appbundle --flavor production --release \
-  --dart-define=API_BASE_URL=https://api.example.com/api \
+  --dart-define=API_BASE_URL=https://api.hotkokichaud.digital/api \
   --obfuscate --split-debug-info=build/symbols/android
 ```
 
@@ -59,7 +67,7 @@ La construction App Store nécessite macOS et Xcode :
 
 ```bash
 flutter build ipa --flavor production --release \
-  --dart-define=API_BASE_URL=https://api.example.com/api \
+  --dart-define=API_BASE_URL=https://api.hotkokichaud.digital/api \
   --obfuscate --split-debug-info=build/symbols/ios
 ```
 
