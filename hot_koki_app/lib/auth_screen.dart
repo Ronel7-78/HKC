@@ -140,7 +140,7 @@ class _AuthScreenState extends State<AuthScreen> {
     } catch (error) {
       if (mounted) {
         final message = error is TimeoutException
-            ? 'Le serveur Hot Koki ne répond pas. Vérifiez que Laravel est démarré et que le téléphone utilise le même réseau.'
+            ? 'Le serveur Hot Koki Chaud ne répond pas. Vérifiez votre connexion internet et reéssayez.'
             : error.toString().replaceFirst('Exception: ', '');
         setState(() => _error = message);
         await AppFeedback.error(context, message: message);

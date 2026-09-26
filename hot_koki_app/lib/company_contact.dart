@@ -52,7 +52,7 @@ class CompanyCopyrightFooter extends StatelessWidget {
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         Text(
-          '© ${DateTime.now().year} Hot Koki · ',
+          '© ${DateTime.now().year} Hot Koki Chaud· ',
           style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
         ),
         InkWell(

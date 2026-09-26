@@ -614,7 +614,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       return;
     }
     if (_phone.text.trim().isEmpty) {
-      setState(() => _error = 'Renseignez le numéro Mobile Money à débiter.');
+      setState(() => _error = 'Renseignez le numéro à débiter.');
       return;
     }
     final selected = _paymentMethods.where(
@@ -918,7 +918,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 controller: _phone,
                 keyboardType: TextInputType.phone,
                 decoration: const InputDecoration(
-                  labelText: 'Numéro Mobile Money à débiter',
+                  labelText: 'Numéro à débiter',
                   hintText: '6XXXXXXXX',
                   prefixIcon: Icon(Icons.phone_android),
                   filled: true,

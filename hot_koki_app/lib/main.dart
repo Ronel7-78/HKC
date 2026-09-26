@@ -814,7 +814,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                 const SizedBox(height: 18),
                 Text(
                   widget.userName == null
-                      ? 'Bienvenue chez Hot Koki 👋'
+                      ? 'Bienvenue chez Hot Koki Chaud'
                       : 'Bonjour ${widget.userName} 👋',
                   style: TextStyle(
                     fontSize: 21,
@@ -862,7 +862,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                 }
                 if (snapshot.hasError) {
                   return AppErrorState(
-                    title: 'Hot Koki est hors ligne',
+                    title: 'Hot Koki Chaud est hors ligne',
                     message:
                         'Impossible de joindre le serveur. Vérifiez votre connexion Internet puis réessayez.',
                     onRetry: () => setState(() {
@@ -1125,7 +1125,7 @@ class _HomeDeliveryMode extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       const Text(
-        'Comment recevoir votre commande ? (Type de Livraison)',
+        'Comment recevoir votre commande ?',
         style: TextStyle(
           color: HotKokiColors.leaf900,
           fontSize: 16,

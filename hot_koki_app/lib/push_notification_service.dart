@@ -74,7 +74,7 @@ class PushNotificationService {
         await LocalNotificationService.show(
           title: 'Notifications activées',
           body:
-              'Vous recevrez ici le suivi de vos commandes et paiements Hot Koki.',
+              'Vous recevrez ici le suivi de vos commandes et paiements Hot Koki Chaud.',
           payload: 'notifications_activees',
         );
         await ClientApi.storage.write(

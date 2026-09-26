@@ -302,9 +302,9 @@ class _AdminTransactionsScreenState extends State<AdminTransactionsScreen> {
       await file.writeAsBytes(bytes, flush: true);
       await SharePlus.instance.share(
         ShareParams(
-          title: 'Export des transactions Hot Koki',
-          subject: 'Historique des transactions Hot Koki',
-          text: 'Export CSV des transactions Hot Koki.',
+          title: 'Export des transactions Hot Koki Chaud',
+          subject: 'Historique des transactions Hot Koki  Chaud',
+          text: 'Export CSV des transactions Hot Koki Chaud.',
           files: [XFile(file.path, mimeType: 'text/csv', name: filename)],
         ),
       );
