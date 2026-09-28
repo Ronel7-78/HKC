@@ -3,12 +3,12 @@
 namespace App\Jobs;
 
 use App\Models\Paiement;
-use App\Services\Payments\OrangeMoneyService;
+use App\Services\Payments\FlutterwaveService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use RuntimeException;
 
-class VerifierPaiementOrange implements ShouldQueue
+class VerifierPaiementFlutterwave implements ShouldQueue
 {
     use Queueable;
 
@@ -18,17 +18,16 @@ class VerifierPaiementOrange implements ShouldQueue
 
     public function __construct(public int $paiementId) {}
 
-    public function handle(OrangeMoneyService $orangeMoney): void
+    public function handle(FlutterwaveService $flutterwave): void
     {
         $paiement = Paiement::find($this->paiementId);
-        if ($paiement
-            && $paiement->passerelle === Paiement::PASSERELLE_DIRECTE
-            && $paiement->fournisseur === Paiement::FOURNISSEUR_ORANGE_MONEY
+
+        if ($paiement?->passerelle === Paiement::PASSERELLE_FLUTTERWAVE
             && in_array($paiement->statut, Paiement::STATUTS_ACTIFS, true)) {
             try {
-                $orangeMoney->synchroniser($paiement);
+                $flutterwave->synchroniser($paiement);
             } catch (RuntimeException) {
-                // La prochaine synchronisation reprendra après une panne Orange.
+                // Le scheduler reprendra la vérification après l'incident temporaire.
             }
         }
     }

@@ -1,9 +1,11 @@
 <?php
 
+use App\Jobs\VerifierPaiementFlutterwave;
 use App\Jobs\VerifierPaiementMtn;
 use App\Jobs\VerifierPaiementOrange;
 use App\Models\EmailAuthCode;
 use App\Models\Paiement;
+use App\Services\Payments\FlutterwaveService;
 use App\Services\Payments\MtnMomoService;
 use App\Services\Payments\OrangeMoneyService;
 use Illuminate\Foundation\Inspiring;
@@ -98,6 +100,45 @@ Artisan::command('orange:check-env', function () {
     return 0;
 })->purpose('Vérifier la présence des secrets Orange Money sans les afficher');
 
+Artisan::command('flutterwave:check-env', function () {
+    $required = [
+        'FLUTTERWAVE_SECRET_KEY' => 'secret_key',
+        'FLUTTERWAVE_WEBHOOK_SECRET' => 'webhook_secret',
+        'FLUTTERWAVE_CALLBACK_BASE_URL' => 'callback_base_url',
+    ];
+    $missing = [];
+    foreach ($required as $environmentName => $configName) {
+        if (blank(config('services.flutterwave.'.$configName))) {
+            $missing[] = $environmentName;
+        }
+    }
+    if ($missing !== []) {
+        $this->error('Configuration Flutterwave incomplète. Variables à renseigner :');
+        foreach ($missing as $name) {
+            $this->line(' - '.$name);
+        }
+
+        return 1;
+    }
+    $this->info('Toutes les variables Flutterwave requises sont présentes.');
+    $this->comment('Aucune valeur secrète n’a été affichée et aucun paiement n’a été initié.');
+
+    return 0;
+})->purpose('Vérifier la présence des secrets Flutterwave sans les afficher');
+
+Artisan::command('flutterwave:test-config', function () {
+    try {
+        app(FlutterwaveService::class)->testerConfiguration();
+        $this->info('Configuration Flutterwave valide.');
+    } catch (Throwable $exception) {
+        $this->error($exception->getMessage());
+
+        return 1;
+    }
+
+    return 0;
+})->purpose('Valider les identifiants Flutterwave sans afficher les secrets');
+
 Artisan::command('deploy:check', function () {
     $errors = [];
     if (Artisan::call('security:check-secrets') !== 0) {
@@ -164,16 +205,37 @@ Artisan::command('deploy:check', function () {
     if (config('mail.from.address') === 'hello@example.com') {
         $errors[] = 'MAIL_FROM_ADDRESS doit utiliser une adresse Hot Koki valide.';
     }
-    foreach (['base_url', 'subscription_key', 'api_user', 'api_key', 'callback_base_url'] as $key) {
-        if (! config('services.mtn_momo.'.$key)) {
-            $errors[] = 'Configuration MTN absente : '.$key.'.';
+    $paymentGateway = config('payments.gateway');
+    if (! in_array($paymentGateway, [Paiement::PASSERELLE_DIRECTE, Paiement::PASSERELLE_FLUTTERWAVE], true)) {
+        $errors[] = 'PAYMENT_GATEWAY doit valoir direct ou flutterwave.';
+    }
+    if ($paymentGateway === Paiement::PASSERELLE_FLUTTERWAVE) {
+        if (! config('services.flutterwave.enabled')) {
+            $errors[] = 'Flutterwave doit être activé pour la passerelle sélectionnée.';
+        }
+        foreach (['base_url', 'secret_key', 'webhook_secret', 'callback_base_url'] as $key) {
+            if (! config('services.flutterwave.'.$key)) {
+                $errors[] = 'Configuration Flutterwave absente : '.$key.'.';
+            }
+        }
+    } else {
+        foreach (['base_url', 'subscription_key', 'api_user', 'api_key', 'callback_base_url'] as $key) {
+            if (! config('services.mtn_momo.'.$key)) {
+                $errors[] = 'Configuration MTN absente : '.$key.'.';
+            }
         }
     }
     if ($environment === 'production') {
-        if (config('services.mtn_momo.target_environment') === 'sandbox') {
+        if ($paymentGateway === Paiement::PASSERELLE_FLUTTERWAVE
+            && config('services.flutterwave.environment') !== 'production') {
+            $errors[] = 'Flutterwave sandbox est interdit en production.';
+        }
+        if ($paymentGateway === Paiement::PASSERELLE_DIRECTE
+            && config('services.mtn_momo.target_environment') === 'sandbox') {
             $errors[] = 'MTN sandbox est interdit en production.';
         }
-        if (! config('services.mtn_momo.callback_allowed_ips')) {
+        if ($paymentGateway === Paiement::PASSERELLE_DIRECTE
+            && ! config('services.mtn_momo.callback_allowed_ips')) {
             $errors[] = 'Les IP de callback MTN doivent être autorisées en production.';
         }
         if (config('services.orange_money.enabled')
@@ -196,7 +258,12 @@ Artisan::command('deploy:check', function () {
 })->purpose('Vérifier les exigences avant un déploiement staging ou production');
 
 Schedule::call(function () {
+    if (config('payments.gateway') !== Paiement::PASSERELLE_DIRECTE
+        || ! config('services.mtn_momo.enabled')) {
+        return;
+    }
     Paiement::query()
+        ->where('passerelle', Paiement::PASSERELLE_DIRECTE)
         ->where('fournisseur', Paiement::FOURNISSEUR_MTN_MOMO)
         ->whereIn('statut', Paiement::STATUTS_ACTIFS)
         ->where('tentatives_statut', '<', config('services.mtn_momo.poll_max_attempts'))
@@ -209,10 +276,12 @@ Schedule::call(function () {
 })->everyMinute()->name('mtn-momo-polling')->withoutOverlapping();
 
 Schedule::call(function () {
-    if (! config('services.orange_money.enabled')) {
+    if (config('payments.gateway') !== Paiement::PASSERELLE_DIRECTE
+        || ! config('services.orange_money.enabled')) {
         return;
     }
     Paiement::query()
+        ->where('passerelle', Paiement::PASSERELLE_DIRECTE)
         ->where('fournisseur', Paiement::FOURNISSEUR_ORANGE_MONEY)
         ->whereIn('statut', Paiement::STATUTS_ACTIFS)
         ->where('tentatives_statut', '<', config('services.orange_money.poll_max_attempts'))
@@ -223,6 +292,23 @@ Schedule::call(function () {
         ->pluck('id')
         ->each(fn (int $id) => VerifierPaiementOrange::dispatch($id)->onQueue('paiements'));
 })->everyMinute()->name('orange-money-polling')->withoutOverlapping();
+
+Schedule::call(function () {
+    if (config('payments.gateway') !== Paiement::PASSERELLE_FLUTTERWAVE
+        || ! config('services.flutterwave.enabled')) {
+        return;
+    }
+    Paiement::query()
+        ->where('passerelle', Paiement::PASSERELLE_FLUTTERWAVE)
+        ->whereIn('statut', Paiement::STATUTS_ACTIFS)
+        ->where('tentatives_statut', '<', config('services.flutterwave.poll_max_attempts'))
+        ->where(function ($query) {
+            $query->whereNull('prochaine_verification_le')
+                ->orWhere('prochaine_verification_le', '<=', now());
+        })
+        ->pluck('id')
+        ->each(fn (int $id) => VerifierPaiementFlutterwave::dispatch($id)->onQueue('paiements'));
+})->everyMinute()->name('flutterwave-polling')->withoutOverlapping();
 
 Schedule::call(function () {
     EmailAuthCode::query()

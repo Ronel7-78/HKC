@@ -35,6 +35,8 @@ class PaiementTest extends TestCase
         parent::setUp();
 
         config([
+            'payments.gateway' => Paiement::PASSERELLE_DIRECTE,
+            'services.mtn_momo.enabled' => true,
             'services.mtn_momo.base_url' => 'https://sandbox.momodeveloper.mtn.com',
             'services.mtn_momo.target_environment' => 'sandbox',
             'services.mtn_momo.currency' => 'EUR',

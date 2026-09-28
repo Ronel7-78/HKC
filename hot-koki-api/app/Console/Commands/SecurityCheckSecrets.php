@@ -120,6 +120,9 @@ class SecurityCheckSecrets extends Command
             'MTN_MOMO_API_KEY' => config('services.mtn_momo.api_key'),
             'ORANGE_MONEY_CLIENT_SECRET' => config('services.orange_money.client_secret'),
             'ORANGE_MONEY_MERCHANT_KEY' => config('services.orange_money.merchant_key'),
+            'FLUTTERWAVE_SECRET_KEY' => config('services.flutterwave.secret_key'),
+            'FLUTTERWAVE_ENCRYPTION_KEY' => config('services.flutterwave.encryption_key'),
+            'FLUTTERWAVE_WEBHOOK_SECRET' => config('services.flutterwave.webhook_secret'),
         ])->filter(fn ($value) => is_string($value) && mb_strlen($value) >= 12)->all();
     }
 }

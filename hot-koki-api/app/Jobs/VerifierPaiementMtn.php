@@ -22,7 +22,10 @@ class VerifierPaiementMtn implements ShouldQueue
     {
         $paiement = Paiement::find($this->paiementId);
 
-        if ($paiement && in_array($paiement->statut, Paiement::STATUTS_ACTIFS, true)) {
+        if ($paiement
+            && $paiement->passerelle === Paiement::PASSERELLE_DIRECTE
+            && $paiement->fournisseur === Paiement::FOURNISSEUR_MTN_MOMO
+            && in_array($paiement->statut, Paiement::STATUTS_ACTIFS, true)) {
             try {
                 $mtnMomo->synchroniser($paiement);
             } catch (RuntimeException) {

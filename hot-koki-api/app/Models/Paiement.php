@@ -16,6 +16,10 @@ class Paiement extends Model
 
     public const FOURNISSEUR_ORANGE_MONEY = 'orange_money';
 
+    public const PASSERELLE_DIRECTE = 'direct';
+
+    public const PASSERELLE_FLUTTERWAVE = 'flutterwave';
+
     public const STATUT_INITIE = 'initie';
 
     public const STATUT_EN_ATTENTE = 'en_attente';
@@ -31,7 +35,7 @@ class Paiement extends Model
     public const STATUTS_ACTIFS = [self::STATUT_INITIE, self::STATUT_EN_ATTENTE];
 
     protected $fillable = [
-        'commande_id', 'reference_interne', 'reference_operateur', 'fournisseur',
+        'commande_id', 'reference_interne', 'reference_operateur', 'fournisseur', 'passerelle',
         'telephone', 'telephone_masque', 'montant', 'devise', 'statut', 'code_erreur',
         'message_erreur', 'donnees_operateur', 'initie_le', 'confirme_le',
         'callback_hash', 'tentatives_statut', 'prochaine_verification_le',
@@ -58,6 +62,10 @@ class Paiement extends Model
 
     public function getModeTestAttribute(): bool
     {
+        if ($this->passerelle === self::PASSERELLE_FLUTTERWAVE) {
+            return config('services.flutterwave.environment') === 'sandbox';
+        }
+
         return $this->fournisseur === self::FOURNISSEUR_ORANGE_MONEY
             ? config('services.orange_money.environment') === 'sandbox'
             : config('services.mtn_momo.target_environment') === 'sandbox';
@@ -65,8 +73,12 @@ class Paiement extends Model
 
     public function getUrlPaiementAttribute(): ?string
     {
-        if ($this->fournisseur !== self::FOURNISSEUR_ORANGE_MONEY
-            || ! in_array($this->statut, self::STATUTS_ACTIFS, true)) {
+        if (! in_array($this->statut, self::STATUTS_ACTIFS, true)) {
+            return null;
+        }
+
+        if ($this->passerelle !== self::PASSERELLE_FLUTTERWAVE
+            && $this->fournisseur !== self::FOURNISSEUR_ORANGE_MONEY) {
             return null;
         }
 

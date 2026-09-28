@@ -652,12 +652,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       CartStore.instance.clear();
       if (!mounted) return;
       final payment = result['paiement'] as Map<String, dynamic>;
-      final orangeUrl = Uri.tryParse(payment['url_paiement']?.toString() ?? '');
-      if (_provider == 'orange_money' &&
-          orangeUrl != null &&
-          orangeUrl.scheme == 'https' &&
-          orangeUrl.host.isNotEmpty) {
-        await launchUrl(orangeUrl, mode: LaunchMode.externalApplication);
+      final paymentUrl = Uri.tryParse(
+        payment['url_paiement']?.toString() ?? '',
+      );
+      if (paymentUrl != null &&
+          paymentUrl.scheme == 'https' &&
+          paymentUrl.host.isNotEmpty) {
+        await launchUrl(paymentUrl, mode: LaunchMode.externalApplication);
         if (!mounted) return;
       }
       await Navigator.pushReplacement(

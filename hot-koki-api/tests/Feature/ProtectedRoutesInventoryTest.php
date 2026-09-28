@@ -21,6 +21,7 @@ class ProtectedRoutesInventoryTest extends TestCase
         'api/reset-password',
         'api/webhooks/mtn-momo/{transactionHash}',
         'api/webhooks/orange-money',
+        'api/webhooks/flutterwave',
     ];
 
     public function test_toute_route_api_non_publique_exige_sanctum(): void

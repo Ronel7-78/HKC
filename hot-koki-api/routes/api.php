@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\ClientController;
 use App\Http\Controllers\Api\ClientVendeurController;
 use App\Http\Controllers\Api\CommandeController;
 use App\Http\Controllers\Api\EmailAuthController;
+use App\Http\Controllers\Api\FlutterwaveWebhookController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\MtnMomoWebhookController;
 use App\Http\Controllers\Api\NotificationController;
@@ -43,6 +44,7 @@ Route::match(['post', 'put'], '/webhooks/mtn-momo/{transactionHash}', MtnMomoWeb
     ->middleware('throttle:webhook')
     ->where('transactionHash', '[A-Za-z0-9]{64}');
 Route::post('/webhooks/orange-money', OrangeMoneyWebhookController::class)->middleware('throttle:webhook');
+Route::post('/webhooks/flutterwave', FlutterwaveWebhookController::class)->middleware('throttle:webhook');
 
 // Routes de l'utilisateur authentifie
 Route::middleware(['auth:sanctum', 'email.verified'])->group(function () {

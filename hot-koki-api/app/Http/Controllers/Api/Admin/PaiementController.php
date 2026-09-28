@@ -32,6 +32,7 @@ class PaiementController extends Controller
             fputcsv($output, [
                 'Référence Hot Koki',
                 'Référence opérateur',
+                'Passerelle',
                 'Opérateur',
                 'Commande',
                 'Client',
@@ -54,6 +55,7 @@ class PaiementController extends Controller
                         fputcsv($output, array_map($this->securiserCelluleCsv(...), [
                             $paiement->public_id,
                             $paiement->reference_operateur,
+                            $paiement->passerelle,
                             $paiement->fournisseur === Paiement::FOURNISSEUR_ORANGE_MONEY ? 'Orange Money' : 'MTN MoMo',
                             $commande?->public_id,
                             $commande?->client?->user?->name,
@@ -169,6 +171,7 @@ class PaiementController extends Controller
             'id' => $paiement->public_id,
             'reference_hot_koki' => $paiement->public_id,
             'reference_operateur' => $paiement->reference_operateur,
+            'passerelle' => $paiement->passerelle,
             'operateur' => $paiement->fournisseur,
             'statut' => $paiement->statut,
             'montant' => $paiement->montant,

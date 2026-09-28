@@ -13,6 +13,7 @@ class OrangeMoneyWebhookController extends Controller
     {
         $token = (string) $request->input('notif_token');
         $paiement = $token === '' ? null : Paiement::query()
+            ->where('passerelle', Paiement::PASSERELLE_DIRECTE)
             ->where('fournisseur', Paiement::FOURNISSEUR_ORANGE_MONEY)
             ->where('callback_hash', hash('sha256', $token))
             ->first();

@@ -13,3 +13,6 @@ Route::view('/paiements/orange/retour', 'payments.orange-result', [
 Route::view('/paiements/orange/annulation', 'payments.orange-result', [
     'success' => false,
 ])->name('payments.orange.cancel');
+
+Route::view('/paiements/flutterwave/retour', 'payments.flutterwave-result')
+    ->name('payments.flutterwave.return');

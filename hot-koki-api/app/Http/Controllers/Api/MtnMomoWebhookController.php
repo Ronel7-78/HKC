@@ -21,7 +21,11 @@ class MtnMomoWebhookController extends Controller
             return response()->json(['message' => 'Source non autorisée.'], 403);
         }
 
-        $paiement = Paiement::where('callback_hash', hash('sha256', $transactionHash))->first();
+        $paiement = Paiement::query()
+            ->where('passerelle', Paiement::PASSERELLE_DIRECTE)
+            ->where('fournisseur', Paiement::FOURNISSEUR_MTN_MOMO)
+            ->where('callback_hash', hash('sha256', $transactionHash))
+            ->first();
 
         if (! $paiement) {
             // Ne revele pas si une reference de transaction existe.
