@@ -439,7 +439,7 @@ class SellerOrderCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Commande #${order['id']}',
+                  'Commande ${order['code_commande'] ?? ''}',
                   style: const TextStyle(
                     color: _leaf900,
                     fontSize: 22,
@@ -550,7 +550,7 @@ class SellerOrderCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '#${order['id']} · ${user?['name'] ?? client?['nom'] ?? 'Client'}',
+                        '${order['code_commande'] ?? 'Commande'} · ${user?['name'] ?? client?['nom'] ?? 'Client'}',
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontWeight: FontWeight.w900),

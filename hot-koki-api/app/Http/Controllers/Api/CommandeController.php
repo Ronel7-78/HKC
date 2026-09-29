@@ -248,13 +248,13 @@ class CommandeController extends Controller
             $commande->client->user,
             'commande_creee',
             'Commande créée',
-            "Votre commande #{$commande->id} attend maintenant le paiement.",
+            "Votre commande {$commande->code_commande} attend maintenant le paiement.",
             ['commande_id' => $commande->id]
         );
         NotificationService::admins(
             'nouvelle_commande',
             'Nouvelle commande',
-            "La commande #{$commande->id} vient d’être créée.",
+            "La commande {$commande->code_commande} vient d’être créée.",
             ['commande_id' => $commande->id]
         );
 
@@ -330,7 +330,7 @@ class CommandeController extends Controller
             $commande->vendeur->user,
             'commande_annulee',
             'Commande annulée',
-            "Le client a annulé la commande #{$commande->id}.",
+            "Le client a annulé la commande {$commande->code_commande}.",
             ['commande_id' => $commande->id]
         );
 

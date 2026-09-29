@@ -8,6 +8,7 @@ use App\Models\Paiement;
 use App\Services\Payments\CamPayService;
 use App\Services\Payments\MtnMomoService;
 use App\Services\Payments\OrangeMoneyService;
+use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -66,7 +67,24 @@ class PaiementController extends Controller
                 Paiement::FOURNISSEUR_MTN_MOMO,
                 Paiement::FOURNISSEUR_ORANGE_MONEY,
             ])],
-            'telephone' => ['required', 'string', 'max:20', 'regex:'.$telephoneRegex],
+            'telephone' => [
+                'required', 'string', 'max:20', 'regex:'.$telephoneRegex,
+                function (string $attribute, mixed $value, Closure $fail) use ($request, $passerelle): void {
+                    if ($passerelle !== Paiement::PASSERELLE_CAMPAY) {
+                        return;
+                    }
+
+                    $national = preg_replace('/^237/', '', preg_replace('/\D+/', '', (string) $value));
+                    $fournisseur = $request->input('fournisseur');
+                    $mtn = preg_match('/^(?:65[0-4]|67\d)\d{6}$/', $national) === 1;
+                    $orange = preg_match('/^(?:65[5-9]|69\d)\d{6}$/', $national) === 1;
+
+                    if (($fournisseur === Paiement::FOURNISSEUR_MTN_MOMO && ! $mtn)
+                        || ($fournisseur === Paiement::FOURNISSEUR_ORANGE_MONEY && ! $orange)) {
+                        $fail('Ce numéro ne correspond pas à l’opérateur sélectionné.');
+                    }
+                },
+            ],
         ], [
             'telephone.regex' => 'Le numéro doit être un numéro camerounais valide.',
         ]);
@@ -156,7 +174,7 @@ class PaiementController extends Controller
             'message' => $paiement->wasRecentlyCreated
                 ? 'Demande de paiement envoyée à l’opérateur.'
                 : 'Une demande de paiement est déjà en cours.',
-            'paiement' => $paiement,
+            'paiement' => $paiement->load('commande'),
         ], $paiement->wasRecentlyCreated ? 201 : 200);
     }
 

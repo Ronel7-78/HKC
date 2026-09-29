@@ -46,6 +46,15 @@ class Commande extends Model
         'total' => 'decimal:2',
     ];
 
+    protected $appends = ['code_commande'];
+
+    public function getCodeCommandeAttribute(): string
+    {
+        $annee = ($this->created_at ?? now())->format('y');
+
+        return 'COM-HKC-'.str_pad((string) $this->getKey(), 6, '0', STR_PAD_LEFT).'-'.$annee;
+    }
+
     public function client()
     {
         return $this->belongsTo(Client::class);

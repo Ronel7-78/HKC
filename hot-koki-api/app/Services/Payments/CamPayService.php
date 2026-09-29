@@ -92,7 +92,10 @@ class CamPayService
         $donnees = array_filter([
             ...($paiement->donnees_operateur ?? []),
             'reference' => $reference,
+            'external_reference' => $data['external_reference'] ?? null,
             'status' => $statut,
+            'amount' => $data['amount'] ?? null,
+            'currency' => $data['currency'] ?? null,
             'operator' => $data['operator'] ?? null,
             'code' => $data['code'] ?? null,
             'operator_reference' => $data['operator_reference'] ?? null,
@@ -169,9 +172,41 @@ class CamPayService
 
     private function correspondAuPaiement(Paiement $paiement, array $data): bool
     {
-        return hash_equals($paiement->reference_interne, (string) ($data['external_reference'] ?? ''))
-            && strtoupper((string) ($data['currency'] ?? '')) === strtoupper((string) $paiement->devise)
-            && abs((float) ($data['amount'] ?? -1) - $this->montantOperateur($paiement)) < 0.01;
+        // La reference CamPay interrogee est notre ancrage obligatoire. Selon la
+        // version de l'API, certains champs metier peuvent être absents de la
+        // reponse de statut : lorsqu'ils sont fournis, ils restent strictement
+        // controles avant de confirmer la commande.
+        if (! hash_equals(
+            (string) ($paiement->donnees_operateur['reference'] ?? $paiement->reference_operateur),
+            (string) ($data['reference'] ?? ''),
+        )) {
+            return false;
+        }
+
+        if (array_key_exists('external_reference', $data)
+            && filled($data['external_reference'])
+            && ! hash_equals($paiement->reference_interne, (string) $data['external_reference'])) {
+            return false;
+        }
+
+        if (array_key_exists('currency', $data)
+            && filled($data['currency'])
+            && strtoupper((string) $data['currency']) !== strtoupper((string) $paiement->devise)) {
+            return false;
+        }
+
+        if (array_key_exists('amount', $data)
+            && is_numeric($data['amount'])
+            && abs((float) $data['amount'] - $this->montantOperateur($paiement)) >= 0.01) {
+            return false;
+        }
+
+        $operateurAttendu = $paiement->fournisseur === Paiement::FOURNISSEUR_ORANGE_MONEY
+            ? 'ORANGE'
+            : 'MTN';
+
+        return ! filled($data['operator'])
+            || strtoupper((string) $data['operator']) === $operateurAttendu;
     }
 
     private function montantOperateur(Paiement $paiement): int

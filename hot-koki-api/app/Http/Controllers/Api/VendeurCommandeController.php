@@ -67,7 +67,7 @@ class VendeurCommandeController extends Controller
             $commande->client->user,
             'statut_commande',
             'Commande mise à jour',
-            "Votre commande #{$commande->id} est désormais ".($libelles[$commande->statut] ?? $commande->statut).'.',
+            "Votre commande {$commande->code_commande} est désormais ".($libelles[$commande->statut] ?? $commande->statut).'.',
             ['commande_id' => $commande->id, 'statut' => $commande->statut]
         );
 

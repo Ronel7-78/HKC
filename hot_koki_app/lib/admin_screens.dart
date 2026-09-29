@@ -2127,7 +2127,7 @@ class _OrderSummary extends StatelessWidget {
           child: Icon(Icons.receipt_long, color: _leaf700),
         ),
         title: Text(
-          '#${order['id']} · ${vendor?['nom_boutique'] ?? 'Vendeur'}',
+          '${order['code_commande'] ?? 'Commande'} · ${vendor?['nom_boutique'] ?? 'Vendeur'}',
           style: const TextStyle(fontWeight: FontWeight.w800),
         ),
         subtitle: Text(

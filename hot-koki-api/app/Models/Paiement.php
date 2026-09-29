@@ -175,14 +175,14 @@ class Paiement extends Model
                 $commande->client->user,
                 'paiement_reussi',
                 'Paiement confirmé',
-                "Le paiement de la commande #{$commande->id} a été confirmé.",
+                "Le paiement de la commande {$commande->code_commande} a été confirmé.",
                 ['commande_id' => $commande->id, 'paiement_id' => $this->id]
             );
             NotificationService::envoyer(
                 $commande->vendeur->user,
                 'nouvelle_commande',
                 'Nouvelle commande reçue',
-                "La commande payée #{$commande->id} est prête à être servie.",
+                "La commande payée {$commande->code_commande} est prête à être servie.",
                 ['commande_id' => $commande->id]
             );
         }
@@ -208,7 +208,7 @@ class Paiement extends Model
             $commande->client->user,
             'paiement_echoue',
             'Paiement non abouti',
-            $message ?: "Le paiement de la commande #{$commande->id} n’a pas abouti.",
+            $message ?: "Le paiement de la commande {$commande->code_commande} n’a pas abouti.",
             ['commande_id' => $commande->id, 'paiement_id' => $this->id, 'statut' => $statut]
         );
     }

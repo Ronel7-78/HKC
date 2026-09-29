@@ -128,6 +128,60 @@ class CamPayPaiementTest extends TestCase
             ->assertJsonPath('commande.statut', Commande::STATUT_RECUE);
     }
 
+    public function test_campay_accepte_une_reponse_sans_champs_optionnels_si_la_reference_correspond(): void
+    {
+        [$user, $client] = $this->creerClient();
+        $commande = $this->creerCommande($client);
+        $paiement = $commande->paiements()->create([
+            'passerelle' => Paiement::PASSERELLE_CAMPAY,
+            'fournisseur' => Paiement::FOURNISSEUR_MTN_MOMO,
+            'telephone' => '237677777777',
+            'montant' => $commande->total,
+            'devise' => 'XAF',
+            'statut' => Paiement::STATUT_EN_ATTENTE,
+            'reference_operateur' => 'campay-reference-1',
+            'donnees_operateur' => ['reference' => 'campay-reference-1'],
+        ]);
+        $this->statutCamPay = [
+            'reference' => 'campay-reference-1',
+            'status' => 'SUCCESSFUL',
+            'operator' => 'MTN',
+            'operator_reference' => 'MTN-REF-1',
+        ];
+        Sanctum::actingAs($user);
+
+        $this->postJson("/api/paiements/{$paiement->public_id}/synchroniser")
+            ->assertOk()
+            ->assertJsonPath('statut', Paiement::STATUT_REUSSI);
+    }
+
+    public function test_numero_dun_autre_operateur_est_refuse_avant_lappel_campay(): void
+    {
+        [$user, $client] = $this->creerClient();
+        $commande = $this->creerCommande($client);
+        Sanctum::actingAs($user);
+
+        $this->postJson("/api/commandes/{$commande->public_id}/paiements", [
+            'fournisseur' => Paiement::FOURNISSEUR_MTN_MOMO,
+            'telephone' => '699999999',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('telephone');
+
+        $this->assertDatabaseCount('paiements', 0);
+    }
+
+    public function test_commande_expose_un_code_metier_lisible(): void
+    {
+        [, $client] = $this->creerClient();
+        $commande = $this->creerCommande($client);
+
+        $this->assertSame(
+            'COM-HKC-'.str_pad((string) $commande->id, 6, '0', STR_PAD_LEFT).'-'.$commande->created_at->format('y'),
+            $commande->code_commande,
+        );
+        $this->assertArrayHasKey('code_commande', $commande->toArray());
+    }
+
     private function creerClient(): array
     {
         $user = User::factory()->create([

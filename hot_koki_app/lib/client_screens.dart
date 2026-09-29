@@ -269,7 +269,7 @@ class _OrderCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'COMMANDE #${order['id']}',
+                      order['code_commande']?.toString() ?? 'COMMANDE',
                       style: TextStyle(
                         fontSize: 10,
                         color: status == 'livree' ? _inkSoft : Colors.white60,
@@ -434,6 +434,7 @@ class _OrderCard extends StatelessWidget {
         .map((item) => Map<String, dynamic>.from(item as Map))
         .toList();
     var provider = 'mtn_momo';
+    String? phoneError;
     final value = await showDialog<Map<String, String>>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -452,17 +453,23 @@ class _OrderCard extends StatelessWidget {
                       name: method['nom'].toString(),
                       selected: provider == method['code'],
                       available: available,
-                      onTap: () => setDialogState(
-                        () => provider = method['code'].toString(),
-                      ),
+                      onTap: () => setDialogState(() {
+                        provider = method['code'].toString();
+                        phoneError = _paymentPhoneError(phone.text, provider);
+                      }),
                     );
                   }),
                   TextField(
                     controller: phone,
                     keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(
+                    onChanged: (_) => setDialogState(
+                      () =>
+                          phoneError = _paymentPhoneError(phone.text, provider),
+                    ),
+                    decoration: InputDecoration(
                       labelText: 'Numéro Mobile Money',
                       hintText: '6XXXXXXXX',
+                      errorText: phoneError,
                     ),
                   ),
                 ],
@@ -475,10 +482,17 @@ class _OrderCard extends StatelessWidget {
               child: const Text('Fermer'),
             ),
             FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, {
-                'telephone': phone.text.trim(),
-                'fournisseur': provider,
-              }),
+              onPressed: () {
+                final error = _paymentPhoneError(phone.text, provider);
+                if (error != null) {
+                  setDialogState(() => phoneError = error);
+                  return;
+                }
+                Navigator.pop(dialogContext, {
+                  'telephone': phone.text.trim(),
+                  'fournisseur': provider,
+                });
+              },
               child: const Text('Envoyer'),
             ),
           ],
@@ -621,9 +635,6 @@ class _PaymentStatusScreenState extends State<PaymentStatusScreen> {
 
   bool get _terminal =>
       ['reussi', 'echoue', 'expire', 'annule'].contains(_payment['statut']);
-  bool get _isOrange => _payment['fournisseur'] == 'orange_money';
-  bool get _isCamPay => _payment['passerelle'] == 'campay';
-  String get _operatorName => _isOrange ? 'Orange Money' : 'MTN MoMo';
   Future<void> _sync({bool relancer = false}) async {
     if (_checking || _terminal || _pollingStopped) return;
     _checking = true;
@@ -687,7 +698,7 @@ class _PaymentStatusScreenState extends State<PaymentStatusScreen> {
     },
     child: Scaffold(
       backgroundColor: _cream,
-      appBar: AppBar(title: Text('Paiement $_operatorName')),
+      appBar: AppBar(title: const Text('Suivi du paiement')),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(28),
@@ -715,7 +726,7 @@ class _PaymentStatusScreenState extends State<PaymentStatusScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Référence ${_payment['reference_interne']}',
+                'Commande ${(_payment['commande'] as Map?)?['code_commande'] ?? ''}',
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: _inkSoft),
               ),
@@ -728,13 +739,7 @@ class _PaymentStatusScreenState extends State<PaymentStatusScreen> {
               if (!_terminal) ...[
                 const SizedBox(height: 4),
                 Text(
-                  _payment['mode_test'] == true
-                      ? (_isCamPay
-                            ? 'Mode démo CamPay : aucun débit réel ne sera effectué.'
-                            : (_isOrange
-                                  ? 'Mode Sandbox : utilisez la page de test Orange Money ouverte depuis l’application.'
-                                  : 'Mode Sandbox : aucun message réel n’est envoyé au téléphone. MTN simule le résultat.'))
-                      : 'Validez la demande reçue sur votre téléphone $_operatorName.',
+                  'Validez la demande Mobile Money reçue sur votre téléphone.',
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: _inkSoft),
                 ),
@@ -834,7 +839,7 @@ class _OrderDetails extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Commande #${order['id']}',
+              'Commande ${order['code_commande'] ?? ''}',
               style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
@@ -1461,14 +1466,32 @@ Color _statusColor(String status) =>
     _flame500;
 String _paymentLabel(String status) =>
     {
-      'initie': 'Demande envoyée à MTN. Validation en cours…',
-      'en_attente': 'Confirmation MTN MoMo en attente…',
+      'initie': 'Demande de paiement envoyée…',
+      'en_attente': 'Confirmation du paiement en attente…',
       'reussi': 'Paiement confirmé',
       'echoue': 'Le paiement a échoué',
       'expire': 'La demande a expiré',
       'annule': 'Paiement annulé',
     }[status] ??
     status;
+
+String? _paymentPhoneError(String value, String provider) {
+  final digits = value.replaceAll(RegExp(r'\D'), '');
+  final national = digits.startsWith('237') ? digits.substring(3) : digits;
+  if (national.length != 9 || !national.startsWith('6')) {
+    return 'Entrez un numéro camerounais valide.';
+  }
+  final isMtn = RegExp(r'^(65[0-4]|67\d)\d{6}$').hasMatch(national);
+  final isOrange = RegExp(r'^(65[5-9]|69\d)\d{6}$').hasMatch(national);
+  if (provider == 'mtn_momo' && !isMtn) {
+    return 'Ce numéro ne correspond pas à MTN.';
+  }
+  if (provider == 'orange_money' && !isOrange) {
+    return 'Ce numéro ne correspond pas à Orange.';
+  }
+  return null;
+}
+
 void _snack(BuildContext context, Object message) {
   final text = message.toString().replaceFirst('Exception: ', '');
   AppFeedback.error(context, message: text);

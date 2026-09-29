@@ -55,13 +55,13 @@ class AvisController extends Controller
             $commande->vendeur->user,
             'nouvel_avis',
             'Nouvel avis client',
-            "Vous avez reçu une note de {$avis->note}/5 pour la commande #{$commande->id}.",
+            "Vous avez reçu une note de {$avis->note}/5 pour la commande {$commande->code_commande}.",
             ['commande_id' => $commande->id, 'avis_id' => $avis->id]
         );
         NotificationService::admins(
             'nouvel_avis',
             'Nouvel avis publié',
-            "Un avis de {$avis->note}/5 a été publié pour la commande #{$commande->id}.",
+            "Un avis de {$avis->note}/5 a été publié pour la commande {$commande->code_commande}.",
             ['commande_id' => $commande->id, 'avis_id' => $avis->id]
         );
 
