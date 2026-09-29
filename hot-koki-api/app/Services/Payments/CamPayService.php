@@ -203,11 +203,29 @@ class CamPayService
 
         if (array_key_exists('amount', $data)
             && is_numeric($data['amount'])
-            && abs((float) $data['amount'] - $this->montantOperateur($paiement)) >= 0.01) {
+            && ! $this->montantCorrespond($paiement, (float) $data['amount'])) {
             return false;
         }
 
         return true;
+    }
+
+    private function montantCorrespond(Paiement $paiement, float $montantRecu): bool
+    {
+        if (abs($montantRecu - $this->montantOperateur($paiement)) < 0.01) {
+            return true;
+        }
+
+        // CamPay Demo renvoie 0.00 pour ses transactions fictives réussies,
+        // même lorsque le montant demandé est compris entre 1 et 25 XAF.
+        // Cette exception est volontairement limitée aux deux numéros de test
+        // SUCCESSFUL publiés par CamPay et n'est jamais active en production.
+        return strtoupper((string) config('services.campay.environment')) === 'DEV'
+            && abs($montantRecu) < 0.01
+            && in_array($paiement->telephone, [
+                '237677777777',
+                '237699999999',
+            ], true);
     }
 
     private function fournisseurCamPay(mixed $operateur): ?string

@@ -104,7 +104,7 @@ class CamPayPaiementTest extends TestCase
         $paiement = $commande->paiements()->create([
             'passerelle' => Paiement::PASSERELLE_CAMPAY,
             'fournisseur' => Paiement::FOURNISSEUR_ORANGE_MONEY,
-            'telephone' => '237690000010',
+            'telephone' => '237699999999',
             'montant' => $commande->total,
             'devise' => 'XAF',
             'statut' => Paiement::STATUT_EN_ATTENTE,
@@ -115,7 +115,7 @@ class CamPayPaiementTest extends TestCase
             'reference' => 'campay-reference-1',
             'external_reference' => $paiement->reference_interne,
             'status' => 'SUCCESSFUL',
-            'amount' => 10,
+            'amount' => 0,
             'currency' => 'XAF',
             'operator' => 'ORANGE',
             'operator_reference' => 'OM-REF-1',
@@ -126,6 +126,36 @@ class CamPayPaiementTest extends TestCase
             ->assertOk()
             ->assertJsonPath('statut', Paiement::STATUT_REUSSI)
             ->assertJsonPath('commande.statut', Commande::STATUT_RECUE);
+    }
+
+    public function test_un_montant_zero_reste_refuse_hors_numero_officiel_de_demo(): void
+    {
+        [$user, $client] = $this->creerClient();
+        $commande = $this->creerCommande($client);
+        $paiement = $commande->paiements()->create([
+            'passerelle' => Paiement::PASSERELLE_CAMPAY,
+            'fournisseur' => Paiement::FOURNISSEUR_ORANGE_MONEY,
+            'telephone' => '237699123456',
+            'montant' => $commande->total,
+            'devise' => 'XAF',
+            'statut' => Paiement::STATUT_EN_ATTENTE,
+            'reference_operateur' => 'campay-reference-1',
+            'donnees_operateur' => ['reference' => 'campay-reference-1'],
+        ]);
+        $this->statutCamPay = [
+            'reference' => 'campay-reference-1',
+            'external_reference' => $paiement->reference_interne,
+            'status' => 'SUCCESSFUL',
+            'amount' => 0,
+            'currency' => 'XAF',
+            'operator' => 'ORANGE',
+        ];
+        Sanctum::actingAs($user);
+
+        $this->postJson("/api/paiements/{$paiement->public_id}/synchroniser")
+            ->assertOk()
+            ->assertJsonPath('statut', Paiement::STATUT_ECHOUE)
+            ->assertJsonPath('code_erreur', 'CAMPAY_VERIFICATION_MISMATCH');
     }
 
     public function test_campay_accepte_une_reponse_sans_champs_optionnels_si_la_reference_correspond(): void
