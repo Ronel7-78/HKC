@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Commande;
 use App\Models\Paiement;
-use App\Services\Payments\FlutterwaveService;
+use App\Services\Payments\CamPayService;
 use App\Services\Payments\MtnMomoService;
 use App\Services\Payments\OrangeMoneyService;
 use Illuminate\Http\Request;
@@ -19,15 +19,16 @@ class PaiementController extends Controller
 {
     public function moyens()
     {
-        $flutterwaveDisponible = config('payments.gateway') === Paiement::PASSERELLE_FLUTTERWAVE
-            && config('services.flutterwave.enabled')
-            && filled(config('services.flutterwave.secret_key'));
+        $camPayDisponible = config('payments.gateway') === Paiement::PASSERELLE_CAMPAY
+            && config('services.campay.enabled')
+            && filled(config('services.campay.username'))
+            && filled(config('services.campay.password'));
 
         return response()->json([
             [
                 'code' => Paiement::FOURNISSEUR_MTN_MOMO,
                 'nom' => 'MTN MoMo',
-                'disponible' => $flutterwaveDisponible
+                'disponible' => $camPayDisponible
                     || (config('payments.gateway') === Paiement::PASSERELLE_DIRECTE
                         && config('services.mtn_momo.enabled')),
                 'passerelle' => config('payments.gateway'),
@@ -35,7 +36,7 @@ class PaiementController extends Controller
             [
                 'code' => Paiement::FOURNISSEUR_ORANGE_MONEY,
                 'nom' => 'Orange Money',
-                'disponible' => $flutterwaveDisponible
+                'disponible' => $camPayDisponible
                     || (config('payments.gateway') === Paiement::PASSERELLE_DIRECTE
                         && config('services.orange_money.enabled')),
                 'passerelle' => config('payments.gateway'),
@@ -46,7 +47,7 @@ class PaiementController extends Controller
     public function store(
         Request $request,
         Commande $commande,
-        FlutterwaveService $flutterwave,
+        CamPayService $camPay,
         MtnMomoService $mtnMomo,
         OrangeMoneyService $orangeMoney,
     ) {
@@ -70,11 +71,13 @@ class PaiementController extends Controller
             'telephone.regex' => 'Le numéro doit être un numéro camerounais valide.',
         ]);
 
-        if ($passerelle === Paiement::PASSERELLE_FLUTTERWAVE
-            && (! config('services.flutterwave.enabled') || blank(config('services.flutterwave.secret_key')))) {
+        if ($passerelle === Paiement::PASSERELLE_CAMPAY
+            && (! config('services.campay.enabled')
+                || blank(config('services.campay.username'))
+                || blank(config('services.campay.password')))) {
             return response()->json([
                 'message' => 'Le paiement Mobile Money est temporairement indisponible.',
-                'code' => 'FLUTTERWAVE_INDISPONIBLE',
+                'code' => 'CAMPAY_INDISPONIBLE',
             ], 503);
         }
 
@@ -131,8 +134,8 @@ class PaiementController extends Controller
 
         if ($paiement->wasRecentlyCreated || $paiement->statut === Paiement::STATUT_INITIE) {
             try {
-                if ($paiement->passerelle === Paiement::PASSERELLE_FLUTTERWAVE) {
-                    $flutterwave->initier($paiement);
+                if ($paiement->passerelle === Paiement::PASSERELLE_CAMPAY) {
+                    $camPay->initier($paiement);
                 } else {
                     match ($paiement->fournisseur) {
                         Paiement::FOURNISSEUR_MTN_MOMO => $mtnMomo->initier($paiement),
@@ -167,7 +170,7 @@ class PaiementController extends Controller
     public function synchroniser(
         Request $request,
         Paiement $paiement,
-        FlutterwaveService $flutterwave,
+        CamPayService $camPay,
         MtnMomoService $mtnMomo,
         OrangeMoneyService $orangeMoney,
     ) {
@@ -181,7 +184,7 @@ class PaiementController extends Controller
         }
 
         $tentativesMax = match (true) {
-            $paiement->passerelle === Paiement::PASSERELLE_FLUTTERWAVE => config('services.flutterwave.poll_max_attempts'),
+            $paiement->passerelle === Paiement::PASSERELLE_CAMPAY => config('services.campay.poll_max_attempts'),
             $paiement->fournisseur === Paiement::FOURNISSEUR_ORANGE_MONEY => config('services.orange_money.poll_max_attempts'),
             default => config('services.mtn_momo.poll_max_attempts'),
         };
@@ -201,13 +204,14 @@ class PaiementController extends Controller
         }
 
         try {
-            $paiement = $paiement->passerelle === Paiement::PASSERELLE_FLUTTERWAVE
-                ? $flutterwave->synchroniser($paiement)
-                : match ($paiement->fournisseur) {
+            $paiement = match ($paiement->passerelle) {
+                Paiement::PASSERELLE_CAMPAY => $camPay->synchroniser($paiement),
+                default => match ($paiement->fournisseur) {
                     Paiement::FOURNISSEUR_MTN_MOMO => $mtnMomo->synchroniser($paiement),
                     Paiement::FOURNISSEUR_ORANGE_MONEY => $orangeMoney->synchroniser($paiement),
                     default => throw new RuntimeException('Fournisseur de paiement inconnu.'),
-                };
+                },
+            };
         } catch (RuntimeException $exception) {
             $incident = Str::lower(Str::random(16));
             Log::warning('Échec de synchronisation auprès de l’opérateur de paiement', [

@@ -72,18 +72,15 @@ return [
         'poll_max_attempts' => (int) env('ORANGE_MONEY_POLL_MAX_ATTEMPTS', 8),
     ],
 
-    'flutterwave' => [
-        'enabled' => env('FLUTTERWAVE_ENABLED', false),
-        'environment' => env('FLUTTERWAVE_ENVIRONMENT', 'sandbox'),
-        'base_url' => env('FLUTTERWAVE_BASE_URL', 'https://api.flutterwave.com/v3'),
-        'public_key' => env('FLUTTERWAVE_PUBLIC_KEY'),
-        'secret_key' => env('FLUTTERWAVE_SECRET_KEY'),
-        'encryption_key' => env('FLUTTERWAVE_ENCRYPTION_KEY'),
-        'webhook_secret' => env('FLUTTERWAVE_WEBHOOK_SECRET'),
-        'callback_base_url' => env('FLUTTERWAVE_CALLBACK_BASE_URL'),
-        'currency' => env('FLUTTERWAVE_CURRENCY', 'XAF'),
-        'country' => env('FLUTTERWAVE_COUNTRY', 'CM'),
-        'poll_max_attempts' => (int) env('FLUTTERWAVE_POLL_MAX_ATTEMPTS', 10),
+    'campay' => [
+        'enabled' => env('CAMPAY_ENABLED', false),
+        'environment' => env('CAMPAY_ENVIRONMENT', 'DEV'),
+        'base_url' => env('CAMPAY_BASE_URL', 'https://demo.campay.net'),
+        'username' => env('CAMPAY_APP_USERNAME'),
+        'password' => env('CAMPAY_APP_PASSWORD'),
+        'currency' => env('CAMPAY_CURRENCY', 'XAF'),
+        'demo_amount' => (int) env('CAMPAY_DEMO_AMOUNT', 10),
+        'poll_max_attempts' => (int) env('CAMPAY_POLL_MAX_ATTEMPTS', 12),
     ],
 
     'firebase' => [

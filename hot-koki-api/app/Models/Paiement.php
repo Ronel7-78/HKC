@@ -18,7 +18,7 @@ class Paiement extends Model
 
     public const PASSERELLE_DIRECTE = 'direct';
 
-    public const PASSERELLE_FLUTTERWAVE = 'flutterwave';
+    public const PASSERELLE_CAMPAY = 'campay';
 
     public const STATUT_INITIE = 'initie';
 
@@ -62,8 +62,8 @@ class Paiement extends Model
 
     public function getModeTestAttribute(): bool
     {
-        if ($this->passerelle === self::PASSERELLE_FLUTTERWAVE) {
-            return config('services.flutterwave.environment') === 'sandbox';
+        if ($this->passerelle === self::PASSERELLE_CAMPAY) {
+            return strtoupper((string) config('services.campay.environment')) === 'DEV';
         }
 
         return $this->fournisseur === self::FOURNISSEUR_ORANGE_MONEY
@@ -77,8 +77,7 @@ class Paiement extends Model
             return null;
         }
 
-        if ($this->passerelle !== self::PASSERELLE_FLUTTERWAVE
-            && $this->fournisseur !== self::FOURNISSEUR_ORANGE_MONEY) {
+        if ($this->fournisseur !== self::FOURNISSEUR_ORANGE_MONEY) {
             return null;
         }
 

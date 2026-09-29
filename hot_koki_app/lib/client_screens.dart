@@ -622,7 +622,7 @@ class _PaymentStatusScreenState extends State<PaymentStatusScreen> {
   bool get _terminal =>
       ['reussi', 'echoue', 'expire', 'annule'].contains(_payment['statut']);
   bool get _isOrange => _payment['fournisseur'] == 'orange_money';
-  bool get _isFlutterwave => _payment['passerelle'] == 'flutterwave';
+  bool get _isCamPay => _payment['passerelle'] == 'campay';
   String get _operatorName => _isOrange ? 'Orange Money' : 'MTN MoMo';
   Future<void> _sync({bool relancer = false}) async {
     if (_checking || _terminal || _pollingStopped) return;
@@ -729,8 +729,8 @@ class _PaymentStatusScreenState extends State<PaymentStatusScreen> {
                 const SizedBox(height: 4),
                 Text(
                   _payment['mode_test'] == true
-                      ? (_isFlutterwave
-                            ? 'Mode Sandbox Flutterwave : aucun débit réel ne sera effectué.'
+                      ? (_isCamPay
+                            ? 'Mode démo CamPay : aucun débit réel ne sera effectué.'
                             : (_isOrange
                                   ? 'Mode Sandbox : utilisez la page de test Orange Money ouverte depuis l’application.'
                                   : 'Mode Sandbox : aucun message réel n’est envoyé au téléphone. MTN simule le résultat.'))
