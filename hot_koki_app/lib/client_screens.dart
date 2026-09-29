@@ -455,7 +455,7 @@ class _OrderCard extends StatelessWidget {
                       available: available,
                       onTap: () => setDialogState(() {
                         provider = method['code'].toString();
-                        phoneError = _paymentPhoneError(phone.text, provider);
+                        phoneError = _paymentPhoneError(phone.text);
                       }),
                     );
                   }),
@@ -463,8 +463,7 @@ class _OrderCard extends StatelessWidget {
                     controller: phone,
                     keyboardType: TextInputType.phone,
                     onChanged: (_) => setDialogState(
-                      () =>
-                          phoneError = _paymentPhoneError(phone.text, provider),
+                      () => phoneError = _paymentPhoneError(phone.text),
                     ),
                     decoration: InputDecoration(
                       labelText: 'Numéro Mobile Money',
@@ -483,7 +482,7 @@ class _OrderCard extends StatelessWidget {
             ),
             FilledButton(
               onPressed: () {
-                final error = _paymentPhoneError(phone.text, provider);
+                final error = _paymentPhoneError(phone.text);
                 if (error != null) {
                   setDialogState(() => phoneError = error);
                   return;
@@ -1475,19 +1474,11 @@ String _paymentLabel(String status) =>
     }[status] ??
     status;
 
-String? _paymentPhoneError(String value, String provider) {
+String? _paymentPhoneError(String value) {
   final digits = value.replaceAll(RegExp(r'\D'), '');
   final national = digits.startsWith('237') ? digits.substring(3) : digits;
   if (national.length != 9 || !national.startsWith('6')) {
     return 'Entrez un numéro camerounais valide.';
-  }
-  final isMtn = RegExp(r'^(65[0-4]|67\d)\d{6}$').hasMatch(national);
-  final isOrange = RegExp(r'^(65[5-9]|69\d)\d{6}$').hasMatch(national);
-  if (provider == 'mtn_momo' && !isMtn) {
-    return 'Ce numéro ne correspond pas à MTN.';
-  }
-  if (provider == 'orange_money' && !isOrange) {
-    return 'Ce numéro ne correspond pas à Orange.';
   }
   return null;
 }

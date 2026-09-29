@@ -45,6 +45,8 @@ class CamPayService
         }
 
         $paiement->update([
+            'fournisseur' => $this->fournisseurCamPay($response->json('operator'))
+                ?? $paiement->fournisseur,
             'reference_operateur' => $reference,
             'statut' => Paiement::STATUT_EN_ATTENTE,
             'initie_le' => now(),
@@ -100,6 +102,10 @@ class CamPayService
             'code' => $data['code'] ?? null,
             'operator_reference' => $data['operator_reference'] ?? null,
         ], fn (mixed $value): bool => $value !== null && $value !== '');
+
+        if ($fournisseurDetecte = $this->fournisseurCamPay($data['operator'] ?? null)) {
+            $paiement->update(['fournisseur' => $fournisseurDetecte]);
+        }
 
         if ($statut === 'SUCCESSFUL') {
             if (! $this->correspondAuPaiement($paiement, $data)) {
@@ -201,12 +207,16 @@ class CamPayService
             return false;
         }
 
-        $operateurAttendu = $paiement->fournisseur === Paiement::FOURNISSEUR_ORANGE_MONEY
-            ? 'ORANGE'
-            : 'MTN';
+        return true;
+    }
 
-        return ! filled($data['operator'])
-            || strtoupper((string) $data['operator']) === $operateurAttendu;
+    private function fournisseurCamPay(mixed $operateur): ?string
+    {
+        return match (strtoupper(trim((string) $operateur))) {
+            'MTN' => Paiement::FOURNISSEUR_MTN_MOMO,
+            'ORANGE' => Paiement::FOURNISSEUR_ORANGE_MONEY,
+            default => null,
+        };
     }
 
     private function montantOperateur(Paiement $paiement): int

@@ -155,19 +155,17 @@ class CamPayPaiementTest extends TestCase
             ->assertJsonPath('statut', Paiement::STATUT_REUSSI);
     }
 
-    public function test_numero_dun_autre_operateur_est_refuse_avant_lappel_campay(): void
+    public function test_campay_detecte_loperateur_reel_sans_se_fier_au_prefixe(): void
     {
         [$user, $client] = $this->creerClient();
         $commande = $this->creerCommande($client);
         Sanctum::actingAs($user);
 
         $this->postJson("/api/commandes/{$commande->public_id}/paiements", [
-            'fournisseur' => Paiement::FOURNISSEUR_MTN_MOMO,
-            'telephone' => '699999999',
-        ])->assertUnprocessable()
-            ->assertJsonValidationErrors('telephone');
-
-        $this->assertDatabaseCount('paiements', 0);
+            'fournisseur' => Paiement::FOURNISSEUR_ORANGE_MONEY,
+            'telephone' => '683123456',
+        ])->assertCreated()
+            ->assertJsonPath('paiement.fournisseur', Paiement::FOURNISSEUR_MTN_MOMO);
     }
 
     public function test_commande_expose_un_code_metier_lisible(): void
