@@ -50,7 +50,7 @@ class CamPayService
             'reference_operateur' => $reference,
             'statut' => Paiement::STATUT_EN_ATTENTE,
             'initie_le' => now(),
-            'prochaine_verification_le' => now()->addSeconds(8),
+            'prochaine_verification_le' => now()->addSeconds(5),
             'donnees_operateur' => array_filter([
                 'reference' => $reference,
                 'operator' => $response->json('operator'),
@@ -116,7 +116,11 @@ class CamPayService
                     $donnees,
                 );
             } else {
-                $referenceOperateur = $data['operator_reference'] ?? $data['code'] ?? $reference;
+                $referenceOperateur = collect([
+                    $data['operator_reference'] ?? null,
+                    $data['code'] ?? null,
+                    $reference,
+                ])->first(fn (mixed $value): bool => filled($value));
                 $paiement->confirmerReussite((string) $referenceOperateur, $donnees);
             }
         } elseif ($statut === 'FAILED') {
@@ -127,10 +131,11 @@ class CamPayService
                 $donnees,
             );
         } else {
-            $delai = min(300, 8 * (2 ** min($paiement->tentatives_statut, 5)));
+            $delais = [5, 5, 8, 10, 15, 20, 30, 45, 60];
+            $index = min(max($paiement->tentatives_statut - 1, 0), count($delais) - 1);
             $paiement->update([
                 'donnees_operateur' => $donnees,
-                'prochaine_verification_le' => now()->addSeconds($delai),
+                'prochaine_verification_le' => now()->addSeconds($delais[$index]),
             ]);
         }
 

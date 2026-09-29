@@ -118,7 +118,8 @@ class CamPayPaiementTest extends TestCase
             'amount' => 0,
             'currency' => 'XAF',
             'operator' => 'ORANGE',
-            'operator_reference' => 'OM-REF-1',
+            'code' => 'D260929D0065AN',
+            'operator_reference' => '',
         ];
         Sanctum::actingAs($user);
 
@@ -126,6 +127,8 @@ class CamPayPaiementTest extends TestCase
             ->assertOk()
             ->assertJsonPath('statut', Paiement::STATUT_REUSSI)
             ->assertJsonPath('commande.statut', Commande::STATUT_RECUE);
+
+        $this->assertSame('D260929D0065AN', $paiement->fresh()->reference_operateur);
     }
 
     public function test_un_montant_zero_reste_refuse_hors_numero_officiel_de_demo(): void
