@@ -817,6 +817,7 @@ class _SellerAccountScreenState extends State<SellerAccountScreen> {
               child: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
+                  spacing: 12,
                   children: [
                     _sellerRequired(shop, 'Nom de la boutique'),
                     _sellerRequired(name, 'Nom du responsable'),
@@ -959,6 +960,7 @@ class _SellerAccountScreenState extends State<SellerAccountScreen> {
           key: form,
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            spacing: 12,
             children: [
               _sellerRequired(current, 'Mot de passe actuel', obscure: true),
               _sellerRequired(
@@ -1153,6 +1155,7 @@ Widget _sellerRequired(
 }) => TextFormField(
   controller: c,
   obscureText: obscure,
+  scrollPadding: const EdgeInsets.only(bottom: 120),
   decoration: InputDecoration(labelText: '$label *'),
   validator: (v) {
     if (v == null || v.trim().isEmpty) return '$label est obligatoire.';

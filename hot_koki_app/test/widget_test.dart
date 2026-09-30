@@ -8,7 +8,7 @@ void main() {
     await tester.pumpWidget(const HotKokiApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('Bienvenue chez Hot Koki 👋'), findsOneWidget);
+    expect(find.text('Bienvenue chez Hot Koki Chaud'), findsOneWidget);
     expect(find.text('Le menu du jour'), findsOneWidget);
     expect(find.text('Connexion'), findsOneWidget);
     expect(find.text('Inscription'), findsOneWidget);

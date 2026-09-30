@@ -9,7 +9,8 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up(): void{
+    public function up(): void
+    {
         Schema::create('commande_item_complements', function (Blueprint $table) {
             $table->id();
             $table->foreignId('commande_item_id')->constrained()->onDelete('cascade');

@@ -14,7 +14,7 @@ class CommandeAnnulationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_client_annule_sa_commande_avant_le_paiement(): void
+    public function test_annulation_client_nest_plus_exposee(): void
     {
         [$clientUser, $client] = $this->creerClient();
         $vendeur = $this->creerVendeur();
@@ -23,15 +23,10 @@ class CommandeAnnulationTest extends TestCase
         Sanctum::actingAs($clientUser);
 
         $this->patchJson("/api/commandes/{$commande->public_id}/annuler")
-            ->assertOk()
-            ->assertJsonPath('commande.statut', Commande::STATUT_ANNULEE);
-
-        $this->patchJson("/api/commandes/{$commande->public_id}/annuler")
-            ->assertUnprocessable()
-            ->assertJsonPath('code', 'ANNULATION_CLIENT_IMPOSSIBLE');
+            ->assertNotFound();
     }
 
-    public function test_client_ne_peut_annuler_ni_commande_etrangere_ni_commande_payee(): void
+    public function test_ancienne_route_annulation_reste_introuvable_pour_toute_commande(): void
     {
         [$clientUser, $client] = $this->creerClient();
         [, $autreClient] = $this->creerClient();
@@ -42,8 +37,7 @@ class CommandeAnnulationTest extends TestCase
         Sanctum::actingAs($clientUser);
 
         $this->patchJson("/api/commandes/{$commandeEnPreparation->public_id}/annuler")
-            ->assertUnprocessable()
-            ->assertJsonPath('code', 'ANNULATION_CLIENT_IMPOSSIBLE');
+            ->assertNotFound();
 
         $this->patchJson("/api/commandes/{$commandeEtrangere->public_id}/annuler")
             ->assertNotFound();
@@ -54,7 +48,7 @@ class CommandeAnnulationTest extends TestCase
         ]);
     }
 
-    public function test_vendeur_affecte_peut_annuler_une_commande_non_terminale(): void
+    public function test_vendeur_ne_peut_plus_annuler_une_commande_payee(): void
     {
         [, $client] = $this->creerClient();
         [$vendeurUser, $vendeur] = $this->creerVendeurAvecUtilisateur();
@@ -64,13 +58,12 @@ class CommandeAnnulationTest extends TestCase
 
         $this->patchJson("/api/vendeur/commandes/{$commande->public_id}/statut", [
             'statut' => Commande::STATUT_ANNULEE,
-        ])
-            ->assertOk()
-            ->assertJsonPath('commande.statut', Commande::STATUT_ANNULEE);
-
-        $this->patchJson("/api/vendeur/commandes/{$commande->public_id}/statut", [
-            'statut' => Commande::STATUT_RECUE,
         ])->assertUnprocessable();
+
+        $this->assertDatabaseHas('commandes', [
+            'id' => $commande->id,
+            'statut' => Commande::STATUT_RECUE,
+        ]);
     }
 
     /** @return array{User, Client} */

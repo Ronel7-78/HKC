@@ -93,7 +93,6 @@ Route::middleware(['auth:sanctum', 'email.verified'])->group(function () {
         Route::post('/', [CommandeController::class, 'store'])->middleware('throttle:order-create');
         Route::get('/', [CommandeController::class, 'index']);
         Route::get('/{commande}', [CommandeController::class, 'show']);
-        Route::patch('/{commande}/annuler', [CommandeController::class, 'annuler']);
         Route::post('/{commande}/paiements', [PaiementController::class, 'store'])->middleware('throttle:payment-create');
         Route::post('/{commande}/avis', [AvisController::class, 'store'])->middleware('throttle:review');
     });

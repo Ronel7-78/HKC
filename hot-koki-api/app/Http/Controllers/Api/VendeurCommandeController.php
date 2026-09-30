@@ -45,10 +45,9 @@ class VendeurCommandeController extends Controller
         $validated = $request->validate([
             'statut' => ['required', 'string', Rule::in([
                 Commande::STATUT_LIVREE,
-                Commande::STATUT_ANNULEE,
             ])],
         ], [
-            'statut.in' => 'Le vendeur peut uniquement marquer une commande reçue comme livrée ou l’annuler.',
+            'statut.in' => 'Le vendeur peut uniquement marquer une commande reçue comme livrée.',
         ]);
 
         if (! $commande->peutPasserAuStatut($validated['statut'])) {
@@ -61,7 +60,6 @@ class VendeurCommandeController extends Controller
         $commande->load('client.user');
         $libelles = [
             Commande::STATUT_LIVREE => 'livrée',
-            Commande::STATUT_ANNULEE => 'annulée',
         ];
         NotificationService::envoyer(
             $commande->client->user,

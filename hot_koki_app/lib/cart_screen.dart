@@ -956,7 +956,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Le paiement n’est confirmé qu’après le statut final de l’opérateur.',
+                'Le paiement n’est confirmé qu’après le statut final de l’opérateur. Une commande payée ne peut plus être annulée ni modifiée.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: _inkSoft, fontSize: 11),
               ),

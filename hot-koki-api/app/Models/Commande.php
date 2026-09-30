@@ -78,15 +78,7 @@ class Commande extends Model
         }
 
         return $this->statut === self::STATUT_RECUE
-            && in_array($nouveauStatut, [self::STATUT_LIVREE, self::STATUT_ANNULEE], true);
-    }
-
-    /**
-     * Le client peut se rétracter uniquement tant que le paiement n'est pas confirmé.
-     */
-    public function peutEtreAnnuleeParClient(): bool
-    {
-        return $this->statut === self::STATUT_EN_ATTENTE_PAIEMENT;
+            && $nouveauStatut === self::STATUT_LIVREE;
     }
 
     public function paiements()

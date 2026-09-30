@@ -301,42 +301,4 @@ class CommandeController extends Controller
             $commande->load('items.produit', 'items.complements', 'vendeur')
         );
     }
-
-    /**
-     * Annule une commande du client avant le debut de sa preparation.
-     */
-    public function annuler(Request $request, Commande $commande)
-    {
-        $this->authorize('client', $commande);
-        $client = $request->user()->client;
-
-        if (! $client) {
-            return response()->json([
-                'message' => 'Ce compte n\'a pas de profil client associé.',
-            ], 403);
-        }
-
-        if (! $commande->peutEtreAnnuleeParClient()) {
-            return response()->json([
-                'message' => "La commande ne peut plus être annulée par le client depuis le statut {$commande->statut}.",
-                'code' => 'ANNULATION_CLIENT_IMPOSSIBLE',
-            ], 422);
-        }
-
-        $commande->update(['statut' => Commande::STATUT_ANNULEE]);
-
-        $commande->load('vendeur.user');
-        NotificationService::envoyer(
-            $commande->vendeur->user,
-            'commande_annulee',
-            'Commande annulée',
-            "Le client a annulé la commande {$commande->code_commande}.",
-            ['commande_id' => $commande->id]
-        );
-
-        return response()->json([
-            'message' => 'Commande annulée.',
-            'commande' => $commande->fresh()->load('items.produit', 'items.complements', 'vendeur'),
-        ]);
-    }
 }

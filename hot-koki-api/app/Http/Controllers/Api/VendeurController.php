@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Vendeur;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -103,7 +104,7 @@ class VendeurController extends Controller
         if (! $vendeur) {
             return response()->json(['message' => 'Profil vendeur introuvable.'], 404);
         }
-        if ($vendeur->type_vendeur !== \App\Models\Vendeur::TYPE_AMBULANT) {
+        if ($vendeur->type_vendeur !== Vendeur::TYPE_AMBULANT) {
             return response()->json(['message' => 'Un point de vente utilise sa position fixe.'], 422);
         }
         if ($vendeur->statut_compte !== 'actif' || $vendeur->statut_dispo !== 'disponible') {

@@ -1,4 +1,5 @@
 <?php
+
 // app/Models/Client.php
 
 namespace App\Models;
@@ -20,7 +21,7 @@ class Client extends Model
     }
 
     public function commandes()
-    { 
+    {
         return $this->hasMany(Commande::class);
     }
 }

@@ -252,7 +252,6 @@ class _OrderCard extends StatelessWidget {
     final status = order['statut'].toString();
     final vendor = order['vendeur'] as Map<String, dynamic>?;
     final items = order['items'] as List<dynamic>? ?? [];
-    final cancellable = status == 'en_attente_paiement' || status == 'recue';
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -362,11 +361,6 @@ class _OrderCard extends StatelessWidget {
                   onPressed: () => _pay(context),
                   child: const Text('Payer'),
                 )
-              else if (cancellable)
-                TextButton(
-                  onPressed: () => _cancel(context),
-                  child: const Text('Annuler'),
-                )
               else if (status == 'livree')
                 TextButton(
                   onPressed: () => _review(context),
@@ -396,36 +390,6 @@ class _OrderCard extends StatelessWidget {
     );
   }
 
-  Future<void> _cancel(BuildContext context) async {
-    final yes = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Annuler la commande ?'),
-        content: const Text('Cette action arrête définitivement la commande.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Non'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Oui, annuler'),
-          ),
-        ],
-      ),
-    );
-    if (yes != true) return;
-    try {
-      await ClientApi.request(
-        'PATCH',
-        '/commandes/${apiResourceId(order)}/annuler',
-      );
-      await onChanged();
-    } catch (error) {
-      if (context.mounted) _snack(context, error);
-    }
-  }
-
   Future<void> _pay(BuildContext context) async {
     final phone = TextEditingController();
     final methodsRaw = await ClientApi.request('GET', '/paiements-moyens');
@@ -445,6 +409,7 @@ class _OrderCard extends StatelessWidget {
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                spacing: 12,
                 children: [
                   ...methods.map((method) {
                     final available = method['disponible'] == true;
@@ -703,6 +668,7 @@ class _PaymentStatusScreenState extends State<PaymentStatusScreen> {
           padding: const EdgeInsets.all(28),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            spacing: 12,
             children: [
               Icon(
                 _terminal
@@ -1080,6 +1046,7 @@ class _ClientAccountScreenState extends State<ClientAccountScreen> {
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                spacing: 12,
                 children: [
                   TextFormField(
                     controller: name,
@@ -1277,6 +1244,7 @@ class _ClientAccountScreenState extends State<ClientAccountScreen> {
           key: formKey,
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            spacing: 12,
             children: [
               TextFormField(
                 controller: current,

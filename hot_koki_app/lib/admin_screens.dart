@@ -1002,7 +1002,7 @@ class _VendorFormState extends State<_VendorForm> {
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            spacing: 10,
+            spacing: 12,
             children: [
               _requiredField(_shop, 'Nom de la boutique'),
               _requiredField(_name, 'Nom du responsable'),
@@ -1447,7 +1447,7 @@ class _ProductFormState extends State<_ProductForm> {
           key: _form,
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            spacing: 10,
+            spacing: 12,
             children: [
               _ProductImageField(
                 selectedImage: _selectedImage,
@@ -1739,7 +1739,7 @@ class _AdminAccountScreenState extends State<AdminAccountScreen> {
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              spacing: 10,
+              spacing: 12,
               children: [
                 _requiredField(name, 'Nom affiché'),
                 _requiredField(

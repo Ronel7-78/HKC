@@ -1,4 +1,5 @@
 <?php
+
 // app/Models/Admin.php
 
 namespace App\Models;
