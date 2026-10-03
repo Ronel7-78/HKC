@@ -842,8 +842,20 @@ class _OrderDetails extends StatelessWidget {
                 subtitle: Text(formatDistanceKm(order['distance_km'])),
               ),
               DeliveryFeeLabel(fee: order['frais_livraison'], color: _leaf900),
-              const Divider(),
             ],
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(
+                Icons.verified_user_outlined,
+                color: _leaf700,
+              ),
+              title: const Text('Frais de paiement en ligne'),
+              trailing: Text(
+                '${_money(order['frais_paiement'] ?? 0)} F CFA',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+            const Divider(),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [

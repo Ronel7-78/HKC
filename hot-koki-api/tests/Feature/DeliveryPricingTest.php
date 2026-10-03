@@ -24,7 +24,8 @@ class DeliveryPricingTest extends TestCase
             ->assertJsonPath('frais_livraison', 0)
             ->assertJsonPath('livraison_express', false)
             ->assertJsonPath('livraison_gratuite', true)
-            ->assertJsonPath('total', 1000);
+            ->assertJsonPath('frais_paiement', 31)
+            ->assertJsonPath('total', 1031);
 
         $distance = (float) $preview->json('vendeur.distance_km');
         $this->assertGreaterThanOrEqual(3, $distance);
@@ -64,7 +65,8 @@ class DeliveryPricingTest extends TestCase
             ->assertJsonPath('frais_livraison', 500)
             ->assertJsonPath('livraison_express', true)
             ->assertJsonPath('vendeur.id', $pointFixe->id)
-            ->assertJsonPath('total', 1500);
+            ->assertJsonPath('frais_paiement', 47)
+            ->assertJsonPath('total', 1547);
 
         $this->postJson('/api/commandes', $payload)
             ->assertCreated()

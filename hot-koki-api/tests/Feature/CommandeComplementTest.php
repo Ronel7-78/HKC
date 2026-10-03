@@ -41,7 +41,8 @@ class CommandeComplementTest extends TestCase
             ->assertJsonPath('sous_total', 1000)
             ->assertJsonPath('frais_livraison', 0)
             ->assertJsonPath('livraison_gratuite', true)
-            ->assertJsonPath('total', 1000);
+            ->assertJsonPath('frais_paiement', 31)
+            ->assertJsonPath('total', 1031);
     }
 
     public function test_commande_calculates_product_quantity(): void
@@ -54,7 +55,8 @@ class CommandeComplementTest extends TestCase
             ->assertOk()
             ->assertJsonPath('sous_total', 3000)
             ->assertJsonPath('frais_livraison', 0)
-            ->assertJsonPath('total', 3000);
+            ->assertJsonPath('frais_paiement', 93)
+            ->assertJsonPath('total', 3093);
     }
 
     /**

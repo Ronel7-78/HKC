@@ -35,7 +35,7 @@ class Commande extends Model
     protected $fillable = [
         'client_id', 'vendeur_id', 'statut', 'adresse_livraison',
         'latitude_client', 'longitude_client', 'distance_km', 'livraison_express', 'mode_remise',
-        'sous_total', 'frais_livraison', 'total',
+        'sous_total', 'frais_livraison', 'frais_paiement', 'total',
     ];
 
     protected $casts = [
@@ -43,6 +43,7 @@ class Commande extends Model
         'livraison_express' => 'boolean',
         'sous_total' => 'decimal:2',
         'frais_livraison' => 'decimal:2',
+        'frais_paiement' => 'decimal:2',
         'total' => 'decimal:2',
     ];
 

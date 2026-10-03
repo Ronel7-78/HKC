@@ -81,6 +81,10 @@ return [
         'currency' => env('CAMPAY_CURRENCY', 'XAF'),
         'demo_amount' => (int) env('CAMPAY_DEMO_AMOUNT', 10),
         'poll_max_attempts' => (int) env('CAMPAY_POLL_MAX_ATTEMPTS', 12),
+        // Taux décimaux utilisés pour calculer le prix client qui protège le
+        // montant commercial après encaissement puis retrait CamPay.
+        'collection_rate' => (float) env('CAMPAY_COLLECTION_RATE', 0.02),
+        'withdrawal_rate' => (float) env('CAMPAY_WITHDRAWAL_RATE', 0.01),
     ],
 
     'firebase' => [

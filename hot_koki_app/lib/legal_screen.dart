@@ -72,7 +72,7 @@ class LegalScreen extends StatelessWidget {
     ),
     (
       '3. Commandes',
-      'Les prix, produits disponibles, frais de livraison et total sont présentés avant validation. Une commande payée suit les statuts affichés dans l’application. Les disponibilités peuvent évoluer.',
+      'Les prix, produits disponibles, frais de livraison, frais de paiement en ligne et total sont présentés avant validation. Une commande payée suit les statuts affichés dans l’application. Les disponibilités peuvent évoluer.',
     ),
     (
       '4. Paiements Mobile Money',

@@ -494,6 +494,16 @@ class SellerOrderCard extends StatelessWidget {
                 const Divider(),
                 Row(
                   children: [
+                    const Expanded(child: Text('Frais de paiement en ligne')),
+                    Text(
+                      '${_money(order['frais_paiement'] ?? 0)} F CFA',
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
                     const Expanded(
                       child: Text(
                         'Total',

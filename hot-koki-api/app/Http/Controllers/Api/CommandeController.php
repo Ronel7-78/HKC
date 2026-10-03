@@ -11,6 +11,7 @@ use App\Models\Produit;
 use App\Models\Vendeur;
 use App\Services\DeliveryPricingService;
 use App\Services\NotificationService;
+use App\Services\OnlinePaymentPricingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -122,8 +123,11 @@ class CommandeController extends Controller
         return [$sousTotal, $lignes];
     }
 
-    public function preview(Request $request, DeliveryPricingService $delivery)
-    {
+    public function preview(
+        Request $request,
+        DeliveryPricingService $delivery,
+        OnlinePaymentPricingService $paymentPricing,
+    ) {
         $validator = $this->validerPanier($request);
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
@@ -151,6 +155,7 @@ class CommandeController extends Controller
         $distanceKm = $delivery->displayedDistance((float) $vendeur->distance);
         $livraisonExpress = $express;
         $fraisLivraison = $delivery->feeForExpress($livraisonExpress);
+        $tarification = $paymentPricing->totals($sousTotal, $fraisLivraison);
 
         return response()->json([
             'vendeur' => [
@@ -160,7 +165,8 @@ class CommandeController extends Controller
             ],
             'sous_total' => $sousTotal,
             'frais_livraison' => $fraisLivraison,
-            'total' => $sousTotal + $fraisLivraison,
+            'frais_paiement' => $tarification['frais_paiement'],
+            'total' => $tarification['total'],
             'livraison_express' => $livraisonExpress,
             'mode_remise' => $modeRemise,
             'livraison_gratuite' => ! $livraisonExpress,
@@ -168,8 +174,11 @@ class CommandeController extends Controller
         ]);
     }
 
-    public function store(Request $request, DeliveryPricingService $delivery)
-    {
+    public function store(
+        Request $request,
+        DeliveryPricingService $delivery,
+        OnlinePaymentPricingService $paymentPricing,
+    ) {
         $validator = $this->validerPanier($request);
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
@@ -183,7 +192,7 @@ class CommandeController extends Controller
             ], 403);
         }
 
-        $commande = DB::transaction(function () use ($client, $request, $delivery) {
+        $commande = DB::transaction(function () use ($client, $request, $delivery, $paymentPricing) {
             $express = $request->boolean('livraison_express');
             $modeRemise = 'livraison';
             $vendeurId = $express ? null : ($request->integer('vendeur_id') ?: null);
@@ -203,6 +212,7 @@ class CommandeController extends Controller
             $distanceKm = $delivery->displayedDistance((float) $vendeur->distance);
             $livraisonExpress = $express;
             $fraisLivraison = $delivery->feeForExpress($livraisonExpress);
+            $tarification = $paymentPricing->totals($sousTotal, $fraisLivraison);
 
             $commande = Commande::create([
                 'client_id' => $client->id,
@@ -216,7 +226,8 @@ class CommandeController extends Controller
                 'mode_remise' => $modeRemise,
                 'sous_total' => $sousTotal,
                 'frais_livraison' => $fraisLivraison,
-                'total' => $sousTotal + $fraisLivraison,
+                'frais_paiement' => $tarification['frais_paiement'],
+                'total' => $tarification['total'],
             ]);
 
             foreach ($lignes as $ligne) {

@@ -933,6 +933,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 color: _leaf900,
                 fontSize: 14,
               ),
+              _AmountLine(
+                label: 'Frais de paiement en ligne',
+                value: _preview!['frais_paiement'] ?? 0,
+              ),
+              const Padding(
+                padding: EdgeInsets.only(top: 2, bottom: 6),
+                child: Text(
+                  'Ces frais couvrent le traitement sécurisé du paiement Mobile Money.',
+                  style: TextStyle(color: _inkSoft, fontSize: 11),
+                ),
+              ),
               const Divider(),
               _AmountLine(
                 label: 'Total',

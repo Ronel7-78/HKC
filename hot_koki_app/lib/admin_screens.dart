@@ -2132,6 +2132,7 @@ class _OrderSummary extends StatelessWidget {
         ),
         subtitle: Text(
           '${user?['name'] ?? 'Client'} · ${_money(order['total'])} F'
+          '\nFrais de paiement : ${_money(order['frais_paiement'] ?? 0)} F'
           '${order['distance_km'] == null ? '' : '\n${formatDistanceKm(order['distance_km'])} · ${deliveryFeeText(order['frais_livraison'])}'}',
         ),
         trailing: Text(
