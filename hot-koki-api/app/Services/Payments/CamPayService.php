@@ -144,7 +144,9 @@ class CamPayService
 
     public function testerConfiguration(): void
     {
-        $this->verifierConfiguration();
+        // Le contrôle du compte doit pouvoir être lancé avant l'ouverture
+        // des paiements aux clients.
+        $this->verifierConfiguration(false);
         $response = $this->requeteAutorisee()->get('/api/balance/');
 
         if (! $response->successful()) {
@@ -163,7 +165,13 @@ class CamPayService
 
     private function jeton(): string
     {
-        return Cache::remember('campay:access-token', now()->addMinutes(50), function (): string {
+        // Le cache Redis peut être partagé par staging et production : un jeton
+        // ne doit jamais être réutilisé pour une autre application CamPay.
+        $identite = rtrim((string) config('services.campay.base_url'), '/')
+            .'|'.(string) config('services.campay.username');
+        $cacheKey = 'campay:access-token:'.hash('sha256', $identite);
+
+        return Cache::remember($cacheKey, now()->addMinutes(50), function (): string {
             $response = Http::baseUrl(rtrim((string) config('services.campay.base_url'), '/'))
                 ->acceptJson()
                 ->asJson()
@@ -268,9 +276,9 @@ class CamPayService
             ->all();
     }
 
-    private function verifierConfiguration(): void
+    private function verifierConfiguration(bool $exigerActivation = true): void
     {
-        if (! config('services.campay.enabled')) {
+        if ($exigerActivation && ! config('services.campay.enabled')) {
             throw new RuntimeException('CamPay est désactivé.');
         }
 

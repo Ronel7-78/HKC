@@ -1,5 +1,7 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+import 'notifications_screen.dart';
+
 class LocalNotificationService {
   LocalNotificationService._();
 
@@ -27,7 +29,14 @@ class LocalNotificationService {
       ),
     );
 
-    await _plugin.initialize(settings: settings);
+    await _plugin.initialize(
+      settings: settings,
+      onDidReceiveNotificationResponse: (_) => NotificationStore.requestOpen(),
+    );
+    final launch = await _plugin.getNotificationAppLaunchDetails();
+    if (launch?.didNotificationLaunchApp ?? false) {
+      NotificationStore.requestOpen();
+    }
     await _plugin
         .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin

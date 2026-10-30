@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import 'client_screens.dart';
 import 'local_notification_service.dart';
+import 'notifications_screen.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -22,6 +23,7 @@ class PushNotificationService {
       _initialized = true;
 
       FirebaseMessaging.onMessage.listen((message) {
+        NotificationStore.notifyReceived();
         final notification = message.notification;
         if (notification == null) return;
         LocalNotificationService.show(
@@ -30,6 +32,13 @@ class PushNotificationService {
           payload: message.data['type']?.toString(),
         );
       });
+
+      FirebaseMessaging.onMessageOpenedApp.listen((_) {
+        NotificationStore.requestOpen();
+      });
+      final initialMessage = await FirebaseMessaging.instance
+          .getInitialMessage();
+      if (initialMessage != null) NotificationStore.requestOpen();
 
       FirebaseMessaging.instance.onTokenRefresh.listen(
         (_) => registerAuthenticatedDevice(),
@@ -52,6 +61,11 @@ class PushNotificationService {
         sound: true,
       );
       if (settings.authorizationStatus == AuthorizationStatus.denied) return;
+
+      if (defaultTargetPlatform == TargetPlatform.iOS &&
+          await FirebaseMessaging.instance.getAPNSToken() == null) {
+        return;
+      }
 
       final token = await FirebaseMessaging.instance.getToken();
       if (token == null || token.isEmpty) return;

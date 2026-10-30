@@ -187,7 +187,7 @@ class MainShell extends StatefulWidget {
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   int _currentIndex = 0;
   int _ordersGeneration = 0;
   UserRole? _role;
@@ -198,9 +198,32 @@ class _MainShellState extends State<MainShell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    NotificationStore.openRequests.addListener(_openNotifications);
     _role = widget.role;
     CartCleanup.clear = CartStore.instance.clear;
     _restoreSession();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || _role == null) return;
+    unawaited(NotificationStore.refresh());
+    unawaited(PushNotificationService.registerAuthenticatedDevice());
+    NotificationStore.changes.value++;
+  }
+
+  void _openNotifications() {
+    if (!mounted || _role == null) return;
+    if (_role == UserRole.admin) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => const Scaffold(body: NotificationsScreen()),
+        ),
+      );
+      return;
+    }
+    _selectTab(_role == UserRole.client ? 3 : 2);
   }
 
   Future<void> _restoreSession() async {
@@ -232,7 +255,12 @@ class _MainShellState extends State<MainShell> {
       NotificationStore.refresh();
       _startNotificationRefresh();
     }
-    if (mounted) setState(() => _restoringSession = false);
+    if (mounted) {
+      setState(() => _restoringSession = false);
+      if (_role != null && NotificationStore.openRequests.value > 0) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _openNotifications());
+      }
+    }
   }
 
   void _logout() {
@@ -313,6 +341,8 @@ class _MainShellState extends State<MainShell> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    NotificationStore.openRequests.removeListener(_openNotifications);
     _notificationTimer?.cancel();
     unawaited(VendorLocationService.stop());
     super.dispose();

@@ -7,6 +7,7 @@ use App\Models\Commande;
 use App\Models\Paiement;
 use App\Models\User;
 use App\Models\Vendeur;
+use App\Services\Payments\CamPayService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Cache;
@@ -52,6 +53,10 @@ class CamPayPaiementTest extends TestCase
                 ]);
             }
 
+            if (str_ends_with($request->url(), '/api/balance/')) {
+                return Http::response(['balance' => 0]);
+            }
+
             if (str_contains($request->url(), '/api/transaction/') && $this->statutCamPay) {
                 return Http::response($this->statutCamPay);
             }
@@ -73,6 +78,19 @@ class CamPayPaiementTest extends TestCase
             ->assertJsonPath('1.code', Paiement::FOURNISSEUR_ORANGE_MONEY)
             ->assertJsonPath('1.disponible', true)
             ->assertJsonPath('1.passerelle', Paiement::PASSERELLE_CAMPAY);
+    }
+
+    public function test_la_configuration_live_se_verifie_sans_activer_les_paiements(): void
+    {
+        config([
+            'services.campay.enabled' => false,
+            'services.campay.username' => 'campay-preflight-test',
+        ]);
+
+        app(CamPayService::class)->testerConfiguration();
+
+        Http::assertSent(fn (Request $request): bool => str_ends_with($request->url(), '/api/balance/'));
+        Http::assertNotSent(fn (Request $request): bool => str_ends_with($request->url(), '/api/collect/'));
     }
 
     public function test_campay_initie_une_collecte_sans_exposer_ses_secrets(): void

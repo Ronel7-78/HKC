@@ -9,6 +9,18 @@ const _inkSoft = Color(0xFF6B6864);
 
 class NotificationStore {
   static final unread = ValueNotifier<int>(0);
+  static final changes = ValueNotifier<int>(0);
+  static final openRequests = ValueNotifier<int>(0);
+
+  static void notifyReceived() {
+    changes.value++;
+    refresh();
+  }
+
+  static void requestOpen() {
+    openRequests.value++;
+    notifyReceived();
+  }
 
   static void reset() {
     unread.value = 0;
@@ -39,6 +51,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   void dispose() {
+    NotificationStore.changes.removeListener(_onNotificationChange);
     _searchController.dispose();
     super.dispose();
   }
@@ -59,6 +72,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   void initState() {
     super.initState();
     _reload();
+    NotificationStore.changes.addListener(_onNotificationChange);
+  }
+
+  void _onNotificationChange() {
+    if (mounted) setState(_reload);
   }
 
   void _reload() {
