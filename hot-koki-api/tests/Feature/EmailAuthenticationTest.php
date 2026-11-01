@@ -6,6 +6,7 @@ use App\Models\EmailAuthCode;
 use App\Models\User;
 use App\Notifications\EmailAuthenticationCode;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Notifications\Channels\MailChannel;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
@@ -18,6 +19,24 @@ class EmailAuthenticationTest extends TestCase
         parent::setUp();
         config()->set('email_auth.verification_enabled', true);
         Notification::fake();
+    }
+
+    public function test_les_deux_emails_affichent_le_logo_et_le_code_avec_une_version_texte(): void
+    {
+        config()->set('mail.default', 'array');
+        $user = User::factory()->create(['name' => 'Marie']);
+        $channel = app(MailChannel::class);
+
+        foreach ([EmailAuthCode::PURPOSE_VERIFY_EMAIL, EmailAuthCode::PURPOSE_RESET_PASSWORD] as $purpose) {
+            $sent = $channel->send($user, new EmailAuthenticationCode('123456', $purpose));
+            $email = $sent->getOriginalMessage();
+            $body = $email->toString();
+
+            $this->assertStringContainsString('Hot Koki Chaud', $body);
+            $this->assertStringContainsString('123456', $body);
+            $this->assertStringContainsString('hot-koki-logo.jpeg', $body);
+            $this->assertStringContainsString('text/plain', $body);
+        }
     }
 
     public function test_client_ne_recoit_un_token_quapres_verification_de_son_email(): void

@@ -13,6 +13,7 @@ import 'app_feedback.dart';
 import 'app_preferences.dart';
 import 'app_states.dart';
 import 'auth_screen.dart';
+import 'brand_logo.dart';
 import 'cart_screen.dart';
 import 'client_screens.dart';
 import 'notifications_screen.dart';
@@ -258,7 +259,9 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     if (mounted) {
       setState(() => _restoringSession = false);
       if (_role != null && NotificationStore.openRequests.value > 0) {
-        WidgetsBinding.instance.addPostFrameCallback((_) => _openNotifications());
+        WidgetsBinding.instance.addPostFrameCallback(
+          (_) => _openNotifications(),
+        );
       }
     }
   }
@@ -1209,29 +1212,7 @@ class _HomeTopBar extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Container(
-          width: 58,
-          height: 48,
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x16000000),
-                blurRadius: 10,
-                offset: Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Transform.scale(
-            scale: 2.15,
-            child: Image.asset(
-              'assets/images/hot_koki_logo.jpeg',
-              fit: BoxFit.cover,
-            ),
-          ),
-        ),
+        const BrandLogo(width: 88, height: 48, radius: 15),
         if (!isAuthenticated)
           _GuestActions(onLogin: onLogin, onRegister: onRegister)
         else

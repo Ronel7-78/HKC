@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 
 import 'api_config.dart';
 import 'app_feedback.dart';
+import 'brand_logo.dart';
 import 'email_auth_screens.dart';
 import 'legal_screen.dart';
 
@@ -293,11 +294,8 @@ class _AuthScreenState extends State<AuthScreen> {
                       onPressed: () => Navigator.pop(context),
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
                     ),
-                    Center(
-                      child: Image.asset(
-                        'assets/images/hot_koki_logo.jpeg',
-                        height: 94,
-                      ),
+                    const Center(
+                      child: BrandLogo(width: 172, height: 76, radius: 22),
                     ),
                     const SizedBox(height: 8),
                     const Center(

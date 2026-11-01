@@ -29,14 +29,15 @@ class EmailAuthenticationCode extends Notification implements ShouldBeEncrypted,
 
         return (new MailMessage)
             ->subject($verification
-                ? 'Confirmez votre adresse email Hot Koki'
-                : 'Code de réinitialisation Hot Koki')
-            ->greeting('Bonjour '.$notifiable->name.',')
-            ->line($verification
-                ? 'Utilisez ce code pour confirmer que cette adresse email vous appartient.'
-                : 'Utilisez ce code pour choisir un nouveau mot de passe.')
-            ->line('Votre code : '.$this->code)
-            ->line('Ce code expire dans 10 minutes et ne peut être utilisé qu’une fois.')
-            ->line('Si vous n’êtes pas à l’origine de cette demande, ignorez cet email.');
+                ? 'Votre code de vérification · Hot Koki Chaud'
+                : 'Réinitialisation de votre mot de passe · Hot Koki Chaud')
+            ->view([
+                'html' => 'emails.authentication-code',
+                'text' => 'emails.authentication-code-text',
+            ], [
+                'recipientName' => $notifiable->name,
+                'code' => $this->code,
+                'verification' => $verification,
+            ]);
     }
 }
