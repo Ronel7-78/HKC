@@ -44,6 +44,33 @@ class AdminDashboardTest extends TestCase
         Sanctum::actingAs(User::factory()->create(['role' => 'client']));
 
         $this->getJson('/api/admin/dashboard')->assertForbidden();
+        $this->getJson('/api/admin/utilisateurs/statistiques')->assertForbidden();
+    }
+
+    public function test_admin_consulte_la_repartition_et_evolution_des_utilisateurs(): void
+    {
+        Carbon::setTestNow('2026-11-13 12:00:00');
+        $admin = User::factory()->create(['role' => 'admin']);
+        Admin::create(['user_id' => $admin->id, 'nom' => 'Administrateur']);
+
+        User::factory()->create(['role' => 'client', 'created_at' => now()->subDay()]);
+        User::factory()->create(['role' => 'client', 'created_at' => now()->subDays(2)]);
+        User::factory()->create(['role' => 'vendeur', 'created_at' => now()->subDays(3)]);
+        User::factory()->create(['role' => 'client', 'created_at' => now()->subWeeks(2)]);
+
+        Sanctum::actingAs($admin);
+        $this->getJson('/api/admin/utilisateurs/statistiques')
+            ->assertOk()
+            ->assertJsonPath('global.total', 5)
+            ->assertJsonPath('global.clients', 3)
+            ->assertJsonPath('global.vendeurs', 1)
+            ->assertJsonPath('global.administrateurs', 1)
+            ->assertJsonPath('periodes.semaine.total', 4)
+            ->assertJsonPath('periodes.semaine.clients', 2)
+            ->assertJsonPath('periodes.semaine.vendeurs', 1)
+            ->assertJsonPath('periodes.semaine.precedent', 0)
+            ->assertJsonPath('periodes.semaine.administrateurs', 1)
+            ->assertJsonPath('periodes.mois.total', 4);
     }
 
     public function test_admin_consulte_les_revenus_par_periode_et_par_vendeur(): void

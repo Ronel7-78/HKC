@@ -106,6 +106,7 @@ Route::middleware(['auth:sanctum', 'email.verified'])->group(function () {
 // Routes de l'admin
 Route::middleware(['auth:sanctum', 'isAdmin', 'throttle:admin'])->prefix('admin')->group(function () {
     Route::get('/dashboard', AdminDashboardController::class);
+    Route::get('/utilisateurs/statistiques', [AdminDashboardController::class, 'utilisateurs']);
     Route::get('/commandes', [AdminDashboardController::class, 'commandes']);
     Route::get('/paiements', [AdminPaiementController::class, 'index']);
     Route::get('/paiements-export', [AdminPaiementController::class, 'export']);

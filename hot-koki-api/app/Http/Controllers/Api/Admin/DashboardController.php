@@ -38,4 +38,75 @@ class DashboardController extends Controller
                 ->paginate(30)
         );
     }
+
+    public function utilisateurs()
+    {
+        $maintenant = now();
+        $total = $this->compterUtilisateurs();
+
+        return response()->json([
+            'global' => $total,
+            'periodes' => [
+                'semaine' => $this->statistiquesPeriode(
+                    $maintenant->copy()->startOfWeek(),
+                    $maintenant,
+                    $maintenant->copy()->subWeek()->startOfWeek(),
+                    $maintenant->copy()->subWeek(),
+                ),
+                'mois' => $this->statistiquesPeriode(
+                    $maintenant->copy()->startOfMonth(),
+                    $maintenant,
+                    $maintenant->copy()->subMonth()->startOfMonth(),
+                    $maintenant->copy()->subMonth(),
+                ),
+                'total' => [
+                    ...$total,
+                    'precedent' => null,
+                    'evolution_pourcentage' => null,
+                ],
+            ],
+        ]);
+    }
+
+    /**
+     * @return array{total: int, clients: int, vendeurs: int, administrateurs: int}
+     */
+    private function compterUtilisateurs($debut = null, $fin = null): array
+    {
+        $query = User::query();
+        if ($debut !== null && $fin !== null) {
+            $query->whereBetween('created_at', [$debut, $fin]);
+        }
+
+        $parRole = $query
+            ->selectRaw('role, count(*) as total')
+            ->groupBy('role')
+            ->pluck('total', 'role');
+
+        $clients = (int) ($parRole['client'] ?? 0);
+        $vendeurs = (int) ($parRole['vendeur'] ?? 0);
+        $administrateurs = (int) ($parRole['admin'] ?? 0);
+
+        return [
+            'total' => $clients + $vendeurs + $administrateurs,
+            'clients' => $clients,
+            'vendeurs' => $vendeurs,
+            'administrateurs' => $administrateurs,
+        ];
+    }
+
+    private function statistiquesPeriode($debut, $fin, $debutPrecedent, $finPrecedent): array
+    {
+        $courant = $this->compterUtilisateurs($debut, $fin);
+        $precedent = $this->compterUtilisateurs($debutPrecedent, $finPrecedent);
+        $base = $precedent['total'];
+
+        return [
+            ...$courant,
+            'precedent' => $precedent['total'],
+            'evolution_pourcentage' => $base === 0
+                ? null
+                : round((($courant['total'] - $base) / $base) * 100, 1),
+        ];
+    }
 }

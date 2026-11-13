@@ -13,7 +13,6 @@ import 'app_feedback.dart';
 import 'app_preferences.dart';
 import 'app_states.dart';
 import 'auth_screen.dart';
-import 'brand_logo.dart';
 import 'cart_screen.dart';
 import 'client_screens.dart';
 import 'notifications_screen.dart';
@@ -667,7 +666,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                     ),
                     title: Text(vendor.name),
                     subtitle: Text(
-                      '${vendor.distance?.toStringAsFixed(1) ?? '—'} km · ★ ${vendor.rating.toStringAsFixed(1)}',
+                      '${vendor.distance?.toStringAsFixed(1) ?? '—'} km · note ${vendor.rating.toStringAsFixed(1)}',
                     ),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.pop(context, vendor),
@@ -848,7 +847,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                 Text(
                   widget.userName == null
                       ? 'Bienvenue chez Hot Koki Chaud'
-                      : 'Bonjour ${widget.userName} 👋',
+                      : 'Bonjour ${widget.userName}',
                   style: TextStyle(
                     fontSize: 21,
                     fontWeight: FontWeight.w700,
@@ -1212,7 +1211,29 @@ class _HomeTopBar extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const BrandLogo(width: 88, height: 48, radius: 15),
+        Container(
+          width: 58,
+          height: 48,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x16000000),
+                blurRadius: 10,
+                offset: Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Transform.scale(
+            scale: 2.15,
+            child: Image.asset(
+              'assets/images/hot_koki_logo.jpeg',
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
         if (!isAuthenticated)
           _GuestActions(onLogin: onLogin, onRegister: onRegister)
         else
@@ -1908,12 +1929,10 @@ class _PublicReviewsScreenState extends State<PublicReviewsScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              '★★★★★',
-                              style: TextStyle(
-                                color: Color(0xFFFFB28E),
-                                fontSize: 18,
-                              ),
+                            const _RatingStars(
+                              rating: 5,
+                              size: 18,
+                              color: Color(0xFFFFB28E),
                             ),
                             Text(
                               '${reviews.length} commentaire${reviews.length > 1 ? 's' : ''} publié${reviews.length > 1 ? 's' : ''}',
@@ -1983,15 +2002,37 @@ class _FullReviewCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Text(
-                List.filled(review.rating, '★').join(),
-                style: const TextStyle(color: HotKokiColors.flame600),
-              ),
+              _RatingStars(rating: review.rating, size: 16),
             ],
           ),
           const SizedBox(height: 12),
           Text(review.comment, style: const TextStyle(height: 1.45)),
         ],
+      ),
+    ),
+  );
+}
+
+class _RatingStars extends StatelessWidget {
+  const _RatingStars({
+    required this.rating,
+    required this.size,
+    this.color = HotKokiColors.flame600,
+  });
+
+  final int rating;
+  final double size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: List.generate(
+      5,
+      (index) => Icon(
+        index < rating ? Icons.star_rounded : Icons.star_outline_rounded,
+        color: color,
+        size: size,
       ),
     ),
   );
@@ -2294,13 +2335,7 @@ class _ReviewsList extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
-                    Text(
-                      '${List.filled(review.rating, '★').join()}${List.filled(5 - review.rating, '☆').join()}',
-                      style: const TextStyle(
-                        color: HotKokiColors.flame600,
-                        fontSize: 10,
-                      ),
-                    ),
+                    _RatingStars(rating: review.rating, size: 12),
                   ],
                 ),
                 const SizedBox(height: 9),

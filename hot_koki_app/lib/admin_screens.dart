@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
@@ -188,6 +189,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 onPressed: () => Navigator.push(
                   context,
                   MaterialPageRoute(
+                    builder: (_) => const AdminUserStatisticsScreen(),
+                  ),
+                ),
+                icon: const Icon(Icons.insights_outlined),
+                label: const Text('Statistiques utilisateurs'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _leaf700,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                ),
+              ),
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
                     builder: (_) => const AdminTransactionsScreen(),
                   ),
                 ),
@@ -230,6 +246,392 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     ),
   );
 }
+
+class AdminUserStatisticsScreen extends StatefulWidget {
+  const AdminUserStatisticsScreen({super.key});
+
+  @override
+  State<AdminUserStatisticsScreen> createState() =>
+      _AdminUserStatisticsScreenState();
+}
+
+class _AdminUserStatisticsScreenState extends State<AdminUserStatisticsScreen> {
+  late Future<Map<String, dynamic>> _future;
+  String _period = 'semaine';
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  void _reload() {
+    _future = ClientApi.request(
+      'GET',
+      '/admin/utilisateurs/statistiques',
+    ).then((value) => value as Map<String, dynamic>);
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: const Text('Statistiques utilisateurs'),
+      centerTitle: false,
+    ),
+    body: SafeArea(
+      top: false,
+      child: FutureBuilder<Map<String, dynamic>>(
+        future: _future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(color: _flame500),
+            );
+          }
+          if (snapshot.hasError) {
+            return _AdminError(
+              error: snapshot.error!,
+              retry: () => setState(_reload),
+            );
+          }
+
+          final data = snapshot.data!;
+          final periods = data['periodes'] as Map<String, dynamic>? ?? {};
+          final current = periods[_period] as Map<String, dynamic>? ?? {};
+          final global = data['global'] as Map<String, dynamic>? ?? {};
+          return RefreshIndicator(
+            onRefresh: () async {
+              setState(_reload);
+              await _future;
+            },
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+              children: [
+                const Text(
+                  'COMMUNAUTÉ',
+                  style: TextStyle(
+                    color: _flame600,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                const Text(
+                  'Suivi des utilisateurs',
+                  style: TextStyle(
+                    color: _leaf900,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                const Text(
+                  'Répartition des comptes créés et évolution des inscriptions.',
+                  style: TextStyle(color: _inkSoft, height: 1.4),
+                ),
+                const SizedBox(height: 18),
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(value: 'semaine', label: Text('Semaine')),
+                    ButtonSegment(value: 'mois', label: Text('Mois')),
+                    ButtonSegment(value: 'total', label: Text('Total')),
+                  ],
+                  selected: {_period},
+                  showSelectedIcon: false,
+                  onSelectionChanged: (values) =>
+                      setState(() => _period = values.first),
+                ),
+                const SizedBox(height: 20),
+                _UserStatOverview(statistics: current, period: _period),
+                const SizedBox(height: 22),
+                const _AdminSectionTitle('Répartition'),
+                const SizedBox(height: 10),
+                _UserDistributionCard(statistics: current),
+                const SizedBox(height: 22),
+                const _AdminSectionTitle('Vue globale'),
+                const SizedBox(height: 10),
+                GridView.count(
+                  crossAxisCount: 2,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  mainAxisSpacing: 10,
+                  crossAxisSpacing: 10,
+                  childAspectRatio: 1.55,
+                  children: [
+                    _StatCard(
+                      icon: Icons.people_outline,
+                      label: 'Tous les comptes',
+                      value: '${global['total'] ?? 0}',
+                    ),
+                    _StatCard(
+                      icon: Icons.person_outline,
+                      label: 'Clients',
+                      value: '${global['clients'] ?? 0}',
+                    ),
+                    _StatCard(
+                      icon: Icons.storefront_outlined,
+                      label: 'Vendeurs',
+                      value: '${global['vendeurs'] ?? 0}',
+                    ),
+                    _StatCard(
+                      icon: Icons.admin_panel_settings_outlined,
+                      label: 'Administrateurs',
+                      value: '${global['administrateurs'] ?? 0}',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    ),
+  );
+}
+
+class _UserStatOverview extends StatelessWidget {
+  const _UserStatOverview({required this.statistics, required this.period});
+
+  final Map<String, dynamic> statistics;
+  final String period;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = _asInt(statistics['total']);
+    final previous = statistics['precedent'];
+    final evolution = statistics['evolution_pourcentage'];
+    final hasComparison = previous != null;
+    final direction = evolution is num && evolution < 0
+        ? Icons.trending_down_rounded
+        : Icons.trending_up_rounded;
+    final directionColor = evolution is num && evolution < 0
+        ? const Color(0xFFB3261E)
+        : _leaf700;
+    final label = switch (period) {
+      'semaine' => 'Nouveaux comptes cette semaine',
+      'mois' => 'Nouveaux comptes ce mois',
+      _ => 'Comptes depuis le lancement',
+    };
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: _leaf900,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: .12),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(Icons.people_alt_outlined, color: Colors.white),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(color: Colors.white70)),
+                const SizedBox(height: 3),
+                Text(
+                  '$total',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 30,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                if (hasComparison) ...[
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      Icon(direction, color: directionColor, size: 18),
+                      const SizedBox(width: 4),
+                      Text(
+                        evolution == null
+                            ? 'Nouveaux inscrits sur la période'
+                            : '${evolution.abs().toStringAsFixed(1)} % par rapport à la période précédente',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UserDistributionCard extends StatelessWidget {
+  const _UserDistributionCard({required this.statistics});
+
+  final Map<String, dynamic> statistics;
+
+  @override
+  Widget build(BuildContext context) {
+    final clients = _asInt(statistics['clients']);
+    final vendors = _asInt(statistics['vendeurs']);
+    final admins = _asInt(statistics['administrateurs']);
+    final total = clients + vendors + admins;
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE8E5E1)),
+      ),
+      child: Column(
+        children: [
+          SizedBox(
+            width: 180,
+            height: 180,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                CustomPaint(
+                  size: const Size.square(180),
+                  painter: _UserDistributionPainter(
+                    values: [clients, vendors, admins],
+                  ),
+                ),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '$total',
+                      style: const TextStyle(
+                        color: _leaf900,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const Text(
+                      'comptes',
+                      style: TextStyle(color: _inkSoft, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          _DistributionLegend(
+            color: _flame600,
+            label: 'Clients',
+            value: clients,
+            total: total,
+          ),
+          _DistributionLegend(
+            color: _leaf700,
+            label: 'Vendeurs',
+            value: vendors,
+            total: total,
+          ),
+          _DistributionLegend(
+            color: const Color(0xFF74716C),
+            label: 'Administrateurs',
+            value: admins,
+            total: total,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DistributionLegend extends StatelessWidget {
+  const _DistributionLegend({
+    required this.color,
+    required this.label,
+    required this.value,
+    required this.total,
+  });
+
+  final Color color;
+  final String label;
+  final int value;
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    final percent = total == 0 ? 0 : (value / total * 100).round();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        children: [
+          Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 8),
+          Expanded(child: Text(label)),
+          Text('$value', style: const TextStyle(fontWeight: FontWeight.w800)),
+          const SizedBox(width: 8),
+          Text('$percent %', style: const TextStyle(color: _inkSoft)),
+        ],
+      ),
+    );
+  }
+}
+
+class _UserDistributionPainter extends CustomPainter {
+  const _UserDistributionPainter({required this.values});
+
+  final List<int> values;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final radius = size.width / 2 - 13;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+    final total = values.fold<int>(0, (sum, value) => sum + value);
+    final track = Paint()
+      ..color = const Color(0xFFE8E5E1)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 22;
+    canvas.drawCircle(center, radius, track);
+    if (total == 0) return;
+
+    const colors = [_flame600, _leaf700, Color(0xFF74716C)];
+    var start = -math.pi / 2;
+    for (var index = 0; index < values.length; index++) {
+      final sweep = values[index] / total * math.pi * 2;
+      if (sweep > 0) {
+        canvas.drawArc(
+          rect,
+          start,
+          sweep,
+          false,
+          Paint()
+            ..color = colors[index]
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 22
+            ..strokeCap = StrokeCap.butt,
+        );
+      }
+      start += sweep;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _UserDistributionPainter oldDelegate) =>
+      oldDelegate.values.join(',') != values.join(',');
+}
+
+int _asInt(dynamic value) => int.tryParse(value?.toString() ?? '') ?? 0;
 
 class AdminTransactionsScreen extends StatefulWidget {
   const AdminTransactionsScreen({super.key});

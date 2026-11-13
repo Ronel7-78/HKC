@@ -1241,12 +1241,18 @@ class _ReviewCard extends StatelessWidget {
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: _leaf100,
-          child: Text(
-            '${review['note']}★',
-            style: const TextStyle(
-              color: _flame600,
-              fontWeight: FontWeight.w900,
-            ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                '${review['note']}',
+                style: const TextStyle(
+                  color: _flame600,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const Icon(Icons.star_rounded, color: _flame600, size: 12),
+            ],
           ),
         ),
         title: Text(
