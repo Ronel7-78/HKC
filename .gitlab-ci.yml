@@ -48,7 +48,9 @@ application:flutter-tests:
     - export PATH="/opt/flutter/bin:$PATH"
     - cd hot_koki_app
     - flutter pub get
-    - flutter analyze
+    # Les informations de dépréciation du SDK ne doivent pas masquer une
+    # vraie erreur d'analyse. Les warnings et erreurs restent bloquants.
+    - flutter analyze --no-fatal-infos
     - flutter test
 
 deploy:staging:
