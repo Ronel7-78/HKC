@@ -37,6 +37,9 @@ application:flutter-tests:
     - curl -fsSL https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.50.0-stable.tar.xz -o /tmp/flutter.tar.xz
     - echo "6ea2d806fd57269ae783e6788e2a81fc26eaad782f1e0d0ff38623bb765ff9f5  /tmp/flutter.tar.xz" | sha256sum -c -
     - tar -xJf /tmp/flutter.tar.xz -C /opt
+    # Le SDK est extrait en root dans /opt, tandis que GitLab peut lancer
+    # Flutter sous un autre contexte Git : déclaration système impérative.
+    - git config --system --add safe.directory /opt/flutter
     - git config --global --add safe.directory /opt/flutter
     - export PATH="/opt/flutter/bin:$PATH"
     - flutter --version
