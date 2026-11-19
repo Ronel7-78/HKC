@@ -106,6 +106,9 @@ class _AuthScreenState extends State<AuthScreen> {
                         'password': _password.text,
                         'conditions_acceptees': _acceptedTerms,
                       },
+                unauthorizedMessage: _register
+                    ? null
+                    : 'Adresse e-mail ou mot de passe incorrect.',
               )
               as Map<String, dynamic>;
       if (data['code'] == 'EMAIL_NON_VERIFIE') {

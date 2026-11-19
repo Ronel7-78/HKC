@@ -81,6 +81,7 @@ class ClientApi {
     String path, {
     Map<String, dynamic>? body,
     String? idempotencyKey,
+    String? unauthorizedMessage,
   }) async {
     try {
       final uri = Uri.parse('${ApiConfig.baseUrl}$path');
@@ -97,7 +98,10 @@ class ClientApi {
         _ => http.get(uri, headers: headersValue),
       };
       final response = await request.timeout(const Duration(seconds: 20));
-      return _decodeResponse(response);
+      return _decodeResponse(
+        response,
+        unauthorizedMessage: unauthorizedMessage,
+      );
     } catch (error) {
       throw ApiException.fromError(error);
     }
@@ -150,7 +154,10 @@ class ClientApi {
     }
   }
 
-  static dynamic _decodeResponse(http.Response response) {
+  static dynamic _decodeResponse(
+    http.Response response, {
+    String? unauthorizedMessage,
+  }) {
     dynamic data;
     try {
       data = response.body.isEmpty
@@ -183,7 +190,8 @@ class ClientApi {
         }
       }
       final safeMessage = response.statusCode == 401
-          ? 'Votre session a expiré. Reconnectez-vous puis réessayez.'
+          ? unauthorizedMessage ??
+                'Votre session a expiré. Reconnectez-vous puis réessayez.'
           : response.statusCode == 429
           ? 'Trop de demandes ont été envoyées. Réessayez dans quelques instants.'
           : response.statusCode >= 500
