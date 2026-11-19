@@ -11,8 +11,7 @@ api:tests:
   stage: verification
   image: php:8.4-cli-bookworm
 
-  variables:
-    APP_KEY: "base64:qzIK9Bz5LiIG7M3M0xRc8/d5OdZwZ3RgzgdZ+mTBNv4="
+  
 
   before_script:
     - apt-get update -qq
@@ -24,13 +23,25 @@ api:tests:
   script:
     - cd hot-koki-api
     - composer install --no-interaction --prefer-dist --no-progress
-    - php artisan test --compact
+    - |
+      export APP_KEY="base64:$(php -r 'echo base64_encode(random_bytes(32));')"
+      php artisan test --compact
 
 application:flutter-tests:
   stage: verification
-  image: ghcr.io/cirruslabs/flutter:3.50.0
+  image: debian:bookworm-slim
+
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y --no-install-recommends ca-certificates curl git unzip xz-utils
+    - curl -fsSL https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.50.0-stable.tar.xz -o /tmp/flutter.tar.xz
+    - echo "6ea2d806fd57269ae783e6788e2a81fc26eaad782f1e0d0ff38623bb765ff9f5  /tmp/flutter.tar.xz" | sha256sum -c -
+    - tar -xJf /tmp/flutter.tar.xz -C /opt
+    - export PATH="/opt/flutter/bin:$PATH"
+    - flutter --version
 
   script:
+    - export PATH="/opt/flutter/bin:$PATH"
     - cd hot_koki_app
     - flutter pub get
     - flutter analyze
