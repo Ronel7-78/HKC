@@ -21,6 +21,12 @@ php artisan deploy:check
 # Applique les migrations, y compris celles de sécurité/idempotence.
 php artisan migrate --force
 
+# Le lien public vers les médias utilisateur est persistant et ne doit jamais
+# dépendre du contenu transféré par CI.
+if [[ ! -e public/storage && ! -L public/storage ]]; then
+    php artisan storage:link
+fi
+
 # Reconstruit les caches avec le nouveau code et le nouveau .env.
 php artisan optimize
 
