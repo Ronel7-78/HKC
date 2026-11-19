@@ -1,0 +1,30 @@
+stages:
+  - verification
+
+workflow:
+  rules:
+    - if: $CI_COMMIT_BRANCH
+    - if: $CI_COMMIT_TAG
+
+api:tests:
+  stage: verification
+  image: php:8.4-cli-bookworm
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y --no-install-recommends git unzip libsqlite3-dev libzip-dev libonig-dev libxml2-dev curl
+    - docker-php-ext-install pdo_sqlite zip mbstring dom
+    - curl -fsSL https://getcomposer.org/installer -o /tmp/composer-setup.php
+    - php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer
+  script:
+    - cd hot-koki-api
+    - composer install --no-interaction --prefer-dist --no-progress
+    - php artisan test --compact
+
+application:flutter-tests:
+  stage: verification
+  image: ghcr.io/cirruslabs/flutter:stable
+  script:
+    - cd hot_koki_app
+    - flutter pub get
+    - flutter analyze
+    - flutter test
