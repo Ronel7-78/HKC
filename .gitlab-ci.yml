@@ -1,5 +1,6 @@
 stages:
   - verification
+  - deploy_staging
 
 workflow:
   rules:
@@ -9,12 +10,14 @@ workflow:
 api:tests:
   stage: verification
   image: php:8.4-cli-bookworm
+
   before_script:
     - apt-get update -qq
     - apt-get install -y --no-install-recommends git unzip libsqlite3-dev libzip-dev libonig-dev libxml2-dev curl
     - docker-php-ext-install pdo_sqlite zip mbstring dom
     - curl -fsSL https://getcomposer.org/installer -o /tmp/composer-setup.php
     - php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer
+
   script:
     - cd hot-koki-api
     - composer install --no-interaction --prefer-dist --no-progress
@@ -23,8 +26,90 @@ api:tests:
 application:flutter-tests:
   stage: verification
   image: ghcr.io/cirruslabs/flutter:stable
+
   script:
     - cd hot_koki_app
     - flutter pub get
     - flutter analyze
     - flutter test
+
+deploy:staging:
+  stage: deploy_staging
+  image: alpine:3.20
+
+  needs:
+    - api:tests
+    - application:flutter-tests
+
+  environment:
+    name: staging
+    url: https://api-staging.hotkokichaud.digital
+
+  resource_group: staging
+
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual
+    - when: never
+
+  before_script:
+    - apk add --no-cache openssh-client rsync curl
+    - install -d -m 700 ~/.ssh
+
+    # Reconstruction des secrets depuis les variables GitLab Base64.
+    - printf '%s' "$STAGING_SSH_PRIVATE_KEY_B64" | base64 -d > ~/.ssh/id_ed25519
+    - printf '%s' "$STAGING_KNOWN_HOSTS_B64" | base64 -d > ~/.ssh/known_hosts
+    - printf '%s' "$STAGING_ENV_FILE_B64" | base64 -d > .ci-staging.env
+    - printf '%s' "$STAGING_FIREBASE_SERVICE_ACCOUNT_B64" | base64 -d > .ci-staging-firebase.json
+
+    - chmod 600 ~/.ssh/id_ed25519
+    - chmod 644 ~/.ssh/known_hosts
+    - test -s .ci-staging.env
+    - test -s .ci-staging-firebase.json
+
+  script:
+    # Transfère le code, sans écraser les secrets ou les données persistantes.
+    - >
+      rsync -az --delete
+      --exclude=".env"
+      --exclude="storage/"
+      --exclude="vendor/"
+      --exclude="node_modules/"
+      --exclude=".git/"
+      --exclude="bootstrap/cache/"
+      -e "ssh -i $HOME/.ssh/id_ed25519 -o StrictHostKeyChecking=yes"
+      hot-koki-api/
+      "$STAGING_SSH_USER@$STAGING_SSH_HOST:$STAGING_DEPLOY_PATH/"
+
+    # Prépare le répertoire non public des secrets Firebase.
+    - >
+      ssh -i "$HOME/.ssh/id_ed25519" -o StrictHostKeyChecking=yes
+      "$STAGING_SSH_USER@$STAGING_SSH_HOST"
+      "mkdir -p '$STAGING_DEPLOY_PATH/storage/app/secure'"
+
+    # Transfère le .env et le compte Firebase de façon temporaire.
+    - >
+      scp -i "$HOME/.ssh/id_ed25519" -o StrictHostKeyChecking=yes
+      .ci-staging.env
+      "$STAGING_SSH_USER@$STAGING_SSH_HOST:$STAGING_DEPLOY_PATH/.env.next"
+
+    - >
+      scp -i "$HOME/.ssh/id_ed25519" -o StrictHostKeyChecking=yes
+      .ci-staging-firebase.json
+      "$STAGING_SSH_USER@$STAGING_SSH_HOST:$STAGING_DEPLOY_PATH/storage/app/secure/firebase-service-account.json.next"
+
+    # Active les secrets puis lance le script Laravel.
+    - >
+      ssh -i "$HOME/.ssh/id_ed25519" -o StrictHostKeyChecking=yes
+      "$STAGING_SSH_USER@$STAGING_SSH_HOST"
+      "
+      set -eu
+      cd '$STAGING_DEPLOY_PATH'
+      install -m 600 .env.next .env
+      install -m 600 storage/app/secure/firebase-service-account.json.next storage/app/secure/firebase-service-account.json
+      rm -f .env.next storage/app/secure/firebase-service-account.json.next
+      APP_ENV=staging RUN_PAYMENT_PREFLIGHT=true bash scripts/deploy.sh
+      "
+
+    # Le pipeline ne réussit que si l'API staging répond après déploiement.
+    - curl --fail --silent --show-error --retry 3 --retry-delay 3 "$STAGING_HEALTHCHECK_URL"
