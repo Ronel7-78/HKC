@@ -11,6 +11,9 @@ api:tests:
   stage: verification
   image: php:8.4-cli-bookworm
 
+  variables:
+    APP_KEY: "base64:qzIK9Bz5LiIG7M3M0xRc8/d5OdZwZ3RgzgdZ+mTBNv4="
+
   before_script:
     - apt-get update -qq
     - apt-get install -y --no-install-recommends git unzip libsqlite3-dev libzip-dev libonig-dev libxml2-dev curl
@@ -25,7 +28,7 @@ api:tests:
 
 application:flutter-tests:
   stage: verification
-  image: ghcr.io/cirruslabs/flutter:stable
+  image: ghcr.io/cirruslabs/flutter:3.50.0
 
   script:
     - cd hot_koki_app
