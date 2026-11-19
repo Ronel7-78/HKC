@@ -1,11 +1,9 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:http/http.dart' as http;
 
 import 'api_config.dart';
 import 'admin_screens.dart';
@@ -1816,11 +1814,8 @@ class HomeFixedPoint {
 
 class HomeApi {
   static Future<HomeContent> fetch() async {
-    final response = await http
-        .get(Uri.parse('${ApiConfig.baseUrl}/accueil'))
-        .timeout(const Duration(seconds: 8));
-    if (response.statusCode != 200) throw Exception('Accueil indisponible');
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    final body =
+        await ClientApi.request('GET', '/accueil') as Map<String, dynamic>;
     return HomeContent(
       announcements: (body['annonces'] as List<dynamic>? ?? [])
           .map(
@@ -1837,23 +1832,20 @@ class HomeApi {
   }
 
   static Future<List<HomeReview>> fetchReviews() async {
-    final response = await http
-        .get(Uri.parse('${ApiConfig.baseUrl}/avis-publics?par_page=50'))
-        .timeout(const Duration(seconds: 8));
-    if (response.statusCode == 200) {
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
+    try {
+      final body =
+          await ClientApi.request('GET', '/avis-publics?par_page=50')
+              as Map<String, dynamic>;
       return (body['data'] as List<dynamic>? ?? [])
           .map((item) => HomeReview.fromJson(item as Map<String, dynamic>))
           .toList();
+    } on ApiException {
+      final body =
+          await ClientApi.request('GET', '/accueil') as Map<String, dynamic>;
+      return (body['avis'] as List<dynamic>? ?? [])
+          .map((item) => HomeReview.fromJson(item as Map<String, dynamic>))
+          .toList();
     }
-    final fallback = await http
-        .get(Uri.parse('${ApiConfig.baseUrl}/accueil'))
-        .timeout(const Duration(seconds: 8));
-    if (fallback.statusCode != 200) throw Exception('Avis indisponibles');
-    final body = jsonDecode(fallback.body) as Map<String, dynamic>;
-    return (body['avis'] as List<dynamic>? ?? [])
-        .map((item) => HomeReview.fromJson(item as Map<String, dynamic>))
-        .toList();
   }
 }
 
@@ -2045,12 +2037,7 @@ class CatalogueApi {
   ]) async {
     final dynamic raw = authenticated
         ? await ClientApi.request('GET', '/client/catalogue?mode=$mode')
-        : jsonDecode(
-            (await http
-                    .get(Uri.parse('${ApiConfig.baseUrl}/catalogue'))
-                    .timeout(const Duration(seconds: 8)))
-                .body,
-          );
+        : await ClientApi.request('GET', '/catalogue');
     final body = raw as Map<String, dynamic>;
     return (body['produits'] as List<dynamic>)
         .map((item) => ProductData.fromJson(item as Map<String, dynamic>))

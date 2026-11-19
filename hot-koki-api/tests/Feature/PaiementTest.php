@@ -300,7 +300,7 @@ class PaiementTest extends TestCase
         Queue::assertPushed(VerifierPaiementOrange::class, fn ($job) => $job->paiementId === $paiement->id);
     }
 
-    public function test_tentative_restee_initiee_est_renvoyee_a_mtn_au_lieu_de_rester_bloquee(): void
+    public function test_tentative_deja_initiee_n_est_pas_envoyee_une_seconde_fois(): void
     {
         [$user, $client] = $this->creerClient();
         $commande = $this->creerCommande($client);
@@ -316,12 +316,9 @@ class PaiementTest extends TestCase
         $this->postJson("/api/commandes/{$commande->public_id}/paiements", [
             'fournisseur' => Paiement::FOURNISSEUR_MTN_MOMO,
             'telephone' => '46733123401',
-        ])->assertOk()->assertJsonPath('paiement.statut', Paiement::STATUT_EN_ATTENTE);
+        ])->assertOk()->assertJsonPath('paiement.statut', Paiement::STATUT_INITIE);
 
-        Http::assertSent(fn (Request $request) => str_ends_with(
-            $request->url(),
-            '/collection/v1_0/requesttopay'
-        ) && $request->hasHeader('X-Reference-Id', $paiement->reference_interne));
+        Http::assertNothingSent();
     }
 
     public function test_client_ne_peut_pas_creer_ou_consulter_le_paiement_dun_autre_client(): void

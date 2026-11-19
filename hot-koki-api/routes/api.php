@@ -61,6 +61,7 @@ Route::middleware(['auth:sanctum', 'email.verified'])->group(function () {
     Route::middleware('role:client')->prefix('client')->group(function () {
         Route::get('/profile', [ClientController::class, 'show']);
         Route::put('/profile', [ClientController::class, 'update']);
+        Route::delete('/profile', [ClientController::class, 'destroy']);
         Route::get('/vendeurs', [ClientVendeurController::class, 'index']);
         Route::get('/vendeurs/{vendeur}', [ClientVendeurController::class, 'show']);
         Route::get('/avis', [AvisController::class, 'index']);
@@ -93,6 +94,8 @@ Route::middleware(['auth:sanctum', 'email.verified'])->group(function () {
         Route::post('/', [CommandeController::class, 'store'])->middleware('throttle:order-create');
         Route::get('/', [CommandeController::class, 'index']);
         Route::get('/{commande}', [CommandeController::class, 'show']);
+        Route::patch('/{commande}/masquer', [CommandeController::class, 'masquer']);
+        Route::patch('/{commande}/afficher', [CommandeController::class, 'afficher']);
         Route::post('/{commande}/paiements', [PaiementController::class, 'store'])->middleware('throttle:payment-create');
         Route::post('/{commande}/avis', [AvisController::class, 'store'])->middleware('throttle:review');
     });

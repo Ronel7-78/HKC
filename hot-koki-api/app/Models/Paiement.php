@@ -35,7 +35,7 @@ class Paiement extends Model
     public const STATUTS_ACTIFS = [self::STATUT_INITIE, self::STATUT_EN_ATTENTE];
 
     protected $fillable = [
-        'commande_id', 'reference_interne', 'reference_operateur', 'fournisseur', 'passerelle',
+        'commande_id', 'idempotency_key', 'reference_interne', 'reference_operateur', 'fournisseur', 'passerelle',
         'telephone', 'telephone_masque', 'montant', 'devise', 'statut', 'code_erreur',
         'message_erreur', 'donnees_operateur', 'initie_le', 'confirme_le',
         'callback_hash', 'tentatives_statut', 'prochaine_verification_le',

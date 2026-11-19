@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -26,9 +28,40 @@ const _flame500 = Color(0xFFF06424);
 const _inkSoft = Color(0xFF6B6864);
 
 class ApiException implements Exception {
-  const ApiException(this.message, [this.fields = const {}]);
+  const ApiException(
+    this.message, [
+    this.fields = const {},
+    this.retryable = false,
+  ]);
   final String message;
   final Map<String, String> fields;
+  final bool retryable;
+
+  factory ApiException.fromError(Object error) {
+    if (error is ApiException) return error;
+    if (error is TimeoutException ||
+        error is SocketException ||
+        error is http.ClientException) {
+      return const ApiException(
+        'Connexion impossible. Vérifiez votre connexion internet et réessayez.',
+        {},
+        true,
+      );
+    }
+    if (error is FormatException) {
+      return const ApiException(
+        'Le service a répondu de façon inattendue. Réessayez dans un instant.',
+        {},
+        true,
+      );
+    }
+    return const ApiException(
+      'Une erreur est survenue. Réessayez dans un instant.',
+      {},
+      true,
+    );
+  }
+
   @override
   String toString() => message;
 }
@@ -47,29 +80,47 @@ class ClientApi {
     String method,
     String path, {
     Map<String, dynamic>? body,
+    String? idempotencyKey,
   }) async {
-    final uri = Uri.parse('${ApiConfig.baseUrl}$path');
-    final headersValue = await headers();
-    final encoded = body == null ? null : jsonEncode(body);
-    final request = switch (method) {
-      'POST' => http.post(uri, headers: headersValue, body: encoded),
-      'PUT' => http.put(uri, headers: headersValue, body: encoded),
-      'PATCH' => http.patch(uri, headers: headersValue, body: encoded),
-      'DELETE' => http.delete(uri, headers: headersValue, body: encoded),
-      _ => http.get(uri, headers: headersValue),
-    };
-    final response = await request.timeout(const Duration(seconds: 20));
-    return _decodeResponse(response);
+    try {
+      final uri = Uri.parse('${ApiConfig.baseUrl}$path');
+      final headersValue = await headers();
+      if (idempotencyKey != null) {
+        headersValue['Idempotency-Key'] = idempotencyKey;
+      }
+      final encoded = body == null ? null : jsonEncode(body);
+      final request = switch (method) {
+        'POST' => http.post(uri, headers: headersValue, body: encoded),
+        'PUT' => http.put(uri, headers: headersValue, body: encoded),
+        'PATCH' => http.patch(uri, headers: headersValue, body: encoded),
+        'DELETE' => http.delete(uri, headers: headersValue, body: encoded),
+        _ => http.get(uri, headers: headersValue),
+      };
+      final response = await request.timeout(const Duration(seconds: 20));
+      return _decodeResponse(response);
+    } catch (error) {
+      throw ApiException.fromError(error);
+    }
   }
 
+  /// A conserved key lets a manual retry recover the first operation safely.
+  static String newIdempotencyKey() => List<int>.generate(
+    32,
+    (_) => Random.secure().nextInt(256),
+  ).map((value) => value.toRadixString(16).padLeft(2, '0')).join();
+
   static Future<Uint8List> download(String path) async {
-    final response = await http
-        .get(Uri.parse('${ApiConfig.baseUrl}$path'), headers: await headers())
-        .timeout(const Duration(seconds: 45));
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      _decodeResponse(response);
+    try {
+      final response = await http
+          .get(Uri.parse('${ApiConfig.baseUrl}$path'), headers: await headers())
+          .timeout(const Duration(seconds: 45));
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        _decodeResponse(response);
+      }
+      return response.bodyBytes;
+    } catch (error) {
+      throw ApiException.fromError(error);
     }
-    return response.bodyBytes;
   }
 
   static Future<dynamic> multipart(
@@ -77,26 +128,48 @@ class ClientApi {
     required Map<String, String> fields,
     String? filePath,
   }) async {
-    final request = http.MultipartRequest(
-      'POST',
-      Uri.parse('${ApiConfig.baseUrl}$path'),
-    );
-    request.headers['Accept'] = 'application/json';
-    if (await storage.read(key: 'auth_token') case final token?) {
-      request.headers['Authorization'] = 'Bearer $token';
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${ApiConfig.baseUrl}$path'),
+      );
+      request.headers['Accept'] = 'application/json';
+      if (await storage.read(key: 'auth_token') case final token?) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
+      request.fields.addAll(fields);
+      if (filePath != null) {
+        request.files.add(await http.MultipartFile.fromPath('photo', filePath));
+      }
+      final streamed = await request.send().timeout(
+        const Duration(seconds: 30),
+      );
+      return _decodeResponse(await http.Response.fromStream(streamed));
+    } catch (error) {
+      throw ApiException.fromError(error);
     }
-    request.fields.addAll(fields);
-    if (filePath != null) {
-      request.files.add(await http.MultipartFile.fromPath('photo', filePath));
-    }
-    final streamed = await request.send().timeout(const Duration(seconds: 30));
-    return _decodeResponse(await http.Response.fromStream(streamed));
   }
 
   static dynamic _decodeResponse(http.Response response) {
-    final data = response.body.isEmpty
-        ? <String, dynamic>{}
-        : jsonDecode(response.body);
+    dynamic data;
+    try {
+      data = response.body.isEmpty
+          ? <String, dynamic>{}
+          : jsonDecode(response.body);
+    } on FormatException {
+      if (response.statusCode >= 500) {
+        throw const ApiException(
+          'Le service est momentanément indisponible. Réessayez dans un instant.',
+          {},
+          true,
+        );
+      }
+      throw const ApiException(
+        'Le service a répondu de façon inattendue. Réessayez dans un instant.',
+        {},
+        true,
+      );
+    }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       final message = data is Map ? data['message'] : null;
       final errors = data is Map ? data['errors'] : null;
@@ -109,11 +182,19 @@ class ClientApi {
               : value.toString();
         }
       }
+      final safeMessage = response.statusCode == 401
+          ? 'Votre session a expiré. Reconnectez-vous puis réessayez.'
+          : response.statusCode == 429
+          ? 'Trop de demandes ont été envoyées. Réessayez dans quelques instants.'
+          : response.statusCode >= 500
+          ? 'Le service est momentanément indisponible. Réessayez dans un instant.'
+          : message?.toString() ??
+                _firstError(errors) ??
+                'Impossible de terminer l’opération.';
       throw ApiException(
-        message?.toString() ??
-            _firstError(errors) ??
-            'Impossible de terminer l’opération.',
+        safeMessage,
         fieldErrors,
+        response.statusCode >= 500 || response.statusCode == 429,
       );
     }
     return data;
@@ -370,6 +451,12 @@ class _OrderCard extends StatelessWidget {
                         : 'Modifier l’avis',
                   ),
                 ),
+              if (status == 'livree' || status == 'annulee')
+                TextButton.icon(
+                  onPressed: () => _hide(context),
+                  icon: const Icon(Icons.visibility_off_outlined, size: 18),
+                  label: const Text('Masquer'),
+                ),
             ],
           ),
         ],
@@ -566,6 +653,38 @@ class _OrderCard extends StatelessWidget {
       if (context.mounted) _snack(context, error);
     } finally {
       comment.dispose();
+    }
+  }
+
+  Future<void> _hide(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Masquer cette commande ?'),
+        content: const Text(
+          'Elle disparaîtra seulement de votre liste. Elle reste conservée dans votre historique sécurisé.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Masquer'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await ClientApi.request(
+        'PATCH',
+        '/commandes/${apiResourceId(order)}/masquer',
+      );
+      await onChanged();
+    } catch (error) {
+      if (context.mounted) _snack(context, error);
     }
   }
 }
@@ -1016,6 +1135,19 @@ class _ClientAccountScreenState extends State<ClientAccountScreen> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _deleteAccount,
+                      icon: const Icon(Icons.delete_outline),
+                      label: const Text('Supprimer mon compte'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red.shade800,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                    ),
+                  ),
                   const CompanyCopyrightFooter(),
                 ],
               ),
@@ -1033,6 +1165,92 @@ class _ClientAccountScreenState extends State<ClientAccountScreen> {
     await ClientApi.storage.delete(key: 'auth_token');
     CartCleanup.clear();
     widget.onLogout();
+  }
+
+  Future<void> _deleteAccount() async {
+    final firstConfirmation = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Supprimer définitivement le compte ?'),
+        content: const Text(
+          'Cette action coupe immédiatement votre accès. Vos données de profil seront anonymisées ; les commandes restent conservées pour la traçabilité.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Conserver mon compte'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Continuer'),
+          ),
+        ],
+      ),
+    );
+    if (firstConfirmation != true || !mounted) return;
+
+    final password = TextEditingController();
+    final confirmation = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Dernière confirmation'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Saisissez SUPPRIMER puis votre mot de passe actuel.'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: confirmation,
+              decoration: const InputDecoration(labelText: 'Confirmation'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: password,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Mot de passe actuel',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) {
+      password.dispose();
+      confirmation.dispose();
+      return;
+    }
+    try {
+      await ClientApi.request(
+        'DELETE',
+        '/client/profile',
+        body: {
+          'confirmation': confirmation.text.trim(),
+          'current_password': password.text,
+        },
+      );
+      await ClientApi.storage.delete(key: 'auth_token');
+      CartCleanup.clear();
+      if (mounted) widget.onLogout();
+    } catch (error) {
+      if (mounted) _snack(context, error);
+    } finally {
+      password.dispose();
+      confirmation.dispose();
+    }
   }
 
   Future<void> _edit(

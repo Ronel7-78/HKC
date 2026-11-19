@@ -98,10 +98,9 @@ class ProduitController extends Controller
     public function destroy(string $id)
     {
         $produit = Produit::where('public_id', $id)->firstOrFail();
-        $this->deleteManagedPhoto($produit->photo);
         $produit->delete();
 
-        return response()->json(['message' => 'Produit supprimé']);
+        return response()->json(['message' => 'Produit archivé. Il reste visible dans les historiques de commande.']);
     }
 
     private function messages(): array

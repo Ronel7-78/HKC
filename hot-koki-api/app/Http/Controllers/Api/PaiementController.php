@@ -95,11 +95,21 @@ class PaiementController extends Controller
             }
         }
 
-        $paiement = DB::transaction(function () use ($commande, $validated, $passerelle) {
+        $idempotencyKey = $this->idempotencyKey($request);
+
+        [$paiement, $cree] = DB::transaction(function () use ($commande, $validated, $passerelle, $idempotencyKey) {
             $commandeVerrouillee = Commande::whereKey($commande->id)->lockForUpdate()->firstOrFail();
 
             if ($commandeVerrouillee->statut !== Commande::STATUT_EN_ATTENTE_PAIEMENT) {
-                return null;
+                return [null, false];
+            }
+
+            $tentativeIdempotente = $commandeVerrouillee->paiements()
+                ->where('idempotency_key', $idempotencyKey)
+                ->first();
+
+            if ($tentativeIdempotente) {
+                return [$tentativeIdempotente, false];
             }
 
             $tentativeActive = $commandeVerrouillee->paiements()
@@ -109,10 +119,11 @@ class PaiementController extends Controller
                 ->first();
 
             if ($tentativeActive) {
-                return $tentativeActive;
+                return [$tentativeActive, false];
             }
 
-            return $commandeVerrouillee->paiements()->create([
+            return [$commandeVerrouillee->paiements()->create([
+                'idempotency_key' => $idempotencyKey,
                 'fournisseur' => $validated['fournisseur'],
                 'passerelle' => $passerelle,
                 'telephone' => $this->normaliserTelephone(
@@ -122,7 +133,7 @@ class PaiementController extends Controller
                 'montant' => $commandeVerrouillee->total,
                 'devise' => 'XAF',
                 'statut' => Paiement::STATUT_INITIE,
-            ]);
+            ]), true];
         });
 
         if (! $paiement) {
@@ -132,7 +143,9 @@ class PaiementController extends Controller
             ], 422);
         }
 
-        if ($paiement->wasRecentlyCreated || $paiement->statut === Paiement::STATUT_INITIE) {
+        // Une demande externe n'est envoyee qu'une seule fois. Si le client
+        // perd le reseau puis reessaie, il recupere la tentative existante.
+        if ($cree) {
             try {
                 if ($paiement->passerelle === Paiement::PASSERELLE_CAMPAY) {
                     $camPay->initier($paiement);
@@ -153,11 +166,11 @@ class PaiementController extends Controller
         }
 
         return response()->json([
-            'message' => $paiement->wasRecentlyCreated
+            'message' => $cree
                 ? 'Demande de paiement envoyée à l’opérateur.'
                 : 'Une demande de paiement est déjà en cours.',
             'paiement' => $paiement->load('commande'),
-        ], $paiement->wasRecentlyCreated ? 201 : 200);
+        ], $cree ? 201 : 200);
     }
 
     public function show(Request $request, Paiement $paiement)
@@ -165,6 +178,22 @@ class PaiementController extends Controller
         $this->authorize('client', $paiement);
 
         return response()->json($paiement->load('commande'));
+    }
+
+    private function idempotencyKey(Request $request): string
+    {
+        $key = trim((string) $request->header('Idempotency-Key', ''));
+
+        if ($key === '') {
+            // Compatibilite avec les versions installees avant l'ajout de la
+            // cle. Les applications a jour envoient une cle stable.
+            return (string) Str::uuid();
+        }
+
+        abort_unless(preg_match('/^[A-Za-z0-9_-]{16,128}$/', $key) === 1, 422,
+            'La clé de sécurité du paiement est invalide. Réessayez.');
+
+        return $key;
     }
 
     public function synchroniser(

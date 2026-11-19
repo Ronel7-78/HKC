@@ -452,6 +452,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   bool _loading = true;
   bool _submitting = false;
   bool _locating = false;
+  late final String _orderIdempotencyKey;
+  late final String _paymentIdempotencyKey;
   late String _deliveryMode;
   double? _deliveryLatitude;
   double? _deliveryLongitude;
@@ -461,6 +463,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   void initState() {
     super.initState();
+    _orderIdempotencyKey = ClientApi.newIdempotencyKey();
+    _paymentIdempotencyKey = ClientApi.newIdempotencyKey();
     _deliveryMode = CartStore.instance.deliveryMode;
     _load();
   }
@@ -636,6 +640,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 'POST',
                 '/commandes',
                 body: _payload(cartItems),
+                idempotencyKey: _orderIdempotencyKey,
               )
               as Map<String, dynamic>;
       final order = created['commande'] as Map<String, dynamic>;
@@ -647,6 +652,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   'fournisseur': _provider,
                   'telephone': _phone.text.trim(),
                 },
+                idempotencyKey: _paymentIdempotencyKey,
               )
               as Map<String, dynamic>;
       CartStore.instance.clear();

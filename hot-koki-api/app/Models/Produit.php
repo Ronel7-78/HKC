@@ -6,10 +6,11 @@ namespace App\Models;
 
 use App\Models\Concerns\HasPublicId;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Produit extends Model
 {
-    use HasPublicId;
+    use HasPublicId, SoftDeletes;
 
     protected $fillable = ['nom', 'description', 'prix', 'photo'];
 

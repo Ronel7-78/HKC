@@ -35,7 +35,8 @@ class Commande extends Model
     protected $fillable = [
         'client_id', 'vendeur_id', 'statut', 'adresse_livraison',
         'latitude_client', 'longitude_client', 'distance_km', 'livraison_express', 'mode_remise',
-        'sous_total', 'frais_livraison', 'frais_paiement', 'total',
+        'sous_total', 'frais_livraison', 'frais_paiement', 'total', 'idempotency_key',
+        'masquee_client_le',
     ];
 
     protected $casts = [
@@ -45,6 +46,7 @@ class Commande extends Model
         'frais_livraison' => 'decimal:2',
         'frais_paiement' => 'decimal:2',
         'total' => 'decimal:2',
+        'masquee_client_le' => 'datetime',
     ];
 
     protected $appends = ['code_commande'];

@@ -15,6 +15,7 @@ use App\Services\OnlinePaymentPricingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 class CommandeController extends Controller
 {
@@ -192,7 +193,30 @@ class CommandeController extends Controller
             ], 403);
         }
 
-        $commande = DB::transaction(function () use ($client, $request, $delivery, $paymentPricing) {
+        $idempotencyKey = $this->idempotencyKey($request);
+
+        // Une nouvelle tentative manuelle avec la meme cle doit toujours
+        // retourner la commande originale, sans recreer les lignes ni notifier.
+        $commandeExistante = Commande::query()
+            ->where('client_id', $client->id)
+            ->where('idempotency_key', $idempotencyKey)
+            ->first();
+
+        if ($commandeExistante) {
+            return $this->reponseCommande($commandeExistante, false);
+        }
+
+        [$commande, $cree] = DB::transaction(function () use ($client, $request, $delivery, $paymentPricing, $idempotencyKey) {
+            $existante = Commande::query()
+                ->where('client_id', $client->id)
+                ->where('idempotency_key', $idempotencyKey)
+                ->lockForUpdate()
+                ->first();
+
+            if ($existante) {
+                return [$existante, false];
+            }
+
             $express = $request->boolean('livraison_express');
             $modeRemise = 'livraison';
             $vendeurId = $express ? null : ($request->integer('vendeur_id') ?: null);
@@ -205,7 +229,7 @@ class CommandeController extends Controller
             );
 
             if (! $vendeur) {
-                return null;
+                return [null, false];
             }
 
             [$sousTotal, $lignes] = $this->calculerTotaux($request->items);
@@ -217,6 +241,7 @@ class CommandeController extends Controller
             $commande = Commande::create([
                 'client_id' => $client->id,
                 'vendeur_id' => $vendeur->id,
+                'idempotency_key' => $idempotencyKey,
                 'statut' => 'en_attente_paiement',
                 'adresse_livraison' => $request->adresse_livraison,
                 'latitude_client' => $request->latitude_client,
@@ -240,7 +265,7 @@ class CommandeController extends Controller
                 $item->complements()->attach($ligne['complements']);
             }
 
-            return $commande;
+            return [$commande, true];
         });
 
         if (! $commande) {
@@ -254,25 +279,24 @@ class CommandeController extends Controller
             ], 422);
         }
 
-        $commande->load('client.user', 'vendeur.user');
-        NotificationService::envoyer(
-            $commande->client->user,
-            'commande_creee',
-            'Commande créée',
-            "Votre commande {$commande->code_commande} attend maintenant le paiement.",
-            ['commande_id' => $commande->id]
-        );
-        NotificationService::admins(
-            'nouvelle_commande',
-            'Nouvelle commande',
-            "La commande {$commande->code_commande} vient d’être créée.",
-            ['commande_id' => $commande->id]
-        );
+        if ($cree) {
+            $commande->load('client.user', 'vendeur.user');
+            NotificationService::envoyer(
+                $commande->client->user,
+                'commande_creee',
+                'Commande créée',
+                "Votre commande {$commande->code_commande} attend maintenant le paiement.",
+                ['commande_id' => $commande->id]
+            );
+            NotificationService::admins(
+                'nouvelle_commande',
+                'Nouvelle commande',
+                "La commande {$commande->code_commande} vient d’être créée.",
+                ['commande_id' => $commande->id]
+            );
+        }
 
-        return response()->json([
-            'message' => 'Commande créée, en attente de paiement',
-            'commande' => $commande->load('items.complements', 'vendeur'),
-        ], 201);
+        return $this->reponseCommande($commande, $cree);
     }
 
     // Utile pour tester l'étape suivante (paiement) : lister mes commandes
@@ -288,6 +312,7 @@ class CommandeController extends Controller
 
         return response()->json(
             $client->commandes()
+                ->when(! $request->boolean('masquees'), fn ($query) => $query->whereNull('masquee_client_le'))
                 ->with('items.produit', 'items.complements', 'vendeur', 'paiements', 'avis')
                 ->latest()
                 ->get()
@@ -311,5 +336,55 @@ class CommandeController extends Controller
         return response()->json(
             $commande->load('items.produit', 'items.complements', 'vendeur')
         );
+    }
+
+    public function masquer(Request $request, Commande $commande)
+    {
+        $this->authorize('client', $commande);
+
+        if (! in_array($commande->statut, [Commande::STATUT_LIVREE, Commande::STATUT_ANNULEE], true)) {
+            return response()->json([
+                'message' => 'Seules les commandes terminées peuvent être masquées.',
+                'code' => 'COMMANDE_NON_MASQUABLE',
+            ], 422);
+        }
+
+        $commande->update(['masquee_client_le' => now()]);
+
+        return response()->json(['message' => 'Commande masquée de votre liste.']);
+    }
+
+    public function afficher(Request $request, Commande $commande)
+    {
+        $this->authorize('client', $commande);
+        $commande->update(['masquee_client_le' => null]);
+
+        return response()->json(['message' => 'Commande restaurée dans votre liste.']);
+    }
+
+    private function idempotencyKey(Request $request): string
+    {
+        $key = trim((string) $request->header('Idempotency-Key', ''));
+
+        if ($key === '') {
+            // Compatibilite temporaire avec les anciennes versions mobiles.
+            // Les versions actuelles transmettent toujours une cle stable.
+            return (string) Str::uuid();
+        }
+
+        abort_unless(preg_match('/^[A-Za-z0-9_-]{16,128}$/', $key) === 1, 422,
+            'La clé de sécurité de la commande est invalide. Réessayez.');
+
+        return $key;
+    }
+
+    private function reponseCommande(Commande $commande, bool $cree)
+    {
+        return response()->json([
+            'message' => $cree
+                ? 'Commande créée, en attente de paiement'
+                : 'Cette commande a déjà été enregistrée.',
+            'commande' => $commande->load('items.produit', 'items.complements', 'vendeur'),
+        ], $cree ? 201 : 200);
     }
 }

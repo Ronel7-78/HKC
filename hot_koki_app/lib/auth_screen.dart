@@ -1,13 +1,9 @@
-import 'dart:async';
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:http/http.dart' as http;
 
-import 'api_config.dart';
+import 'client_screens.dart' show ApiException, ClientApi;
 import 'app_feedback.dart';
 import 'email_auth_screens.dart';
 import 'legal_screen.dart';
@@ -89,46 +85,34 @@ class _AuthScreenState extends State<AuthScreen> {
     });
 
     try {
-      final response = await http
-          .post(
-            Uri.parse(
-              '${ApiConfig.baseUrl}/${_register ? 'register' : 'login'}',
-            ),
-            headers: {
-              'Accept': 'application/json',
-              'Content-Type': 'application/json',
-            },
-            body: jsonEncode(
-              _register
-                  ? {
-                      'name': _name.text.trim(),
-                      'email': _email.text.trim(),
-                      'telephone': _normalisePhone(_telephone.text),
-                      'password': _password.text,
-                      'password_confirmation': _confirmation.text,
-                      'adresse_texte': _locationLabel,
-                      'latitude': _latitude,
-                      'longitude': _longitude,
-                      'conditions_acceptees': _acceptedTerms,
-                    }
-                  : {
-                      'email': _email.text.trim(),
-                      'password': _password.text,
-                      'conditions_acceptees': _acceptedTerms,
-                    },
-            ),
-          )
-          .timeout(const Duration(seconds: 15));
-
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        if (data['code'] == 'EMAIL_NON_VERIFIE') {
-          await _openVerification(
-            (data['email'] ?? _email.text.trim()).toString(),
-          );
-          return;
-        }
-        throw Exception(_extractError(data));
+      final data =
+          await ClientApi.request(
+                'POST',
+                '/${_register ? 'register' : 'login'}',
+                body: _register
+                    ? {
+                        'name': _name.text.trim(),
+                        'email': _email.text.trim(),
+                        'telephone': _normalisePhone(_telephone.text),
+                        'password': _password.text,
+                        'password_confirmation': _confirmation.text,
+                        'adresse_texte': _locationLabel,
+                        'latitude': _latitude,
+                        'longitude': _longitude,
+                        'conditions_acceptees': _acceptedTerms,
+                      }
+                    : {
+                        'email': _email.text.trim(),
+                        'password': _password.text,
+                        'conditions_acceptees': _acceptedTerms,
+                      },
+              )
+              as Map<String, dynamic>;
+      if (data['code'] == 'EMAIL_NON_VERIFIE') {
+        await _openVerification(
+          (data['email'] ?? _email.text.trim()).toString(),
+        );
+        return;
       }
 
       if (data['verification_requise'] == true) {
@@ -139,9 +123,7 @@ class _AuthScreenState extends State<AuthScreen> {
       await _completeAuthentication(data, registered: _register);
     } catch (error) {
       if (mounted) {
-        final message = error is TimeoutException
-            ? 'Le serveur Hot Koki Chaud ne répond pas. Vérifiez votre connexion internet et reéssayez.'
-            : error.toString().replaceFirst('Exception: ', '');
+        final message = ApiException.fromError(error).message;
         setState(() => _error = message);
         await AppFeedback.error(context, message: message);
       }
@@ -256,16 +238,6 @@ class _AuthScreenState extends State<AuthScreen> {
     } finally {
       if (mounted) setState(() => _locating = false);
     }
-  }
-
-  String _extractError(Map<String, dynamic> data) {
-    if (data['message'] != null) return data['message'].toString();
-    final errors = data['errors'];
-    if (errors is Map && errors.isNotEmpty) {
-      final first = errors.values.first;
-      if (first is List && first.isNotEmpty) return first.first.toString();
-    }
-    return 'Une erreur est survenue. Réessaie.';
   }
 
   @override

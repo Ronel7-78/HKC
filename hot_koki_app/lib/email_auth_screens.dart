@@ -1,11 +1,7 @@
-import 'dart:async';
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
 
-import 'api_config.dart';
+import 'client_screens.dart' show ApiException, ClientApi;
 import 'app_feedback.dart';
 
 const _leaf900 = Color(0xFF1F3524);
@@ -387,32 +383,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 Future<Map<String, dynamic>> _post(
   String path,
   Map<String, dynamic> body,
-) async {
-  final response = await http
-      .post(
-        Uri.parse('${ApiConfig.baseUrl}$path'),
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(body),
-      )
-      .timeout(const Duration(seconds: 15));
-  final data = jsonDecode(response.body) as Map<String, dynamic>;
-  if (response.statusCode < 200 || response.statusCode >= 300) {
-    final errors = data['errors'];
-    if (errors is Map && errors.isNotEmpty) {
-      final first = errors.values.first;
-      if (first is List && first.isNotEmpty) throw Exception(first.first);
-    }
-    throw Exception(data['message'] ?? 'Une erreur est survenue.');
-  }
-  return data;
-}
+) async =>
+    await ClientApi.request('POST', path, body: body) as Map<String, dynamic>;
 
 bool _validEmail(String value) =>
     RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value.trim());
 
-String _message(Object error) => error is TimeoutException
-    ? 'Le serveur ne répond pas. Vérifiez votre connexion.'
-    : error.toString().replaceFirst('Exception: ', '');
+String _message(Object error) => ApiException.fromError(error).message;

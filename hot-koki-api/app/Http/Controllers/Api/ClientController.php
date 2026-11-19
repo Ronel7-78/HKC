@@ -5,10 +5,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Commande;
+use App\Models\EmailAuthCode;
+use App\Models\Paiement;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class ClientController extends Controller
@@ -87,6 +91,76 @@ class ClientController extends Controller
             'message' => 'Profil mis à jour',
             'client' => $client,
             'user' => $request->user()->fresh(),
+        ]);
+    }
+
+    /**
+     * Supprime l'acces du client et anonymise ses donnees de profil, sans
+     * detruire commandes et paiements necessaires a la tracabilite.
+     */
+    public function destroy(Request $request)
+    {
+        $client = $request->user()->client;
+        $user = $request->user();
+
+        if (! $client) {
+            return response()->json(['message' => 'Profil client introuvable'], 404);
+        }
+
+        $validated = $request->validate([
+            'confirmation' => ['required', 'in:SUPPRIMER'],
+            'current_password' => ['required', 'string'],
+        ], [
+            'confirmation.in' => 'Saisissez exactement SUPPRIMER pour confirmer.',
+            'current_password.required' => 'Votre mot de passe est requis pour cette action.',
+        ]);
+
+        if (! Hash::check($validated['current_password'], $user->password)) {
+            return response()->json(['message' => 'Le mot de passe actuel est incorrect.'], 422);
+        }
+
+        $commandeActive = $client->commandes()
+            ->whereNotIn('statut', [Commande::STATUT_LIVREE, Commande::STATUT_ANNULEE])
+            ->exists();
+        $paiementActif = Paiement::query()
+            ->whereIn('statut', Paiement::STATUTS_ACTIFS)
+            ->whereIn('commande_id', $client->commandes()->select('id'))
+            ->exists();
+
+        if ($commandeActive || $paiementActif) {
+            return response()->json([
+                'message' => 'Votre compte ne peut pas être supprimé tant qu’une commande ou un paiement est en cours.',
+                'code' => 'SUPPRESSION_COMPTE_BLOQUEE',
+            ], 422);
+        }
+
+        DB::transaction(function () use ($client, $user): void {
+            $suffixe = $user->id.'-'.Str::lower(Str::random(20));
+
+            $user->pushTokens()->delete();
+            $user->tokens()->delete();
+            EmailAuthCode::query()->where('user_id', $user->id)->delete();
+
+            $client->update([
+                'nom' => null,
+                'prenom' => null,
+                'adresse_texte' => null,
+                'latitude' => null,
+                'longitude' => null,
+            ]);
+
+            $user->forceFill([
+                'name' => 'Compte supprimé',
+                'email' => 'supprime-'.$suffixe.'@deleted.hotkokichaud.digital',
+                'telephone' => 'del-'.$user->id.'-'.Str::lower(Str::random(10)),
+                'password' => Hash::make(Str::random(64)),
+                'email_verified_at' => null,
+            ])->save();
+            $user->delete();
+        });
+
+        return response()->json([
+            'message' => 'Votre compte a été supprimé. Les historiques de commande sont conservés de façon anonymisée pour les obligations de traçabilité.',
         ]);
     }
 }

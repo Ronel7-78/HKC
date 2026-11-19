@@ -1,17 +1,15 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'api_config.dart';
 import 'app_feedback.dart';
 import 'cart_screen.dart';
+import 'client_screens.dart' show ClientApi;
 
 const _leaf900 = Color(0xFF1F3524);
 const _leaf700 = Color(0xFF2E4E36);
@@ -118,47 +116,35 @@ class ProductComplement {
 }
 
 class VendorApi {
-  static const _storage = FlutterSecureStorage();
-
-  static Future<Map<String, String>> _headers() async {
-    final token = await _storage.read(key: 'auth_token');
-    return {
-      'Accept': 'application/json',
-      if (token != null) 'Authorization': 'Bearer $token',
-    };
-  }
-
   static Future<List<VendorData>> nearby([
     String query = '',
     String type = 'tous',
   ]) async {
-    final uri = Uri.parse('${ApiConfig.baseUrl}/client/vendeurs').replace(
-      queryParameters: {
-        if (query.trim().isNotEmpty) 'q': query.trim(),
-        if (type != 'tous') 'type': type,
-      },
-    );
-    final response = await http
-        .get(uri, headers: await _headers())
-        .timeout(const Duration(seconds: 12));
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
-    if (response.statusCode != 200) {
-      throw Exception(body['message'] ?? 'Recherche indisponible');
-    }
+    final parameters = <String, String>{
+      if (query.trim().isNotEmpty) 'q': query.trim(),
+      if (type != 'tous') 'type': type,
+    };
+    final suffix = parameters.entries
+        .map(
+          (entry) =>
+              '${Uri.encodeQueryComponent(entry.key)}=${Uri.encodeQueryComponent(entry.value)}',
+        )
+        .join('&');
+    final body =
+        await ClientApi.request(
+              'GET',
+              '/client/vendeurs${suffix.isEmpty ? '' : '?$suffix'}',
+            )
+            as Map<String, dynamic>;
     return (body['vendeurs'] as List<dynamic>)
         .map((item) => VendorData.fromJson(item as Map<String, dynamic>))
         .toList();
   }
 
   static Future<VendorData> show(String id) async {
-    final response = await http.get(
-      Uri.parse('${ApiConfig.baseUrl}/client/vendeurs/$id'),
-      headers: await _headers(),
-    );
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
-    if (response.statusCode != 200) {
-      throw Exception(body['message'] ?? 'Vendeur indisponible');
-    }
+    final body =
+        await ClientApi.request('GET', '/client/vendeurs/$id')
+            as Map<String, dynamic>;
     return VendorData.fromJson(body['vendeur'] as Map<String, dynamic>);
   }
 }
