@@ -182,7 +182,11 @@ class CamPayService
                 ]);
             $token = $response->json('token');
             if (! $response->successful() || ! is_string($token) || $token === '') {
-                throw new RuntimeException('Authentification CamPay refusée.');
+                throw new RuntimeException(match ($response->status()) {
+                    401 => 'CamPay a refusé les identifiants de cette application Demo (HTTP 401).',
+                    403 => 'CamPay bloque l’accès API Demo de cette application (HTTP 403). Demandez l’activation de l’application, au-delà de la simple autorisation IP.',
+                    default => 'Authentification CamPay refusée (HTTP '.$response->status().').',
+                });
             }
 
             return $token;
