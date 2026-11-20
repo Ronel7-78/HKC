@@ -75,28 +75,6 @@ class CommandeController extends Controller
             ->first();
     }
 
-    /**
-     * Reverifie l'eligibilite sous verrou pour qu'un changement de disponibilite
-     * entre l'apercu et la creation ne produise pas une mauvaise affectation.
-     */
-    private function verrouillerVendeurEligible(
-        array $items,
-        $lat,
-        $lng,
-        ?int $vendeurId = null,
-        bool $express = false,
-    ) {
-        $vendeur = $this->trouverVendeurEligible($items, $lat, $lng, $vendeurId, $express);
-
-        if (! $vendeur) {
-            return null;
-        }
-
-        Vendeur::whereKey($vendeur->id)->lockForUpdate()->first();
-
-        return $this->trouverVendeurEligible($items, $lat, $lng, $vendeur->id, $express);
-    }
-
     private function calculerTotaux(array $items)
     {
         $sousTotal = 0;
@@ -198,6 +176,11 @@ class CommandeController extends Controller
 
         $idempotencyKey = $this->idempotencyKey($request);
 
+        // Les prix et les complements sont figes dans la commande. Les lire
+        // avant la transaction raccourcit celle-ci et evite de faire patienter
+        // toutes les commandes qui visent le meme vendeur.
+        [$sousTotal, $lignes] = $this->calculerTotaux($request->items);
+
         // Une nouvelle tentative manuelle avec la meme cle doit toujours
         // retourner la commande originale, sans recreer les lignes ni notifier.
         $commandeExistante = Commande::query()
@@ -219,8 +202,8 @@ class CommandeController extends Controller
         );
 
         try {
-            [$commande, $cree] = $lock->block(10, function () use ($client, $request, $delivery, $paymentPricing, $idempotencyKey) {
-                return DB::transaction(function () use ($client, $request, $delivery, $paymentPricing, $idempotencyKey) {
+            [$commande, $cree] = $lock->block(10, function () use ($client, $request, $delivery, $paymentPricing, $idempotencyKey, $sousTotal, $lignes) {
+                return DB::transaction(function () use ($client, $request, $delivery, $paymentPricing, $idempotencyKey, $sousTotal, $lignes) {
                     $existante = Commande::query()
                         ->where('client_id', $client->id)
                         ->where('idempotency_key', $idempotencyKey)
@@ -234,7 +217,13 @@ class CommandeController extends Controller
                     $express = $request->boolean('livraison_express');
                     $modeRemise = 'livraison';
                     $vendeurId = $express ? null : ($request->integer('vendeur_id') ?: null);
-                    $vendeur = $this->verrouillerVendeurEligible(
+                    // Aucune quantite de stock n'est reservee a ce stade : un
+                    // verrou exclusif sur la ligne vendeur ne protege donc
+                    // aucune ressource partagee, mais serialise inutilement
+                    // toutes ses commandes. Cette recherche fraiche garantit
+                    // toutefois que le vendeur est actif/disponible au moment
+                    // de creer la commande.
+                    $vendeur = $this->trouverVendeurEligible(
                         $request->items,
                         $request->latitude_client,
                         $request->longitude_client,
@@ -246,7 +235,6 @@ class CommandeController extends Controller
                         return [null, false];
                     }
 
-                    [$sousTotal, $lignes] = $this->calculerTotaux($request->items);
                     $distanceKm = $delivery->displayedDistance((float) $vendeur->distance);
                     $livraisonExpress = $express;
                     $fraisLivraison = $delivery->feeForExpress($livraisonExpress);
