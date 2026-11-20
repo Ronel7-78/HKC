@@ -1,6 +1,7 @@
 stages:
   - verification
   - deploy_staging
+  - deploy_production
 
 workflow:
   rules:
@@ -134,3 +135,87 @@ deploy:staging:
 
     # Le pipeline ne réussit que si l'API staging répond après déploiement.
     - curl --fail --silent --show-error --retry 3 --retry-delay 3 "$STAGING_HEALTHCHECK_URL"
+
+deploy:production:
+  stage: deploy_production
+  image: alpine:3.20
+
+  needs:
+    - api:tests
+    - application:flutter-tests
+
+  environment:
+    name: production
+    url: https://api.hotkokichaud.digital
+    deployment_tier: production
+
+  # Un seul deploiement production peut tourner a la fois.
+  resource_group: production
+
+  # Ce job reste manuel : une validation humaine est obligatoire avant toute
+  # modification de la base et du service de production.
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual
+    - when: never
+
+  before_script:
+    - apk add --no-cache openssh-client rsync curl
+    - install -d -m 700 ~/.ssh
+
+    # Les secrets production existent uniquement dans les variables GitLab.
+    - printf '%s' "$PRODUCTION_SSH_PRIVATE_KEY_B64" | base64 -d > ~/.ssh/id_ed25519
+    - printf '%s' "$PRODUCTION_KNOWN_HOSTS_B64" | base64 -d > ~/.ssh/known_hosts
+    - printf '%s' "$PRODUCTION_ENV_FILE_B64" | base64 -d > .ci-production.env
+    - printf '%s' "$PRODUCTION_FIREBASE_SERVICE_ACCOUNT_B64" | base64 -d > .ci-production-firebase.json
+
+    - chmod 600 ~/.ssh/id_ed25519
+    - chmod 644 ~/.ssh/known_hosts
+    - test -s .ci-production.env
+    - test -s .ci-production-firebase.json
+
+  script:
+    # Le code est synchronise sans supprimer le .env, les medias, les logs
+    # ni les secrets persistants du serveur.
+    - >
+      rsync -az --delete
+      --exclude=".env"
+      --exclude="storage/"
+      --exclude="public/storage/"
+      --exclude="vendor/"
+      --exclude="node_modules/"
+      --exclude=".git/"
+      --exclude="bootstrap/cache/"
+      -e "ssh -i $HOME/.ssh/id_ed25519 -o StrictHostKeyChecking=yes"
+      hot-koki-api/
+      "$PRODUCTION_SSH_USER@$PRODUCTION_SSH_HOST:$PRODUCTION_DEPLOY_PATH/"
+
+    - >
+      ssh -i "$HOME/.ssh/id_ed25519" -o StrictHostKeyChecking=yes
+      "$PRODUCTION_SSH_USER@$PRODUCTION_SSH_HOST"
+      "mkdir -p '$PRODUCTION_DEPLOY_PATH/storage/app/secure'"
+
+    - >
+      scp -i "$HOME/.ssh/id_ed25519" -o StrictHostKeyChecking=yes
+      .ci-production.env
+      "$PRODUCTION_SSH_USER@$PRODUCTION_SSH_HOST:$PRODUCTION_DEPLOY_PATH/.env.next"
+
+    - >
+      scp -i "$HOME/.ssh/id_ed25519" -o StrictHostKeyChecking=yes
+      .ci-production-firebase.json
+      "$PRODUCTION_SSH_USER@$PRODUCTION_SSH_HOST:$PRODUCTION_DEPLOY_PATH/storage/app/secure/firebase-service-account.json.next"
+
+    # Les controles de deploiement et CamPay live sont bloquants en production.
+    - >
+      ssh -i "$HOME/.ssh/id_ed25519" -o StrictHostKeyChecking=yes
+      "$PRODUCTION_SSH_USER@$PRODUCTION_SSH_HOST"
+      "
+      set -eu
+      cd '$PRODUCTION_DEPLOY_PATH'
+      install -m 600 .env.next .env
+      install -m 600 storage/app/secure/firebase-service-account.json.next storage/app/secure/firebase-service-account.json
+      rm -f .env.next storage/app/secure/firebase-service-account.json.next
+      APP_ENV=production RUN_PAYMENT_PREFLIGHT=true bash scripts/deploy.sh
+      "
+
+    - curl --fail --silent --show-error --retry 3 --retry-delay 3 "$PRODUCTION_HEALTHCHECK_URL"
