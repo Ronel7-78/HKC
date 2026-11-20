@@ -30,6 +30,19 @@ class AppServiceProvider extends ServiceProvider
         ], 429, $headers);
 
         RateLimiter::for('api-global', function (Request $request) use ($response) {
+            // k6 emet toutes ses requetes depuis une seule IP. Sur staging
+            // seulement, l'IP explicitement autorisee peut donc mesurer la
+            // capacite reelle du VPS au lieu de heurter le plafond public.
+            // Cette exception est volontairement impossible en production.
+            $k6TestIp = config('services.k6.test_ip');
+            if (app()->environment('staging')
+                && filled($k6TestIp)
+                && hash_equals((string) $k6TestIp, $request->ip())) {
+                return Limit::perMinute(10000)
+                    ->by('k6-staging:'.$k6TestIp)
+                    ->response($response);
+            }
+
             $key = $request->user()
                 ? 'user:'.$request->user()->getAuthIdentifier()
                 : 'ip:'.$request->ip();

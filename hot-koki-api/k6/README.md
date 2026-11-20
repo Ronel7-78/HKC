@@ -21,6 +21,27 @@ k6 version
 Il lit l'accueil, le catalogue et les avis. La charge par défaut représente
 6 requêtes HTTP par seconde au palier principal.
 
+Avant ce test, renseigner une seule fois l'IP publique de la machine de test
+dans le `.env` staging. Cette exception est limitée à `APP_ENV=staging` et ne
+sera jamais active en production :
+
+```bash
+# Sur la machine qui executera k6 :
+curl -4 https://api.ipify.org; echo
+
+# Reporter cette valeur dans le .env staging :
+K6_TEST_IP=VOTRE_IP_PUBLIQUE
+
+# Sur le VPS staging :
+cd /var/www/hot-koki/source/hot-koki-api
+sudo -u deploy php artisan optimize:clear
+sudo -u deploy php artisan config:cache
+```
+
+Si le staging est deployee par GitLab, mettre aussi cette meme ligne dans la
+variable `STAGING_ENV_FILE_B64`, sinon le prochain deploiement remplacera le
+fichier `.env`.
+
 ```bash
 cd "/home/mrroot/Bureau/HKC APP/hot-koki-api"
 k6 run k6/staging-read-load.js

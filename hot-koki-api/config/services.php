@@ -87,6 +87,12 @@ return [
         'withdrawal_rate' => (float) env('CAMPAY_WITHDRAWAL_RATE', 0.01),
     ],
 
+    // Uniquement pour les tests de charge sur staging. Cette adresse ne
+    // contourne jamais les limites en production.
+    'k6' => [
+        'test_ip' => env('K6_TEST_IP'),
+    ],
+
     'firebase' => [
         'enabled' => env('FIREBASE_ENABLED', false),
         'project_id' => env('FIREBASE_PROJECT_ID'),
