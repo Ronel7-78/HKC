@@ -208,6 +208,11 @@ class CommandeController extends Controller
         }
 
         try {
+            // InnoDB peut choisir une transaction victime lors de deux
+            // commandes simultanees qui reservent le meme vendeur. Laravel
+            // relance automatiquement les deadlocks jusqu'au nombre indique,
+            // avec la meme cle d'idempotence : aucune commande supplementaire
+            // ne peut alors etre creee.
             [$commande, $cree] = DB::transaction(function () use ($client, $request, $delivery, $paymentPricing, $idempotencyKey) {
                 $existante = Commande::query()
                     ->where('client_id', $client->id)
@@ -268,7 +273,7 @@ class CommandeController extends Controller
                 }
 
                 return [$commande, true];
-            });
+            }, 5);
         } catch (UniqueConstraintViolationException $exception) {
             // Deux requetes avec la meme cle peuvent franchir la premiere
             // lecture avant que la premiere transaction n'ait valide son
