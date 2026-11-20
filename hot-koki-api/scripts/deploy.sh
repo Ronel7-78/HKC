@@ -3,11 +3,21 @@
 # Stoppe immédiatement le déploiement à la première erreur.
 set -euo pipefail
 
+# Les fichiers crees pendant le deploiement restent accessibles a PHP-FPM via
+# le groupe www-data. Les secrets de storage/app/secure ne sont jamais vises.
+umask 0002
+
 # Empêche un déploiement sur un environnement non identifié.
 if [[ "${APP_ENV:-}" != "staging" && "${APP_ENV:-}" != "production" ]]; then
     echo "APP_ENV doit être staging ou production." >&2
     exit 1
 fi
+
+# Laravel doit pouvoir creer ses caches et ses journaux depuis le processus
+# PHP-FPM, qui n'est pas le meme utilisateur que le deploiement.
+mkdir -p storage/logs storage/framework/cache storage/framework/sessions storage/framework/views bootstrap/cache
+find storage/logs storage/framework bootstrap/cache -type d -exec chmod 2775 {} +
+find storage/logs storage/framework bootstrap/cache -type f -exec chmod 0664 {} +
 
 # Vide les anciens caches Laravel.
 php artisan optimize:clear
