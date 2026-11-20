@@ -65,14 +65,17 @@ export default function () {
     },
   );
 
+  const responseBody = response.body ? response.json() : null;
+
   if (response.status === 201) {
     ordersCreated.add(1);
   } else {
-    console.error(`Commande distincte refusee: HTTP ${response.status} - ${response.json('message') || 'sans message'}`);
+    const message = responseBody?.message || response.error || 'sans message';
+    console.error(`Commande distincte refusee: HTTP ${response.status} - ${message}`);
   }
 
   check(response, {
     'commande distincte: HTTP 201': (result) => result.status === 201,
-    'commande distincte: code public present': (result) => Boolean(result.json('commande.code_commande')),
+    'commande distincte: code public present': () => Boolean(responseBody?.commande?.code_commande),
   });
 }
