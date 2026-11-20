@@ -91,6 +91,11 @@ export default function (data) {
     ordersReused.add(1);
   }
 
+  if (response.status !== 200 && response.status !== 201) {
+    // Uniquement le statut et le message API, jamais les en-tetes ni le token.
+    console.error(`Commande idempotente refusee: HTTP ${response.status} - ${response.json('message') || 'sans message'}`);
+  }
+
   check(response, {
     'commande: HTTP 200 ou 201': (result) => result.status === 200 || result.status === 201,
     'commande: code public present': (result) => Boolean(result.json('commande.code_commande')),

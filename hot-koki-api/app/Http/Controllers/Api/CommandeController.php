@@ -12,6 +12,7 @@ use App\Models\Vendeur;
 use App\Services\DeliveryPricingService;
 use App\Services\NotificationService;
 use App\Services\OnlinePaymentPricingService;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -206,67 +207,84 @@ class CommandeController extends Controller
             return $this->reponseCommande($commandeExistante, false);
         }
 
-        [$commande, $cree] = DB::transaction(function () use ($client, $request, $delivery, $paymentPricing, $idempotencyKey) {
-            $existante = Commande::query()
+        try {
+            [$commande, $cree] = DB::transaction(function () use ($client, $request, $delivery, $paymentPricing, $idempotencyKey) {
+                $existante = Commande::query()
+                    ->where('client_id', $client->id)
+                    ->where('idempotency_key', $idempotencyKey)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($existante) {
+                    return [$existante, false];
+                }
+
+                $express = $request->boolean('livraison_express');
+                $modeRemise = 'livraison';
+                $vendeurId = $express ? null : ($request->integer('vendeur_id') ?: null);
+                $vendeur = $this->verrouillerVendeurEligible(
+                    $request->items,
+                    $request->latitude_client,
+                    $request->longitude_client,
+                    $vendeurId,
+                    $express,
+                );
+
+                if (! $vendeur) {
+                    return [null, false];
+                }
+
+                [$sousTotal, $lignes] = $this->calculerTotaux($request->items);
+                $distanceKm = $delivery->displayedDistance((float) $vendeur->distance);
+                $livraisonExpress = $express;
+                $fraisLivraison = $delivery->feeForExpress($livraisonExpress);
+                $tarification = $paymentPricing->totals($sousTotal, $fraisLivraison);
+
+                $commande = Commande::create([
+                    'client_id' => $client->id,
+                    'vendeur_id' => $vendeur->id,
+                    'idempotency_key' => $idempotencyKey,
+                    'statut' => 'en_attente_paiement',
+                    'adresse_livraison' => $request->adresse_livraison,
+                    'latitude_client' => $request->latitude_client,
+                    'longitude_client' => $request->longitude_client,
+                    'distance_km' => $distanceKm,
+                    'livraison_express' => $livraisonExpress,
+                    'mode_remise' => $modeRemise,
+                    'sous_total' => $sousTotal,
+                    'frais_livraison' => $fraisLivraison,
+                    'frais_paiement' => $tarification['frais_paiement'],
+                    'total' => $tarification['total'],
+                ]);
+
+                foreach ($lignes as $ligne) {
+                    $item = CommandeItem::create([
+                        'commande_id' => $commande->id,
+                        'produit_id' => $ligne['produit_id'],
+                        'quantite' => $ligne['quantite'],
+                        'prix_unitaire' => $ligne['prix_unitaire'],
+                    ]);
+                    $item->complements()->attach($ligne['complements']);
+                }
+
+                return [$commande, true];
+            });
+        } catch (UniqueConstraintViolationException $exception) {
+            // Deux requetes avec la meme cle peuvent franchir la premiere
+            // lecture avant que la premiere transaction n'ait valide son
+            // insertion. La contrainte unique est l'arbitre final : relire
+            // alors la commande gagnee et la renvoyer comme une reutilisation.
+            $commande = Commande::query()
                 ->where('client_id', $client->id)
                 ->where('idempotency_key', $idempotencyKey)
-                ->lockForUpdate()
                 ->first();
 
-            if ($existante) {
-                return [$existante, false];
+            if (! $commande) {
+                throw $exception;
             }
 
-            $express = $request->boolean('livraison_express');
-            $modeRemise = 'livraison';
-            $vendeurId = $express ? null : ($request->integer('vendeur_id') ?: null);
-            $vendeur = $this->verrouillerVendeurEligible(
-                $request->items,
-                $request->latitude_client,
-                $request->longitude_client,
-                $vendeurId,
-                $express,
-            );
-
-            if (! $vendeur) {
-                return [null, false];
-            }
-
-            [$sousTotal, $lignes] = $this->calculerTotaux($request->items);
-            $distanceKm = $delivery->displayedDistance((float) $vendeur->distance);
-            $livraisonExpress = $express;
-            $fraisLivraison = $delivery->feeForExpress($livraisonExpress);
-            $tarification = $paymentPricing->totals($sousTotal, $fraisLivraison);
-
-            $commande = Commande::create([
-                'client_id' => $client->id,
-                'vendeur_id' => $vendeur->id,
-                'idempotency_key' => $idempotencyKey,
-                'statut' => 'en_attente_paiement',
-                'adresse_livraison' => $request->adresse_livraison,
-                'latitude_client' => $request->latitude_client,
-                'longitude_client' => $request->longitude_client,
-                'distance_km' => $distanceKm,
-                'livraison_express' => $livraisonExpress,
-                'mode_remise' => $modeRemise,
-                'sous_total' => $sousTotal,
-                'frais_livraison' => $fraisLivraison,
-                'frais_paiement' => $tarification['frais_paiement'],
-                'total' => $tarification['total'],
-            ]);
-
-            foreach ($lignes as $ligne) {
-                $item = CommandeItem::create([
-                    'commande_id' => $commande->id,
-                    'produit_id' => $ligne['produit_id'],
-                    'quantite' => $ligne['quantite'],
-                    'prix_unitaire' => $ligne['prix_unitaire'],
-                ]);
-                $item->complements()->attach($ligne['complements']);
-            }
-
-            return [$commande, true];
-        });
+            $cree = false;
+        }
 
         if (! $commande) {
             $vendeurPropose = $request->filled('vendeur_id');
