@@ -5,7 +5,7 @@ import { check, sleep } from 'k6';
 // aucun paiement, aucun e-mail et aucune donnée de test ne sont créés.
 const baseUrl = (__ENV.K6_BASE_URL || 'https://api-staging.hotkokichaud.digital/api')
   .replace(/\/$/, '');
-const rate = Number(__ENV.K6_RATE || 2);
+const rate = Number(__ENV.LOAD_RATE || 2);
 
 export const options = {
   scenarios: {

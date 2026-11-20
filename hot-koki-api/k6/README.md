@@ -50,7 +50,7 @@ k6 run k6/staging-read-load.js
 Pour un second passage un peu plus soutenu, après succès du premier :
 
 ```bash
-K6_RATE=4 k6 run k6/staging-read-load.js
+k6 run -e LOAD_RATE=4 k6/staging-read-load.js
 ```
 
 ## 2. Anti-bruteforce de connexion
@@ -67,8 +67,8 @@ Pour le relancer immédiatement, changer l'adresse fictive (la limite par
 adresse dure une minute) :
 
 ```bash
-K6_ATTACK_EMAIL="charge-login-$(date +%s)@hotkoki.test" \
-  k6 run k6/staging-login-rate-limit.js
+k6 run -e ATTACK_EMAIL="charge-login-$(date +%s)@hotkoki.test" \
+  k6/staging-login-rate-limit.js
 ```
 
 ## 3. Test connecté en lecture seule
@@ -78,10 +78,39 @@ après connexion, puis l'exporter seulement dans le terminal courant. Ne jamais
 mettre ce jeton dans Git, dans le script ou dans une variable GitLab.
 
 ```bash
-export K6_AUTH_TOKEN='COLLER_LE_JETON_DE_TEST_ICI'
-k6 run k6/staging-authenticated-read.js
-unset K6_AUTH_TOKEN
+k6 run -e AUTH_TOKEN='COLLER_LE_JETON_DE_TEST_ICI' \
+  k6/staging-authenticated-read.js
 ```
+
+## 4. Idempotence : dix envois simultanes d'une commande
+
+Ce test utilise un compte client **de test et deja verifie** sur staging. Il
+creera exactement une commande `en_attente_paiement`, clairement marquee
+`TEST K6 ... NE PAS LIVRER`, puis rejouera neuf fois la meme requete. Il ne
+declenche aucun paiement CamPay.
+
+Le catalogue staging actuel propose par defaut le produit `4` avec le
+complement `7`. Ajuster les deux valeurs si ce jeu de donnees change.
+
+```bash
+read -rp 'E-mail du client de test staging : ' TEST_EMAIL
+read -rsp 'Mot de passe : ' TEST_PASSWORD; echo
+
+k6 run \
+  -e TEST_EMAIL="$TEST_EMAIL" \
+  -e TEST_PASSWORD="$TEST_PASSWORD" \
+  -e ORDER_RUN_ID="k6-order-$(date +%s)-test" \
+  -e PRODUCT_ID=4 \
+  -e COMPLEMENT_ID=7 \
+  k6/staging-idempotent-order.js
+
+unset TEST_EMAIL TEST_PASSWORD
+```
+
+Le resultat attendu est strict : `orders_created = 1`, `orders_reused = 9`,
+aucun echec HTTP et 100 % des checks reussis. La commande de test reste dans
+staging comme trace d'audit ; elle ne doit pas etre payee ni traitee par un
+vendeur.
 
 ## Critères de succès avant production
 

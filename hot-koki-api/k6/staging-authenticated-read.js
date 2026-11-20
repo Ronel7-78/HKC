@@ -5,15 +5,15 @@ import { check, sleep } from 'k6';
 // Le script effectue uniquement des GET et ne peut pas créer de paiement.
 const baseUrl = (__ENV.K6_BASE_URL || 'https://api-staging.hotkokichaud.digital/api')
   .replace(/\/$/, '');
-const token = __ENV.K6_AUTH_TOKEN;
+const token = __ENV.AUTH_TOKEN;
 
 if (!token) {
-  throw new Error('K6_AUTH_TOKEN est requis et doit appartenir à un compte de test staging.');
+  throw new Error('AUTH_TOKEN est requis et doit appartenir à un compte de test staging.');
 }
 
 export const options = {
-  vus: Number(__ENV.K6_VUS || 3),
-  duration: __ENV.K6_DURATION || '90s',
+  vus: Number(__ENV.LOAD_VUS || 3),
+  duration: __ENV.LOAD_DURATION || '90s',
   thresholds: {
     http_req_failed: ['rate<0.01'],
     http_req_duration: ['p(95)<1500', 'p(99)<3000'],

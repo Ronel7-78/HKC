@@ -6,7 +6,7 @@ import { check, sleep } from 'k6';
 // email ne sont crees.
 const baseUrl = (__ENV.K6_BASE_URL || 'https://api-staging.hotkokichaud.digital/api')
   .replace(/\/$/, '');
-const email = __ENV.K6_ATTACK_EMAIL || 'charge-login-invalide@hotkoki.test';
+const email = __ENV.ATTACK_EMAIL || 'charge-login-invalide@hotkoki.test';
 
 export const options = {
   vus: 1,
