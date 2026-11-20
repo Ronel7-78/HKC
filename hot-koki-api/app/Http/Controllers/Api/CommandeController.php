@@ -12,8 +12,10 @@ use App\Models\Vendeur;
 use App\Services\DeliveryPricingService;
 use App\Services\NotificationService;
 use App\Services\OnlinePaymentPricingService;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -207,73 +209,96 @@ class CommandeController extends Controller
             return $this->reponseCommande($commandeExistante, false);
         }
 
+        // Les doublons reseau sont serialises avant MySQL. Ainsi, dix clics
+        // simultanes portant la meme cle ne se battent pas pour verrouiller le
+        // vendeur ; ils recoivent tous la commande gagnee par la premiere
+        // requete. La contrainte unique en base reste la derniere barriere.
+        $lock = Cache::lock(
+            'commande:idempotency:'.hash('sha256', $client->id.'|'.$idempotencyKey),
+            30,
+        );
+
         try {
-            // InnoDB peut choisir une transaction victime lors de deux
-            // commandes simultanees qui reservent le meme vendeur. Laravel
-            // relance automatiquement les deadlocks jusqu'au nombre indique,
-            // avec la meme cle d'idempotence : aucune commande supplementaire
-            // ne peut alors etre creee.
-            [$commande, $cree] = DB::transaction(function () use ($client, $request, $delivery, $paymentPricing, $idempotencyKey) {
-                $existante = Commande::query()
-                    ->where('client_id', $client->id)
-                    ->where('idempotency_key', $idempotencyKey)
-                    ->lockForUpdate()
-                    ->first();
+            [$commande, $cree] = $lock->block(10, function () use ($client, $request, $delivery, $paymentPricing, $idempotencyKey) {
+                return DB::transaction(function () use ($client, $request, $delivery, $paymentPricing, $idempotencyKey) {
+                    $existante = Commande::query()
+                        ->where('client_id', $client->id)
+                        ->where('idempotency_key', $idempotencyKey)
+                        ->lockForUpdate()
+                        ->first();
 
-                if ($existante) {
-                    return [$existante, false];
-                }
+                    if ($existante) {
+                        return [$existante, false];
+                    }
 
-                $express = $request->boolean('livraison_express');
-                $modeRemise = 'livraison';
-                $vendeurId = $express ? null : ($request->integer('vendeur_id') ?: null);
-                $vendeur = $this->verrouillerVendeurEligible(
-                    $request->items,
-                    $request->latitude_client,
-                    $request->longitude_client,
-                    $vendeurId,
-                    $express,
-                );
+                    $express = $request->boolean('livraison_express');
+                    $modeRemise = 'livraison';
+                    $vendeurId = $express ? null : ($request->integer('vendeur_id') ?: null);
+                    $vendeur = $this->verrouillerVendeurEligible(
+                        $request->items,
+                        $request->latitude_client,
+                        $request->longitude_client,
+                        $vendeurId,
+                        $express,
+                    );
 
-                if (! $vendeur) {
-                    return [null, false];
-                }
+                    if (! $vendeur) {
+                        return [null, false];
+                    }
 
-                [$sousTotal, $lignes] = $this->calculerTotaux($request->items);
-                $distanceKm = $delivery->displayedDistance((float) $vendeur->distance);
-                $livraisonExpress = $express;
-                $fraisLivraison = $delivery->feeForExpress($livraisonExpress);
-                $tarification = $paymentPricing->totals($sousTotal, $fraisLivraison);
+                    [$sousTotal, $lignes] = $this->calculerTotaux($request->items);
+                    $distanceKm = $delivery->displayedDistance((float) $vendeur->distance);
+                    $livraisonExpress = $express;
+                    $fraisLivraison = $delivery->feeForExpress($livraisonExpress);
+                    $tarification = $paymentPricing->totals($sousTotal, $fraisLivraison);
 
-                $commande = Commande::create([
-                    'client_id' => $client->id,
-                    'vendeur_id' => $vendeur->id,
-                    'idempotency_key' => $idempotencyKey,
-                    'statut' => 'en_attente_paiement',
-                    'adresse_livraison' => $request->adresse_livraison,
-                    'latitude_client' => $request->latitude_client,
-                    'longitude_client' => $request->longitude_client,
-                    'distance_km' => $distanceKm,
-                    'livraison_express' => $livraisonExpress,
-                    'mode_remise' => $modeRemise,
-                    'sous_total' => $sousTotal,
-                    'frais_livraison' => $fraisLivraison,
-                    'frais_paiement' => $tarification['frais_paiement'],
-                    'total' => $tarification['total'],
-                ]);
-
-                foreach ($lignes as $ligne) {
-                    $item = CommandeItem::create([
-                        'commande_id' => $commande->id,
-                        'produit_id' => $ligne['produit_id'],
-                        'quantite' => $ligne['quantite'],
-                        'prix_unitaire' => $ligne['prix_unitaire'],
+                    $commande = Commande::create([
+                        'client_id' => $client->id,
+                        'vendeur_id' => $vendeur->id,
+                        'idempotency_key' => $idempotencyKey,
+                        'statut' => 'en_attente_paiement',
+                        'adresse_livraison' => $request->adresse_livraison,
+                        'latitude_client' => $request->latitude_client,
+                        'longitude_client' => $request->longitude_client,
+                        'distance_km' => $distanceKm,
+                        'livraison_express' => $livraisonExpress,
+                        'mode_remise' => $modeRemise,
+                        'sous_total' => $sousTotal,
+                        'frais_livraison' => $fraisLivraison,
+                        'frais_paiement' => $tarification['frais_paiement'],
+                        'total' => $tarification['total'],
                     ]);
-                    $item->complements()->attach($ligne['complements']);
-                }
 
-                return [$commande, true];
-            }, 5);
+                    foreach ($lignes as $ligne) {
+                        $item = CommandeItem::create([
+                            'commande_id' => $commande->id,
+                            'produit_id' => $ligne['produit_id'],
+                            'quantite' => $ligne['quantite'],
+                            'prix_unitaire' => $ligne['prix_unitaire'],
+                        ]);
+                        $item->complements()->attach($ligne['complements']);
+                    }
+
+                    return [$commande, true];
+                }, 5);
+            });
+        } catch (LockTimeoutException) {
+            // Le premier traitement est encore en cours. S'il a fini juste
+            // avant notre lecture, renvoyer sa commande ; sinon le client
+            // conserve sa cle et peut reessayer sans risque de doublon.
+            $commande = Commande::query()
+                ->where('client_id', $client->id)
+                ->where('idempotency_key', $idempotencyKey)
+                ->first();
+
+            if ($commande) {
+                return $this->reponseCommande($commande, false);
+            }
+
+            return response()->json([
+                'message' => 'Votre commande est en cours de traitement. Réessayez dans quelques instants.',
+                'code' => 'COMMANDE_EN_COURS',
+            ], 409);
         } catch (UniqueConstraintViolationException $exception) {
             // Deux requetes avec la meme cle peuvent franchir la premiere
             // lecture avant que la premiere transaction n'ait valide son
