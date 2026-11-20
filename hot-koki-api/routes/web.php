@@ -13,3 +13,6 @@ Route::view('/paiements/orange/retour', 'payments.orange-result', [
 Route::view('/paiements/orange/annulation', 'payments.orange-result', [
     'success' => false,
 ])->name('payments.orange.cancel');
+
+Route::view('/confidentialite', 'legal.privacy')->name('legal.privacy');
+Route::view('/conditions-utilisation', 'legal.terms')->name('legal.terms');

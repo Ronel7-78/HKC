@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 const _leaf900 = Color(0xFF1F3524);
-const _flame600 = Color(0xFFD94B16);
 const _inkSoft = Color(0xFF6B6864);
 
 enum LegalDocument { terms, privacy }
@@ -10,7 +10,7 @@ class LegalScreen extends StatelessWidget {
   const LegalScreen({super.key, required this.document});
   final LegalDocument document;
 
-  static const version = ' 10 Septembre 2026';
+  static const version = '20 novembre 2026';
 
   @override
   Widget build(BuildContext context) {
@@ -39,21 +39,22 @@ class LegalScreen extends StatelessWidget {
               style: TextStyle(color: _inkSoft),
             ),
             const SizedBox(height: 18),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF0E7),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: const Text(
-                'Document opérationnel à faire valider juridiquement avant la publication commerciale.',
-                style: TextStyle(color: _flame600, fontWeight: FontWeight.w700),
-              ),
-            ),
-            const SizedBox(height: 10),
             ...(terms ? _terms : _privacy).map(
               (section) =>
                   _LegalSection(title: section.$1, content: section.$2),
+            ),
+            const SizedBox(height: 20),
+            TextButton.icon(
+              onPressed: () => launchUrl(
+                Uri.parse(
+                  terms
+                      ? 'https://api.hotkokichaud.digital/conditions-utilisation'
+                      : 'https://api.hotkokichaud.digital/confidentialite',
+                ),
+                mode: LaunchMode.externalApplication,
+              ),
+              icon: const Icon(Icons.open_in_new_rounded),
+              label: const Text('Voir la version web officielle'),
             ),
           ],
         ),
@@ -64,7 +65,7 @@ class LegalScreen extends StatelessWidget {
   static const _terms = <(String, String)>[
     (
       '1. Objet',
-      'Hot Koki met en relation des clients et des vendeurs de repas, facilite la commande, le paiement et le suivi de livraison. L’utilisation du service implique le respect des présentes conditions.',
+      'Hot Koki permet de découvrir des plats, passer des commandes auprès de vendeurs partenaires, suivre leur traitement et, lorsque disponible, initier un paiement Mobile Money.',
     ),
     (
       '2. Compte utilisateur',
@@ -72,19 +73,19 @@ class LegalScreen extends StatelessWidget {
     ),
     (
       '3. Commandes',
-      'Les prix, produits disponibles, frais de livraison, frais de paiement en ligne et total sont présentés avant validation. Une commande payée suit les statuts affichés dans l’application. Les disponibilités peuvent évoluer.',
+      'Les prix, produits disponibles, frais de livraison, frais de paiement en ligne et total sont présentés avant validation. Les vendeurs restent responsables de la préparation, de la disponibilité et de la conformité de leurs produits.',
     ),
     (
       '4. Paiements Mobile Money',
-      'Le paiement est traité par l’opérateur choisi. Une demande acceptée techniquement n’est pas un paiement réussi : seul le statut final confirmé par l’opérateur fait foi.',
+      'Le paiement est traité par le prestataire sélectionné. Une demande technique n’est pas un paiement réussi : seul le statut final confirmé par le prestataire fait foi.',
     ),
     (
       '5. Annulation et remboursement',
-      'L’annulation est possible uniquement aux étapes proposées dans l’application. Tout remboursement éventuel dépend de la situation de la commande et des règles de l’opérateur de paiement.',
+      'Une commande dont le paiement est confirmé ne peut plus être annulée ou modifiée depuis l’application. En cas de difficulté, contactez l’assistance avec la référence de commande.',
     ),
     (
       '6. Responsabilités',
-      'Hot Koki met en œuvre des moyens raisonnables pour assurer la disponibilité du service. Des interruptions réseau, opérateur ou maintenance peuvent survenir. Les vendeurs restent responsables de la préparation et de la conformité de leurs produits.',
+      'Hot Koki met en œuvre des moyens raisonnables pour assurer la disponibilité du service. Des interruptions réseau, opérateur ou maintenance peuvent survenir.',
     ),
     (
       '7. Comportements interdits',
@@ -98,10 +99,7 @@ class LegalScreen extends StatelessWidget {
       '9. Évolution des conditions',
       'Une nouvelle acceptation pourra être demandée lorsque ces conditions changent de manière importante.',
     ),
-    (
-      '10. Contact',
-      'Les coordonnées officielles d’assistance et de l’éditeur seront ajoutées avant la mise en production.',
-    ),
+    ('10. Contact', 'Pour toute assistance : contact.hotkoki@gmail.com.'),
   ];
 
   static const _privacy = <(String, String)>[
@@ -111,11 +109,11 @@ class LegalScreen extends StatelessWidget {
     ),
     (
       '2. Géolocalisation',
-      'La position est demandée avec votre autorisation pour trouver les vendeurs et calculer la livraison. Les coordonnées ne sont pas affichées comme texte dans les formulaires.',
+      'La position est facultative et demandée avec votre autorisation pour trouver les vendeurs, estimer la distance et exécuter la livraison. Vous pouvez retirer cette autorisation dans les réglages du téléphone.',
     ),
     (
       '3. Paiements',
-      'Les secrets opérateur restent sur le serveur. Hot Koki conserve les références, montants, statuts et numéros masqués nécessaires au suivi, à la sécurité et au rapprochement. Les jetons d’accès ne sont pas journalisés.',
+      'Les codes secrets Mobile Money ne sont jamais collectés par Hot Koki. Nous conservons uniquement les références, montants, statuts et numéros masqués nécessaires au suivi, à la sécurité et au rapprochement.',
     ),
     (
       '4. Finalités',
@@ -123,19 +121,19 @@ class LegalScreen extends StatelessWidget {
     ),
     (
       '5. Destinataires',
-      'Les informations strictement nécessaires peuvent être communiquées au vendeur affecté, aux prestataires de paiement, d’hébergement ou de livraison et aux autorités lorsqu’une obligation légale l’impose.',
+      'Les informations strictement nécessaires peuvent être communiquées au vendeur affecté, aux prestataires de paiement, d’hébergement, d’e-mail, de notification ou de livraison et aux autorités lorsqu’une obligation légale l’impose.',
     ),
     (
       '6. Conservation',
-      'Les données sont conservées pendant la durée nécessaire au service, à la sécurité, au traitement des litiges et aux obligations comptables ou réglementaires. Les durées définitives seront précisées avant publication.',
+      'Les données sont conservées pendant la durée nécessaire au service, à la sécurité, au traitement des litiges et aux obligations comptables ou réglementaires.',
     ),
     (
       '7. Sécurité',
-      'Hot Koki applique notamment le chiffrement des données sensibles, le contrôle d’accès par rôle, HTTPS, la limitation des privilèges et la surveillance des opérations importantes.',
+      'Hot Koki applique notamment HTTPS, le contrôle d’accès par rôle, des mots de passe hachés, la limitation des privilèges et la surveillance des opérations importantes.',
     ),
     (
       '8. Vos choix',
-      'Vous pouvez refuser la géolocalisation, corriger les informations modifiables et demander l’exercice de vos droits via le canal d’assistance qui sera publié.',
+      'Vous pouvez refuser la géolocalisation, corriger les informations modifiables, supprimer votre compte client depuis l’application et demander l’exercice de vos droits via le support.',
     ),
     (
       '9. Notifications',
@@ -143,7 +141,7 @@ class LegalScreen extends StatelessWidget {
     ),
     (
       '10. Contact',
-      'L’identité complète du responsable du traitement et ses coordonnées seront ajoutées avant la mise en production.',
+      'Pour toute question relative à vos données : contact.hotkoki@gmail.com.',
     ),
   ];
 }
