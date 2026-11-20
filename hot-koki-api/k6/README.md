@@ -112,6 +112,51 @@ aucun echec HTTP et 100 % des checks reussis. La commande de test reste dans
 staging comme trace d'audit ; elle ne doit pas etre payee ni traitee par un
 vendeur.
 
+## 5. Commandes distinctes : 25, puis 50, puis 100 clients fictifs
+
+Cette campagne cree de vrais comptes **fictifs et verifies uniquement sur
+staging**, avec un jeton par client. Elle cree une commande distincte par
+client, sans aucun appel de paiement. Les commandes portent toutes la mention
+`TEST K6 ... NE PAS LIVRER`.
+
+Sur le VPS, choisir un identifiant de campagne nouveau puis creer les comptes :
+
+```bash
+cd /var/www/hot-koki/source/hot-koki-api
+sudo -u deploy php artisan k6:seed-order-clients k6orders20261120a --count=100
+```
+
+Le mot de passe demande est commun aux comptes fictifs et ne sera pas affiche.
+Telecharger ensuite le fichier de jetons vers Kali avec la cle SSH de staging
+(ne jamais l'afficher ni le versionner) :
+
+```bash
+scp -i ~/.ssh/hkc_staging_gitlab \
+  deploy@187.7.24.135:/var/www/hot-koki/source/hot-koki-api/storage/app/secure/k6-order-clients-k6orders20261120a.json \
+  /tmp/k6-order-clients-k6orders20261120a.json
+chmod 600 /tmp/k6-order-clients-k6orders20261120a.json
+```
+
+Depuis Kali, commencer par 25 commandes simultanees :
+
+```bash
+k6 run \
+  -e TOKENS_FILE=/tmp/k6-order-clients-k6orders20261120a.json \
+  -e LOAD_RUN_ID=k6orders20261120a \
+  -e CLIENT_COUNT=25 \
+  -e PRODUCT_ID=4 \
+  -e COMPLEMENT_ID=7 \
+  k6/staging-distinct-orders.js
+```
+
+Si le palier est propre, relancer avec `CLIENT_COUNT=50`, puis `CLIENT_COUNT=100`.
+Le critere est strict : une reponse `201` et une commande par client, sans
+erreur HTTP. A la fin, supprimer le fichier local de jetons :
+
+```bash
+shred -u /tmp/k6-order-clients-k6orders20261120a.json
+```
+
 ## Critères de succès avant production
 
 - `http_req_failed` inférieur à 1 % ;

@@ -3,8 +3,10 @@
 use App\Jobs\VerifierPaiementCamPay;
 use App\Jobs\VerifierPaiementMtn;
 use App\Jobs\VerifierPaiementOrange;
+use App\Models\Client;
 use App\Models\EmailAuthCode;
 use App\Models\Paiement;
+use App\Models\User;
 use App\Services\Payments\CamPayService;
 use App\Services\Payments\MtnMomoService;
 use App\Services\Payments\OrangeMoneyService;
@@ -15,6 +17,79 @@ use Illuminate\Support\Facades\Schedule;
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+Artisan::command('k6:seed-order-clients {runId} {--count=100}', function () {
+    if (! app()->environment('staging')) {
+        $this->error('Cette commande est autorisée uniquement sur staging.');
+
+        return 1;
+    }
+
+    $runId = (string) $this->argument('runId');
+    $count = (int) $this->option('count');
+    if (! preg_match('/^[A-Za-z0-9_-]{8,40}$/', $runId) || $count < 1 || $count > 100) {
+        $this->error('runId : 8 a 40 caracteres alphanumeriques, tirets ou underscores ; count : 1 a 100.');
+
+        return 1;
+    }
+
+    $password = $this->secret('Mot de passe commun des clients de charge (non affiche)');
+    if (blank($password)) {
+        $this->error('Mot de passe requis. Aucun compte cree.');
+
+        return 1;
+    }
+
+    $emails = collect(range(1, $count))
+        ->map(fn (int $index): string => "k6-{$runId}-{$index}@loadtest.hotkoki.test");
+    if (User::withTrashed()->whereIn('email', $emails)->exists()) {
+        $this->error('Ce runId a deja ete utilise. Choisissez-en un nouveau pour ne pas reutiliser de comptes.');
+
+        return 1;
+    }
+
+    $tokens = [];
+    foreach ($emails as $index => $email) {
+        $number = $index + 1;
+        $user = new User();
+        $user->forceFill([
+            'name' => "K6 Client {$runId} {$number}",
+            'email' => $email,
+            'telephone' => '699'.str_pad((string) $number, 6, '0', STR_PAD_LEFT),
+            'password' => $password,
+            'role' => 'client',
+            'email_verified_at' => now(),
+            'conditions_acceptees_le' => now(),
+            'conditions_version' => config('legal.version'),
+        ])->save();
+        Client::create([
+            'user_id' => $user->id,
+            'nom' => 'K6',
+            'prenom' => "Client {$number}",
+            'adresse_texte' => 'Compte fictif de test de charge staging',
+            'latitude' => 3.8667,
+            'longitude' => 11.5167,
+        ]);
+
+        $tokens[] = [
+            'index' => $number,
+            'email' => $email,
+            'token' => $user->issueAuthToken(),
+        ];
+    }
+
+    $directory = storage_path('app/secure');
+    if (! is_dir($directory)) {
+        mkdir($directory, 0750, true);
+    }
+    $path = $directory."/k6-order-clients-{$runId}.json";
+    file_put_contents($path, json_encode($tokens, JSON_THROW_ON_ERROR));
+    chmod($path, 0600);
+
+    $this->info("{$count} clients staging crees.");
+    $this->comment("Fichier de jetons cree : {$path}");
+    $this->comment('Ne pas afficher, versionner ou partager ce fichier. Supprimez-le apres le test.');
+})->purpose('Creer des clients et jetons fictifs pour le test k6 de commandes staging');
 
 Artisan::command('mtn:test-config', function () {
     try {
