@@ -40,8 +40,14 @@ class AppServiceProvider extends ServiceProvider
         });
 
         RateLimiter::for('login', fn (Request $request) => [
-            Limit::perMinute(5)->by('login-minute:'.$this->emailEtIp($request))->response($response),
-            Limit::perHour(20)->by('login-hour:'.$this->emailEtIp($request))->response($response),
+            // Le plafond par adresse protège un compte ciblé, même si un
+            // attaquant change d'IP entre ses tentatives.
+            Limit::perMinute(5)->by('login-email-minute:'.$this->email($request))->response($response),
+            Limit::perHour(20)->by('login-email-hour:'.$this->email($request))->response($response),
+            // Le plafond IP limite aussi le credential stuffing contre un
+            // grand nombre d'adresses depuis une même machine.
+            Limit::perMinute(20)->by('login-ip-minute:'.$request->ip())->response($response),
+            Limit::perHour(100)->by('login-ip-hour:'.$request->ip())->response($response),
         ]);
         RateLimiter::for('register', fn (Request $request) => Limit::perHour(3)
             ->by('register:'.$request->ip())->response($response));
@@ -74,6 +80,11 @@ class AppServiceProvider extends ServiceProvider
     private function emailEtIp(Request $request): string
     {
         return hash('sha256', mb_strtolower(trim((string) $request->input('email'))).'|'.$request->ip());
+    }
+
+    private function email(Request $request): string
+    {
+        return hash('sha256', mb_strtolower(trim((string) $request->input('email'))));
     }
 
     private function userOuIp(Request $request): string

@@ -32,7 +32,25 @@ Pour un second passage un peu plus soutenu, après succès du premier :
 K6_RATE=4 k6 run k6/staging-read-load.js
 ```
 
-## 2. Test connecté en lecture seule
+## 2. Anti-bruteforce de connexion
+
+Ce test ne tente aucun compte existant. Il envoie six mots de passe invalides
+pour le même identifiant fictif : les cinq premières réponses doivent être
+`401`, puis la sixième doit être `429 Trop de tentatives`.
+
+```bash
+k6 run k6/staging-login-rate-limit.js
+```
+
+Pour le relancer immédiatement, changer l'adresse fictive (la limite par
+adresse dure une minute) :
+
+```bash
+K6_ATTACK_EMAIL="charge-login-$(date +%s)@hotkoki.test" \
+  k6 run k6/staging-login-rate-limit.js
+```
+
+## 3. Test connecté en lecture seule
 
 Créer un compte client de test uniquement sur staging, récupérer son jeton
 après connexion, puis l'exporter seulement dans le terminal courant. Ne jamais
