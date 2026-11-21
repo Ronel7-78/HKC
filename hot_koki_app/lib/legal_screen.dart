@@ -10,7 +10,7 @@ class LegalScreen extends StatelessWidget {
   const LegalScreen({super.key, required this.document});
   final LegalDocument document;
 
-  static const version = '20 novembre 2026';
+  static const version = '21 novembre 2026';
 
   @override
   Widget build(BuildContext context) {
@@ -89,17 +89,21 @@ class LegalScreen extends StatelessWidget {
     ),
     (
       '7. Comportements interdits',
-      'Il est interdit de frauder, contourner les contrôles d’accès, perturber le service, usurper une identité ou utiliser les données d’un autre utilisateur.',
+      'Il est interdit de frauder, contourner les contrôles d’accès, perturber le service, usurper une identité, utiliser les données d’un autre utilisateur ou publier un contenu illicite, trompeur ou préjudiciable.',
     ),
     (
-      '8. Suspension',
+      '8. Avis, signalements et modération',
+      'Les avis doivent rester pertinents, respectueux et de bonne foi. Un avis peut être signalé depuis l’application en cas de spam, harcèlement, propos haineux, contenu sexuel, violence ou autre abus. Hot Koki examine les signalements et peut masquer un avis ou suspendre un compte lorsque nécessaire.',
+    ),
+    (
+      '9. Suspension',
       'Un compte peut être suspendu en cas de fraude, d’abus, de risque de sécurité ou de violation des présentes conditions.',
     ),
     (
-      '9. Évolution des conditions',
+      '10. Évolution des conditions',
       'Une nouvelle acceptation pourra être demandée lorsque ces conditions changent de manière importante.',
     ),
-    ('10. Contact', 'Pour toute assistance : contact.hotkoki@gmail.com.'),
+    ('11. Contact', 'Pour toute assistance : contact.hotkoki@gmail.com.'),
   ];
 
   static const _privacy = <(String, String)>[
@@ -140,7 +144,11 @@ class LegalScreen extends StatelessWidget {
       'Les notifications opérationnelles concernent les commandes, paiements, comptes et avis. Les réglages du téléphone peuvent limiter leur son ou leur affichage.',
     ),
     (
-      '10. Contact',
+      '10. Avis, signalements et modération',
+      'Les avis peuvent être visibles par les autres utilisateurs. Un signalement traite l’avis concerné, son motif, les précisions fournies, l’identité du déclarant et la décision de modération. Ces données servent à prévenir les abus, examiner les signalements, masquer les contenus non conformes et traiter les litiges.',
+    ),
+    (
+      '11. Contact',
       'Pour toute question relative à vos données : contact.hotkoki@gmail.com.',
     ),
   ];

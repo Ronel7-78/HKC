@@ -14,7 +14,7 @@ class NotificationController extends Controller
     private const TYPES_PAR_CATEGORIE = [
         'commandes' => ['commande_creee', 'nouvelle_commande', 'commande_annulee', 'statut_commande'],
         'paiements' => ['paiement_reussi', 'paiement_echoue'],
-        'avis' => ['nouvel_avis'],
+        'avis' => ['nouvel_avis', 'avis_signale'],
         'compte' => ['compte_vendeur_cree', 'statut_compte'],
     ];
 

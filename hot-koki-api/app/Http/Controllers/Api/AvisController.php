@@ -44,7 +44,7 @@ class AvisController extends Controller
                 ]
             );
             Vendeur::whereKey($commande->vendeur_id)->update([
-                'note_moyenne' => round((float) Avis::where('vendeur_id', $commande->vendeur_id)->avg('note'), 2),
+                'note_moyenne' => round((float) Avis::publics()->where('vendeur_id', $commande->vendeur_id)->avg('note'), 2),
             ]);
 
             return $avis;

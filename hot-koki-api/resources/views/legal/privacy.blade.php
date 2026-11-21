@@ -23,7 +23,7 @@
     <header>
         <div class="brand">HOT KOKI CHAUD</div>
         <h1>Politique de confidentialité</h1>
-        <p class="updated">Dernière mise à jour : 20 novembre 2026</p>
+        <p class="updated">Dernière mise à jour : 21 novembre 2026</p>
     </header>
 
     <p>ETS Hot Koki Chaud (« Hot Koki », « nous ») exploite l’application Hot Koki Chaud. Cette politique explique les données traitées pour permettre la commande de repas, la livraison, le paiement et l’assistance au Cameroun.</p>
@@ -49,10 +49,13 @@
     <h2>7. Vos droits et suppression de compte</h2>
     <p>Vous pouvez consulter et corriger vos informations depuis l’application. Un client peut demander ou effectuer la suppression de son compte depuis son espace personnel ; certaines données de transaction peuvent être conservées lorsque la loi ou un litige l’exige. Pour toute demande relative à vos données, contactez-nous.</p>
 
-    <h2>8. Mineurs et modifications</h2>
+    <h2>8. Avis, signalements et modération</h2>
+    <p>Les avis publiés peuvent être visibles par les autres utilisateurs. Lorsqu’un avis est signalé, nous traitons l’identifiant de l’avis, le motif, les précisions éventuellement fournies, l’identité du déclarant, la décision de modération et les informations nécessaires à la sécurité. Ces données servent à prévenir les abus, examiner les signalements, masquer les contenus non conformes et traiter les litiges.</p>
+
+    <h2>9. Mineurs et modifications</h2>
     <p>Le service n’est pas destiné aux personnes qui ne peuvent pas légalement conclure une commande. Cette politique peut évoluer ; une version mise à jour sera publiée sur cette page et, si nécessaire, une nouvelle acceptation sera demandée dans l’application.</p>
 
-    <h2>9. Contact</h2>
+    <h2>10. Contact</h2>
     <p>Pour toute question relative à la confidentialité : <a href="mailto:contact.hotkoki@gmail.com">contact.hotkoki@gmail.com</a>.</p>
 
     <footer>

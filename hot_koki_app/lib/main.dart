@@ -772,7 +772,9 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
   void _openAllReviews() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const PublicReviewsScreen()),
+      MaterialPageRoute(
+        builder: (_) => PublicReviewsScreen(onLogin: widget.onLogin),
+      ),
     );
   }
 
@@ -1749,12 +1751,14 @@ class HomeAnnouncement {
 
 class HomeReview {
   const HomeReview({
+    required this.id,
     required this.name,
     required this.rating,
     required this.comment,
     required this.vendorName,
     required this.createdAt,
   });
+  final String id;
   final String name;
   final int rating;
   final String comment;
@@ -1772,6 +1776,7 @@ class HomeReview {
     final user = client?['user'] as Map<String, dynamic>?;
     final vendor = json['vendeur'] as Map<String, dynamic>?;
     return HomeReview(
+      id: apiResourceId(json),
       name: user?['name']?.toString() ?? 'Client Hot Koki',
       rating: int.tryParse(json['note'].toString()) ?? 0,
       comment: json['commentaire']?.toString() ?? '',
@@ -1850,7 +1855,9 @@ class HomeApi {
 }
 
 class PublicReviewsScreen extends StatefulWidget {
-  const PublicReviewsScreen({super.key});
+  const PublicReviewsScreen({super.key, this.onLogin});
+
+  final VoidCallback? onLogin;
 
   @override
   State<PublicReviewsScreen> createState() => _PublicReviewsScreenState();
@@ -1862,6 +1869,98 @@ class _PublicReviewsScreenState extends State<PublicReviewsScreen> {
   Future<void> _reload() async {
     setState(() => _future = HomeApi.fetchReviews());
     await _future;
+  }
+
+  Future<void> _reportReview(HomeReview review) async {
+    final token = await ClientApi.storage.read(key: 'auth_token');
+    if (!mounted) return;
+    if (token == null) {
+      final login = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Connexion requise'),
+          content: const Text(
+            'Connectez-vous pour signaler un avis qui ne respecte pas les règles.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Plus tard'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Se connecter'),
+            ),
+          ],
+        ),
+      );
+      if (login == true && mounted) {
+        Navigator.pop(context);
+        widget.onLogin?.call();
+      }
+      return;
+    }
+
+    final motif = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Signaler cet avis',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Choisissez le motif qui décrit le mieux le problème.',
+              ),
+              const SizedBox(height: 12),
+              for (final item in const <(String, String)>[
+                ('spam', 'Spam ou publicité'),
+                ('harcelement', 'Harcèlement ou insultes'),
+                ('discours_haineux', 'Discours haineux'),
+                ('contenu_sexuel', 'Contenu à caractère sexuel'),
+                ('violence', 'Violence ou menace'),
+                ('autre', 'Autre problème'),
+              ])
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(item.$2),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => Navigator.pop(context, item.$1),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (motif == null || !mounted) return;
+
+    try {
+      final result =
+          await ClientApi.request(
+                'POST',
+                '/avis-publics/${review.id}/signaler',
+                body: {'motif': motif},
+              )
+              as Map<String, dynamic>;
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['message']?.toString() ?? 'Signalement envoyé.'),
+        ),
+      );
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    }
   }
 
   @override
@@ -1937,7 +2036,10 @@ class _PublicReviewsScreenState extends State<PublicReviewsScreen> {
                   ),
                 );
               }
-              return _FullReviewCard(review: reviews[index - 1]);
+              return _FullReviewCard(
+                review: reviews[index - 1],
+                onReport: () => _reportReview(reviews[index - 1]),
+              );
             },
           ),
         );
@@ -1947,8 +2049,9 @@ class _PublicReviewsScreenState extends State<PublicReviewsScreen> {
 }
 
 class _FullReviewCard extends StatelessWidget {
-  const _FullReviewCard({required this.review});
+  const _FullReviewCard({required this.review, required this.onReport});
   final HomeReview review;
+  final VoidCallback onReport;
 
   @override
   Widget build(BuildContext context) => Card(
@@ -1999,6 +2102,15 @@ class _FullReviewCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(review.comment, style: const TextStyle(height: 1.45)),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: onReport,
+              icon: const Icon(Icons.flag_outlined, size: 17),
+              label: const Text('Signaler'),
+            ),
+          ),
         ],
       ),
     ),

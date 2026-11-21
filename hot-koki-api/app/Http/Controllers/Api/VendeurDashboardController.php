@@ -36,7 +36,7 @@ class VendeurDashboardController extends Controller
                 'chiffre_affaires_mois' => $revenus['mois'],
                 'paiements_reussis' => $revenus['paiements_reussis'],
                 'note_moyenne' => (float) $vendeur->note_moyenne,
-                'nombre_avis' => Avis::where('vendeur_id', $vendeur->id)->count(),
+                'nombre_avis' => Avis::publics()->where('vendeur_id', $vendeur->id)->count(),
             ],
             'revenus' => $revenus,
             'commandes_recentes' => $vendeur->commandes()
@@ -45,7 +45,7 @@ class VendeurDashboardController extends Controller
                 ->latest()
                 ->limit(5)
                 ->get(),
-            'avis_recents' => Avis::where('vendeur_id', $vendeur->id)
+            'avis_recents' => Avis::publics()->where('vendeur_id', $vendeur->id)
                 ->with('commande.client.user')
                 ->latest()
                 ->limit(5)
@@ -56,7 +56,7 @@ class VendeurDashboardController extends Controller
     public function avis(Request $request)
     {
         return response()->json(
-            Avis::where('vendeur_id', $request->user()->vendeur->id)
+            Avis::publics()->where('vendeur_id', $request->user()->vendeur->id)
                 ->with('commande.client.user')
                 ->latest()
                 ->paginate(30)

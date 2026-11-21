@@ -23,7 +23,7 @@
     <header>
         <div class="brand">HOT KOKI CHAUD</div>
         <h1>Conditions d’utilisation</h1>
-        <p class="updated">Dernière mise à jour : 20 novembre 2026</p>
+        <p class="updated">Dernière mise à jour : 21 novembre 2026</p>
     </header>
 
     <p>Les présentes conditions régissent l’utilisation de l’application Hot Koki Chaud, exploitée par ETS Hot Koki Chaud.</p>
@@ -44,15 +44,19 @@
     <p>La livraison standard est affichée selon les règles applicables dans l’application. L’option express, lorsqu’elle est proposée, comporte les frais indiqués avant validation. Les délais dépendent notamment du vendeur, de la disponibilité, de la circulation et des conditions réseau.</p>
 
     <h2>6. Utilisations interdites</h2>
-    <p>Il est interdit de contourner les contrôles d’accès, d’utiliser les données d’autrui, de perturber le service, de tenter une fraude ou de créer des commandes fictives.</p>
+    <p>Il est interdit de contourner les contrôles d’accès, d’utiliser les données d’autrui, de perturber le service, de tenter une fraude, de créer des commandes fictives ou de publier un contenu illicite, trompeur ou préjudiciable.</p>
 
-    <h2>7. Disponibilité et responsabilité</h2>
+    <h2>7. Avis, signalements et modération</h2>
+    <p>Les avis et commentaires publiés par les utilisateurs doivent rester pertinents, respectueux et de bonne foi. Sont notamment interdits le spam, le harcèlement, les propos haineux, les contenus sexuels, la violence explicite et les informations manifestement fausses.</p>
+    <p>Un utilisateur connecté peut signaler un avis depuis l’application. Les signalements sont examinés par notre équipe. Nous pouvons masquer un avis, suspendre un compte ou prendre toute mesure raisonnable lorsqu’un contenu enfreint ces conditions, nuit à la sécurité du service ou fait l’objet d’un abus. Le masquage préserve les éléments nécessaires au traitement du signalement, à la sécurité et aux éventuels litiges.</p>
+
+    <h2>8. Disponibilité et responsabilité</h2>
     <p>Nous mettons en œuvre des moyens raisonnables pour maintenir le service. Des interruptions liées à la maintenance, aux réseaux, aux opérateurs de paiement ou à des événements extérieurs peuvent survenir.</p>
 
-    <h2>8. Évolution des conditions</h2>
+    <h2>9. Évolution des conditions</h2>
     <p>Ces conditions peuvent être mises à jour. La version en vigueur est accessible dans l’application et sur cette page. Une nouvelle acceptation pourra être demandée pour les modifications importantes.</p>
 
-    <h2>9. Contact</h2>
+    <h2>10. Contact</h2>
     <p>Pour toute assistance : <a href="mailto:contact.hotkoki@gmail.com">contact.hotkoki@gmail.com</a>.</p>
 
     <footer>

@@ -10,6 +10,8 @@ use App\Http\Controllers\Api\Admin\VendeurController as AdminVendeurController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AvisController;
+use App\Http\Controllers\Api\AvisSignalementController;
+use App\Http\Controllers\Api\Admin\AvisModerationController;
 use App\Http\Controllers\Api\CatalogueController;
 use App\Http\Controllers\Api\ClientController;
 use App\Http\Controllers\Api\ClientVendeurController;
@@ -56,6 +58,8 @@ Route::middleware(['auth:sanctum', 'email.verified'])->group(function () {
     Route::patch('/notifications/{notification}/lire', [NotificationController::class, 'marquerLue']);
     Route::post('/notifications/appareil', [PushTokenController::class, 'store']);
     Route::delete('/notifications/appareil', [PushTokenController::class, 'destroy']);
+    Route::post('/avis-publics/{avis}/signaler', [AvisSignalementController::class, 'store'])
+        ->middleware('throttle:review-report');
 
     // Routes reservees au client
     Route::middleware('role:client')->prefix('client')->group(function () {
@@ -126,4 +130,6 @@ Route::middleware(['auth:sanctum', 'isAdmin', 'throttle:admin'])->prefix('admin'
     Route::get('/complements', [ComplementController::class, 'index']);
     Route::post('/complements', [ComplementController::class, 'store']);
     Route::delete('/complements/{id}', [ComplementController::class, 'destroy']);
+    Route::get('/avis/signalements', [AvisModerationController::class, 'index']);
+    Route::patch('/avis/{avis}/moderation', [AvisModerationController::class, 'moderer']);
 });

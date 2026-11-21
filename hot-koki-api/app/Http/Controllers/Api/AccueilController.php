@@ -19,7 +19,7 @@ class AccueilController extends Controller
                 ->orderBy('ordre')
                 ->latest('id')
                 ->get(),
-            'avis' => Avis::query()
+            'avis' => Avis::publics()
                 ->whereNotNull('commentaire')
                 ->where('commentaire', '<>', '')
                 ->with('client.user:id,name', 'vendeur:id,nom_boutique')
@@ -43,7 +43,7 @@ class AccueilController extends Controller
     public function avis(Request $request)
     {
         return response()->json(
-            Avis::query()
+            Avis::publics()
                 ->whereNotNull('commentaire')
                 ->where('commentaire', '<>', '')
                 ->with('client.user:id,name', 'vendeur:id,nom_boutique')

@@ -214,6 +214,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 13),
                 ),
               ),
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const AdminReviewModerationScreen(),
+                  ),
+                ),
+                icon: const Icon(Icons.flag_outlined),
+                label: const Text('Signalements d’avis'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _leaf700,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                ),
+              ),
               const SizedBox(height: 24),
               const _AdminSectionTitle('Chiffre d’affaires par vendeur'),
               const SizedBox(height: 9),
@@ -2604,3 +2619,192 @@ String _statusLabel(String value) =>
       'annulee': 'Annulée',
     }[value] ??
     value;
+
+class AdminReviewModerationScreen extends StatefulWidget {
+  const AdminReviewModerationScreen({super.key});
+
+  @override
+  State<AdminReviewModerationScreen> createState() =>
+      _AdminReviewModerationScreenState();
+}
+
+class _AdminReviewModerationScreenState
+    extends State<AdminReviewModerationScreen> {
+  late Future<List<Map<String, dynamic>>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  void _reload() {
+    _future = ClientApi.request('GET', '/admin/avis/signalements').then((
+      value,
+    ) {
+      final data = value as Map<String, dynamic>;
+      return (data['data'] as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .toList();
+    });
+  }
+
+  Future<void> _mask(Map<String, dynamic> report) async {
+    final avis = report['avis'] as Map<String, dynamic>?;
+    final reviewId = avis?['id'];
+    if (reviewId == null) return;
+    final note = TextEditingController();
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Masquer cet avis'),
+        content: TextField(
+          controller: note,
+          maxLines: 3,
+          maxLength: 1000,
+          decoration: const InputDecoration(
+            labelText: 'Motif de la modération',
+            hintText: 'Expliquez brièvement la décision.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Masquer'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) {
+      note.dispose();
+      return;
+    }
+    if (note.text.trim().isEmpty) {
+      note.dispose();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Le motif de modération est obligatoire.'),
+        ),
+      );
+      return;
+    }
+    try {
+      final result =
+          await ClientApi.request(
+                'PATCH',
+                '/admin/avis/$reviewId/moderation',
+                body: {
+                  'action': 'masquer',
+                  'note_moderation': note.text.trim(),
+                },
+              )
+              as Map<String, dynamic>;
+      note.dispose();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['message']?.toString() ?? 'Avis masqué.'),
+        ),
+      );
+      setState(_reload);
+    } on ApiException catch (error) {
+      note.dispose();
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Signalements d’avis')),
+    body: FutureBuilder<List<Map<String, dynamic>>>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(color: _flame500),
+          );
+        }
+        if (snapshot.hasError) {
+          return _AdminError(
+            error: snapshot.error!,
+            retry: () => setState(_reload),
+          );
+        }
+        final reports = snapshot.data ?? const <Map<String, dynamic>>[];
+        if (reports.isEmpty) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(28),
+              child: Text('Aucun signalement ouvert.'),
+            ),
+          );
+        }
+        return RefreshIndicator(
+          onRefresh: () async {
+            setState(_reload);
+            await _future;
+          },
+          child: ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: reports.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 10),
+            itemBuilder: (context, index) {
+              final report = reports[index];
+              final avis = report['avis'] as Map<String, dynamic>? ?? const {};
+              final vendor =
+                  avis['vendeur'] as Map<String, dynamic>? ?? const {};
+              final reporter =
+                  report['signale_par'] as Map<String, dynamic>? ?? const {};
+              return Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Motif : ${report['motif'] ?? 'autre'}',
+                        style: const TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        avis['commentaire']?.toString() ?? 'Sans commentaire',
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${vendor['nom_boutique'] ?? 'Vendeur'} · signalé par ${reporter['name'] ?? 'Utilisateur'}',
+                        style: const TextStyle(color: _inkSoft, fontSize: 12),
+                      ),
+                      if (report['details'] != null) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          report['details'].toString(),
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ],
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: FilledButton.icon(
+                          onPressed: () => _mask(report),
+                          icon: const Icon(Icons.visibility_off_outlined),
+                          label: const Text('Masquer l’avis'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    ),
+  );
+}

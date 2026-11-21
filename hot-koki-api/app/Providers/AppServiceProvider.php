@@ -82,6 +82,8 @@ class AppServiceProvider extends ServiceProvider
             ->response($response));
         RateLimiter::for('review', fn (Request $request) => Limit::perHour(5)
             ->by('review:'.$this->userOuIp($request))->response($response));
+        RateLimiter::for('review-report', fn (Request $request) => Limit::perHour(5)
+            ->by('review-report:'.$this->userOuIp($request))->response($response));
         RateLimiter::for('admin', fn (Request $request) => Limit::perMinute(120)
             ->by('admin:'.$this->userOuIp($request))->response($response));
         RateLimiter::for('webhook', fn (Request $request) => Limit::perMinute(120)
