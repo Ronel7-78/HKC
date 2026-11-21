@@ -57,6 +57,10 @@ deploy:staging:
   stage: deploy
   image: alpine:3.20
 
+  # Le staging demeure disponible pour les essais, mais son absence ne doit
+  # jamais bloquer un déploiement production explicitement validé.
+  allow_failure: true
+
   needs:
     - api:tests
     - application:flutter-tests
