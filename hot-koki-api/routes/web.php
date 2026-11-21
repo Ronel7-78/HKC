@@ -16,3 +16,4 @@ Route::view('/paiements/orange/annulation', 'payments.orange-result', [
 
 Route::view('/confidentialite', 'legal.privacy')->name('legal.privacy');
 Route::view('/conditions-utilisation', 'legal.terms')->name('legal.terms');
+Route::view('/suppression-compte', 'legal.account-deletion')->name('legal.account-deletion');
