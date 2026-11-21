@@ -124,6 +124,20 @@ class _AuthScreenState extends State<AuthScreen> {
       }
 
       await _completeAuthentication(data, registered: _register);
+    } on ApiException catch (error) {
+      // La réponse 403 d'un e-mail non vérifié doit ouvrir le parcours de
+      // vérification, et non être traitée comme une erreur de session.
+      if (error.code == 'EMAIL_NON_VERIFIE') {
+        await _openVerification(
+          (error.payload['email'] ?? _email.text.trim()).toString(),
+        );
+        return;
+      }
+      if (mounted) {
+        final message = error.message;
+        setState(() => _error = message);
+        await AppFeedback.error(context, message: message);
+      }
     } catch (error) {
       if (mounted) {
         final message = ApiException.fromError(error).message;

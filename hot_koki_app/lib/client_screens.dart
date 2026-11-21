@@ -32,10 +32,16 @@ class ApiException implements Exception {
     this.message, [
     this.fields = const {},
     this.retryable = false,
+    this.statusCode,
+    this.code,
+    this.payload = const {},
   ]);
   final String message;
   final Map<String, String> fields;
   final bool retryable;
+  final int? statusCode;
+  final String? code;
+  final Map<String, dynamic> payload;
 
   factory ApiException.fromError(Object error) {
     if (error is ApiException) return error;
@@ -178,8 +184,11 @@ class ClientApi {
       );
     }
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      final message = data is Map ? data['message'] : null;
-      final errors = data is Map ? data['errors'] : null;
+      final payload = data is Map
+          ? Map<String, dynamic>.from(data)
+          : const <String, dynamic>{};
+      final message = payload['message'];
+      final errors = payload['errors'];
       final fieldErrors = <String, String>{};
       if (errors is Map) {
         for (final entry in errors.entries) {
@@ -203,6 +212,9 @@ class ClientApi {
         safeMessage,
         fieldErrors,
         response.statusCode >= 500 || response.statusCode == 429,
+        response.statusCode,
+        payload['code']?.toString(),
+        payload,
       );
     }
     return data;
