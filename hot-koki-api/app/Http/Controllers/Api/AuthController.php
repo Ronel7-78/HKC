@@ -128,7 +128,7 @@ class AuthController extends Controller
                 'code' => 'EMAIL_NON_VERIFIE',
                 'email' => $user->email,
                 'verification_requise' => true,
-            ], 403);
+            ]);
         }
 
         if (! $this->profilMetierExiste($user)) {

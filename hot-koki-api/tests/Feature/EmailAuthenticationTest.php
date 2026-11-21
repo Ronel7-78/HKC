@@ -53,7 +53,7 @@ class EmailAuthenticationTest extends TestCase
             'email' => $user->email,
             'password' => 'Password-123',
             'conditions_acceptees' => true,
-        ])->assertForbidden()->assertJsonPath('code', 'EMAIL_NON_VERIFIE');
+        ])->assertOk()->assertJsonPath('code', 'EMAIL_NON_VERIFIE');
 
         Notification::assertSentTo($user, EmailAuthenticationCode::class, 1);
 
@@ -84,7 +84,7 @@ class EmailAuthenticationTest extends TestCase
             'email' => $user->email,
             'password' => 'Password-123',
             'conditions_acceptees' => true,
-        ])->assertForbidden()
+        ])->assertOk()
             ->assertJsonPath('code', 'EMAIL_NON_VERIFIE')
             ->assertJsonPath('verification_requise', true);
 
