@@ -101,6 +101,13 @@ class CamPayService
             'operator' => $data['operator'] ?? null,
             'code' => $data['code'] ?? null,
             'operator_reference' => $data['operator_reference'] ?? null,
+            // Ces champs sont conservés uniquement dans la trace interne du
+            // paiement (ils ne sont pas exposes par l'API) afin de pouvoir
+            // expliquer un refus reel de l'operateur sans journaliser de
+            // donnees sensibles telles que le numero ou le jeton.
+            'message' => $data['message'] ?? null,
+            'reason' => $data['reason'] ?? null,
+            'detail' => $data['detail'] ?? null,
         ], fn (mixed $value): bool => $value !== null && $value !== '');
 
         if ($fournisseurDetecte = $this->fournisseurCamPay($data['operator'] ?? null)) {
@@ -124,10 +131,12 @@ class CamPayService
                 $paiement->confirmerReussite((string) $referenceOperateur, $donnees);
             }
         } elseif ($statut === 'FAILED') {
+            [$codeErreur, $messageErreur] = $this->messageEchec($data);
+
             $paiement->terminer(
                 Paiement::STATUT_ECHOUE,
-                'CAMPAY_FAILED',
-                'Le paiement Mobile Money a échoué.',
+                $codeErreur,
+                $messageErreur,
                 $donnees,
             );
         } else {
@@ -247,6 +256,35 @@ class CamPayService
                 '237677777777',
                 '237699999999',
             ], true);
+    }
+
+    /**
+     * Traduit uniquement les motifs non ambigus fournis par CamPay. Les autres
+     * echecs restent neutres : nous ne devons jamais inventer la cause d'un
+     * refus operateur.
+     *
+     * @return array{0: string, 1: string}
+     */
+    private function messageEchec(array $data): array
+    {
+        $motif = mb_strtolower(implode(' ', array_filter([
+            is_scalar($data['message'] ?? null) ? (string) $data['message'] : null,
+            is_scalar($data['reason'] ?? null) ? (string) $data['reason'] : null,
+            is_scalar($data['detail'] ?? null) ? (string) $data['detail'] : null,
+            is_scalar($data['code'] ?? null) ? (string) $data['code'] : null,
+        ])));
+
+        if (preg_match('/insuff|insufficient|not[ _-]?enough|low[ _-]?balance|solde/', $motif) === 1) {
+            return [
+                'CAMPAY_INSUFFICIENT_BALANCE',
+                'Paiement refusé : le solde Mobile Money disponible est insuffisant.',
+            ];
+        }
+
+        return [
+            'CAMPAY_FAILED',
+            'Le paiement Mobile Money a été refusé par l’opérateur. Vérifiez le numéro et le solde disponible, puis réessayez.',
+        ];
     }
 
     private function fournisseurCamPay(mixed $operateur): ?string

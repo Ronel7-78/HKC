@@ -204,6 +204,35 @@ class CamPayPaiementTest extends TestCase
             ->assertJsonPath('statut', Paiement::STATUT_REUSSI);
     }
 
+    public function test_campay_explique_un_refus_pour_solde_insuffisant(): void
+    {
+        [$user, $client] = $this->creerClient();
+        $commande = $this->creerCommande($client);
+        $paiement = $commande->paiements()->create([
+            'passerelle' => Paiement::PASSERELLE_CAMPAY,
+            'fournisseur' => Paiement::FOURNISSEUR_MTN_MOMO,
+            'telephone' => '237677123456',
+            'montant' => $commande->total,
+            'devise' => 'XAF',
+            'statut' => Paiement::STATUT_EN_ATTENTE,
+            'reference_operateur' => 'campay-reference-1',
+            'donnees_operateur' => ['reference' => 'campay-reference-1'],
+        ]);
+        $this->statutCamPay = [
+            'reference' => 'campay-reference-1',
+            'status' => 'FAILED',
+            'operator' => 'MTN',
+            'message' => 'Insufficient balance',
+        ];
+        Sanctum::actingAs($user);
+
+        $this->postJson("/api/paiements/{$paiement->public_id}/synchroniser")
+            ->assertOk()
+            ->assertJsonPath('statut', Paiement::STATUT_ECHOUE)
+            ->assertJsonPath('code_erreur', 'CAMPAY_INSUFFICIENT_BALANCE')
+            ->assertJsonPath('message_erreur', 'Paiement refusé : le solde Mobile Money disponible est insuffisant.');
+    }
+
     public function test_campay_detecte_loperateur_reel_sans_se_fier_au_prefixe(): void
     {
         [$user, $client] = $this->creerClient();
