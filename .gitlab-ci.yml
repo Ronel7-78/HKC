@@ -93,11 +93,13 @@ deploy:staging:
 
   script:
     # Transfère le code, sans écraser les secrets ou les données persistantes.
+    # `public/storage` est un lien symbolique Laravel : son exclusion doit être
+    # exacte, sinon rsync --delete peut le retirer à chaque déploiement.
     - >
       rsync -az --delete
       --exclude=".env"
-      --exclude="storage/"
-      --exclude="public/storage/"
+      --exclude="storage/***"
+      --exclude="public/storage"
       --exclude="vendor/"
       --exclude="node_modules/"
       --exclude=".git/"
@@ -179,12 +181,13 @@ deploy:production:
 
   script:
     # Le code est synchronise sans supprimer le .env, les medias, les logs
-    # ni les secrets persistants du serveur.
+    # ni les secrets persistants du serveur. `public/storage` est un lien
+    # symbolique : il doit être exclu sans slash final pour survivre à --delete.
     - >
       rsync -az --delete
       --exclude=".env"
-      --exclude="storage/"
-      --exclude="public/storage/"
+      --exclude="storage/***"
+      --exclude="public/storage"
       --exclude="vendor/"
       --exclude="node_modules/"
       --exclude=".git/"
