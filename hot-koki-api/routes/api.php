@@ -18,9 +18,7 @@ use App\Http\Controllers\Api\ClientVendeurController;
 use App\Http\Controllers\Api\CommandeController;
 use App\Http\Controllers\Api\EmailAuthController;
 use App\Http\Controllers\Api\HealthController;
-use App\Http\Controllers\Api\MtnMomoWebhookController;
 use App\Http\Controllers\Api\NotificationController;
-use App\Http\Controllers\Api\OrangeMoneyWebhookController;
 use App\Http\Controllers\Api\PaiementController;
 use App\Http\Controllers\Api\PushTokenController;
 use App\Http\Controllers\Api\VendeurCommandeController;
@@ -41,10 +39,6 @@ Route::get('/health', HealthController::class)->middleware('throttle:health');
 Route::get('/catalogue', [CatalogueController::class, 'index']);
 Route::get('/accueil', AccueilController::class);
 Route::get('/avis-publics', [AccueilController::class, 'avis']);
-Route::match(['post', 'put'], '/webhooks/mtn-momo/{transactionHash}', MtnMomoWebhookController::class)
-    ->middleware('throttle:webhook')
-    ->where('transactionHash', '[A-Za-z0-9]{64}');
-Route::post('/webhooks/orange-money', OrangeMoneyWebhookController::class)->middleware('throttle:webhook');
 
 // Routes de l'utilisateur authentifie
 Route::middleware(['auth:sanctum', 'email.verified'])->group(function () {

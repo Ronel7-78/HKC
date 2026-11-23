@@ -6,8 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Commande;
 use App\Models\Paiement;
 use App\Services\Payments\CamPayService;
-use App\Services\Payments\MtnMomoService;
-use App\Services\Payments\OrangeMoneyService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -19,8 +17,7 @@ class PaiementController extends Controller
 {
     public function moyens()
     {
-        $camPayDisponible = config('payments.gateway') === Paiement::PASSERELLE_CAMPAY
-            && config('services.campay.enabled')
+        $camPayDisponible = config('services.campay.enabled')
             && filled(config('services.campay.username'))
             && filled(config('services.campay.password'));
 
@@ -28,18 +25,14 @@ class PaiementController extends Controller
             [
                 'code' => Paiement::FOURNISSEUR_MTN_MOMO,
                 'nom' => 'MTN MoMo',
-                'disponible' => $camPayDisponible
-                    || (config('payments.gateway') === Paiement::PASSERELLE_DIRECTE
-                        && config('services.mtn_momo.enabled')),
-                'passerelle' => config('payments.gateway'),
+                'disponible' => $camPayDisponible,
+                'passerelle' => Paiement::PASSERELLE_CAMPAY,
             ],
             [
                 'code' => Paiement::FOURNISSEUR_ORANGE_MONEY,
                 'nom' => 'Orange Money',
-                'disponible' => $camPayDisponible
-                    || (config('payments.gateway') === Paiement::PASSERELLE_DIRECTE
-                        && config('services.orange_money.enabled')),
-                'passerelle' => config('payments.gateway'),
+                'disponible' => $camPayDisponible,
+                'passerelle' => Paiement::PASSERELLE_CAMPAY,
             ],
         ]);
     }
@@ -48,56 +41,31 @@ class PaiementController extends Controller
         Request $request,
         Commande $commande,
         CamPayService $camPay,
-        MtnMomoService $mtnMomo,
-        OrangeMoneyService $orangeMoney,
     ) {
         $this->authorize('client', $commande);
-        $client = $request->user()->client;
-
-        $passerelle = (string) config('payments.gateway');
-        $telephoneRegex = $passerelle === Paiement::PASSERELLE_DIRECTE
-            && $request->input('fournisseur') === Paiement::FOURNISSEUR_MTN_MOMO
-            && config('services.mtn_momo.target_environment') === 'sandbox'
-            ? '/^(?:(?:\+?237)?6\d{8}|46\d{9})$/'
-            : '/^(?:\+?237)?6\d{8}$/';
 
         $validated = $request->validate([
             'fournisseur' => ['required', Rule::in([
                 Paiement::FOURNISSEUR_MTN_MOMO,
                 Paiement::FOURNISSEUR_ORANGE_MONEY,
             ])],
-            'telephone' => ['required', 'string', 'max:20', 'regex:'.$telephoneRegex],
+            'telephone' => ['required', 'string', 'max:20', 'regex:/^(?:\+?237)?6\d{8}$/'],
         ], [
             'telephone.regex' => 'Le numéro doit être un numéro camerounais valide.',
         ]);
 
-        if ($passerelle === Paiement::PASSERELLE_CAMPAY
-            && (! config('services.campay.enabled')
-                || blank(config('services.campay.username'))
-                || blank(config('services.campay.password')))) {
+        if (! config('services.campay.enabled')
+            || blank(config('services.campay.username'))
+            || blank(config('services.campay.password'))) {
             return response()->json([
                 'message' => 'Le paiement Mobile Money est temporairement indisponible.',
                 'code' => 'CAMPAY_INDISPONIBLE',
             ], 503);
         }
 
-        if ($passerelle === Paiement::PASSERELLE_DIRECTE) {
-            $directDisponible = $validated['fournisseur'] === Paiement::FOURNISSEUR_MTN_MOMO
-                ? config('services.mtn_momo.enabled')
-                : config('services.orange_money.enabled');
-            if (! $directDisponible) {
-                return response()->json([
-                    'message' => 'Ce moyen de paiement est temporairement indisponible.',
-                    'code' => $validated['fournisseur'] === Paiement::FOURNISSEUR_ORANGE_MONEY
-                        ? 'ORANGE_MONEY_INDISPONIBLE'
-                        : 'MTN_MOMO_INDISPONIBLE',
-                ], 503);
-            }
-        }
-
         $idempotencyKey = $this->idempotencyKey($request);
 
-        [$paiement, $cree] = DB::transaction(function () use ($commande, $validated, $passerelle, $idempotencyKey) {
+        [$paiement, $cree] = DB::transaction(function () use ($commande, $validated, $idempotencyKey) {
             $commandeVerrouillee = Commande::whereKey($commande->id)->lockForUpdate()->firstOrFail();
 
             if ($commandeVerrouillee->statut !== Commande::STATUT_EN_ATTENTE_PAIEMENT) {
@@ -114,7 +82,7 @@ class PaiementController extends Controller
 
             $tentativeActive = $commandeVerrouillee->paiements()
                 ->whereIn('statut', Paiement::STATUTS_ACTIFS)
-                ->where('passerelle', $passerelle)
+                ->where('passerelle', Paiement::PASSERELLE_CAMPAY)
                 ->latest()
                 ->first();
 
@@ -125,11 +93,8 @@ class PaiementController extends Controller
             return [$commandeVerrouillee->paiements()->create([
                 'idempotency_key' => $idempotencyKey,
                 'fournisseur' => $validated['fournisseur'],
-                'passerelle' => $passerelle,
-                'telephone' => $this->normaliserTelephone(
-                    $validated['telephone'],
-                    $validated['fournisseur'],
-                ),
+                'passerelle' => Paiement::PASSERELLE_CAMPAY,
+                'telephone' => $this->normaliserTelephone($validated['telephone']),
                 'montant' => $commandeVerrouillee->total,
                 'devise' => 'XAF',
                 'statut' => Paiement::STATUT_INITIE,
@@ -147,14 +112,7 @@ class PaiementController extends Controller
         // perd le reseau puis reessaie, il recupere la tentative existante.
         if ($cree) {
             try {
-                if ($paiement->passerelle === Paiement::PASSERELLE_CAMPAY) {
-                    $camPay->initier($paiement);
-                } else {
-                    match ($paiement->fournisseur) {
-                        Paiement::FOURNISSEUR_MTN_MOMO => $mtnMomo->initier($paiement),
-                        Paiement::FOURNISSEUR_ORANGE_MONEY => $orangeMoney->initier($paiement),
-                    };
-                }
+                $camPay->initier($paiement);
                 $paiement->refresh();
             } catch (RuntimeException) {
                 return response()->json([
@@ -200,8 +158,6 @@ class PaiementController extends Controller
         Request $request,
         Paiement $paiement,
         CamPayService $camPay,
-        MtnMomoService $mtnMomo,
-        OrangeMoneyService $orangeMoney,
     ) {
         $this->authorize('client', $paiement);
 
@@ -212,11 +168,7 @@ class PaiementController extends Controller
             ], 202);
         }
 
-        $tentativesMax = match (true) {
-            $paiement->passerelle === Paiement::PASSERELLE_CAMPAY => config('services.campay.poll_max_attempts'),
-            $paiement->fournisseur === Paiement::FOURNISSEUR_ORANGE_MONEY => config('services.orange_money.poll_max_attempts'),
-            default => config('services.mtn_momo.poll_max_attempts'),
-        };
+        $tentativesMax = config('services.campay.poll_max_attempts');
         if ($paiement->tentatives_statut >= $tentativesMax) {
             if ($request->boolean('relancer')) {
                 $paiement->update([
@@ -233,14 +185,7 @@ class PaiementController extends Controller
         }
 
         try {
-            $paiement = match ($paiement->passerelle) {
-                Paiement::PASSERELLE_CAMPAY => $camPay->synchroniser($paiement),
-                default => match ($paiement->fournisseur) {
-                    Paiement::FOURNISSEUR_MTN_MOMO => $mtnMomo->synchroniser($paiement),
-                    Paiement::FOURNISSEUR_ORANGE_MONEY => $orangeMoney->synchroniser($paiement),
-                    default => throw new RuntimeException('Fournisseur de paiement inconnu.'),
-                },
-            };
+            $paiement = $camPay->synchroniser($paiement);
         } catch (RuntimeException $exception) {
             $incident = Str::lower(Str::random(16));
             Log::warning('Échec de synchronisation auprès de l’opérateur de paiement', [
@@ -262,16 +207,9 @@ class PaiementController extends Controller
         return response()->json($paiement->load('commande'));
     }
 
-    private function normaliserTelephone(string $telephone, string $fournisseur): string
+    private function normaliserTelephone(string $telephone): string
     {
         $telephone = ltrim($telephone, '+');
-
-        if (config('payments.gateway') === Paiement::PASSERELLE_DIRECTE
-            && $fournisseur === Paiement::FOURNISSEUR_MTN_MOMO
-            && config('services.mtn_momo.target_environment') === 'sandbox'
-            && str_starts_with($telephone, '46')) {
-            return $telephone;
-        }
 
         return str_starts_with($telephone, '237') ? $telephone : '237'.$telephone;
     }

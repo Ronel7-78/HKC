@@ -24,18 +24,29 @@ class VendeurCommandeWorkflowTest extends TestCase
         parent::setUp();
 
         config([
-            'services.mtn_momo.subscription_key' => 'subscription-test',
-            'services.mtn_momo.api_user' => 'api-user-test',
-            'services.mtn_momo.api_key' => 'api-key-test',
-            'services.mtn_momo.callback_base_url' => 'https://api.hot-koki.test',
+            'services.campay.enabled' => true,
+            'services.campay.environment' => 'DEV',
+            'services.campay.base_url' => 'https://demo.campay.test',
+            'services.campay.username' => 'campay-username-test',
+            'services.campay.password' => 'campay-password-test',
+            'services.campay.currency' => 'XAF',
+            'services.campay.demo_amount' => 10,
         ]);
 
         Http::fake(function (Request $request) {
-            if (str_ends_with($request->url(), '/collection/token/')) {
-                return Http::response(['access_token' => 'token-test']);
+            if (str_ends_with($request->url(), '/api/token/')) {
+                return Http::response(['token' => 'campay-token-test']);
             }
 
-            return Http::response([], 202);
+            if (str_ends_with($request->url(), '/api/collect/')) {
+                return Http::response([
+                    'reference' => 'campay-reference-workflow-test',
+                    'operator' => 'MTN',
+                    'ussd_code' => '*126#',
+                ]);
+            }
+
+            return Http::response([], 404);
         });
     }
 
@@ -131,8 +142,8 @@ class VendeurCommandeWorkflowTest extends TestCase
 
         $this->changerStatut($commandePublicId, Commande::STATUT_LIVREE)->assertNotFound();
 
-        // En production, seul le resultat verifie chez MTN appellera cette methode.
-        Paiement::findOrFail($paiement->json('paiement.id'))->confirmerReussite('mtn-test-1');
+        // En production, seul le résultat vérifié auprès de CamPay appellera cette méthode.
+        Paiement::findOrFail($paiement->json('paiement.id'))->confirmerReussite('campay-test-1');
 
         $this->getJson('/api/vendeur/commandes')
             ->assertOk()

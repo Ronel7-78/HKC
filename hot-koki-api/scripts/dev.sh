@@ -27,7 +27,7 @@ if ! php artisan migrate:status --no-ansi >/dev/null 2>&1; then
     exit 1
 fi
 
-if ! php artisan mtn:check-env; then
+if ! php artisan campay:check-env; then
     echo "Complétez les variables indiquées dans .env, puis relancez composer dev." >&2
     exit 1
 fi

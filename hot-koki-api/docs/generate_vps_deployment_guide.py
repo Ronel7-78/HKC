@@ -196,7 +196,7 @@ bullets([
     "Un accès SSH root initial.",
     "Le domaine hotkokichaud.digital administré chez Hostinger.",
     "Le dépôt GitHub public de l’application.",
-    "Les secrets MySQL et MTN conservés dans un gestionnaire de mots de passe.",
+    "Les secrets MySQL et CamPay conservés dans un gestionnaire de mots de passe.",
 ])
 
 doc.add_heading("3. Configurer le DNS Hostinger", level=1)
@@ -273,22 +273,21 @@ MAIL_MAILER=log
 MAIL_FROM_ADDRESS="no-reply@hotkokichaud.digital"
 MAIL_FROM_NAME="Hot Koki Chaud"
 
-ORANGE_MONEY_ENABLED=false''')
-doc.add_paragraph("Configuration MTN sandbox :")
-code('''MTN_MOMO_BASE_URL=https://sandbox.momodeveloper.mtn.com
-MTN_MOMO_TARGET_ENVIRONMENT=sandbox
-MTN_MOMO_CURRENCY=EUR
-MTN_MOMO_CALLBACK_BASE_URL=https://api-staging.hotkokichaud.digital
-MTN_MOMO_SUBSCRIPTION_KEY="TA_PRIMARY_KEY"
-MTN_MOMO_API_USER="TON_API_USER"
-MTN_MOMO_API_KEY="TON_API_KEY"
-MTN_MOMO_CALLBACK_ALLOWED_IPS=
-MTN_MOMO_POLL_MAX_ATTEMPTS=8''')
+PAYMENT_GATEWAY=campay
+
+CAMPAY_ENABLED=true
+CAMPAY_ENVIRONMENT=DEV
+CAMPAY_BASE_URL=https://demo.campay.net
+CAMPAY_APP_USERNAME="TON_USERNAME_CAMPAY"
+CAMPAY_APP_PASSWORD="TON_MOT_DE_PASSE_CAMPAY"
+CAMPAY_CURRENCY=XAF
+CAMPAY_DEMO_AMOUNT=10
+CAMPAY_POLL_MAX_ATTEMPTS=12''')
 note("Le vrai .env reste uniquement sur le VPS, est ignoré par Git et ne doit jamais être copié dans un ticket, un chat ou un dépôt.")
 code("chown deploy:www-data .env\nchmod 640 .env\nrunuser -u deploy -- php artisan key:generate")
 
 doc.add_heading("11. Initialiser Laravel", level=1)
-code("runuser -u deploy -- php artisan migrate --force\nrunuser -u deploy -- php artisan storage:link\nchown -R deploy:www-data storage bootstrap/cache\nchmod -R 775 storage bootstrap/cache\nrunuser -u deploy -- php artisan about\nrunuser -u deploy -- php artisan mtn:check-env")
+code("runuser -u deploy -- php artisan migrate --force\nrunuser -u deploy -- php artisan storage:link\nchown -R deploy:www-data storage bootstrap/cache\nchmod -R 775 storage bootstrap/cache\nrunuser -u deploy -- php artisan about\nrunuser -u deploy -- php artisan campay:check-env")
 
 doc.add_heading("12. Configurer Nginx", level=1)
 code("nano /etc/nginx/sites-available/hot-koki-staging")
@@ -394,13 +393,10 @@ doc.add_heading("Sauvegarder les fichiers téléversés", level=2)
 code("tar -czf /var/backups/hot-koki/storage_DATE.tar.gz -C /var/www/hot-koki/source/hot-koki-api storage/app/public")
 note("Automatiser ensuite ces sauvegardes, les chiffrer et en conserver une copie hors du VPS. Tester périodiquement la restauration.")
 
-doc.add_heading("19. MTN MoMo sur le domaine stable", level=1)
-doc.add_paragraph("Le providerCallbackHost de l’utilisateur API sandbox doit correspondre exactement à :")
-code("api-staging.hotkokichaud.digital")
-doc.add_paragraph("Si l’utilisateur sandbox a été créé avec une ancienne adresse trycloudflare.com, le recréer avec le domaine stable, générer une nouvelle api_key puis remplacer les valeurs uniquement dans le .env du VPS.")
-code("cd /var/www/hot-koki/source/hot-koki-api\nrunuser -u deploy -- php artisan optimize:clear\nrunuser -u deploy -- php artisan mtn:check-env\nrunuser -u deploy -- php artisan mtn:test-config\nrunuser -u deploy -- php artisan optimize\nsupervisorctl restart hot-koki-worker:*")
-doc.add_paragraph("Le callback généré par l’application suit cette forme :")
-code("https://api-staging.hotkokichaud.digital/api/webhooks/mtn-momo/{transactionHash}")
+doc.add_heading("19. Vérifier CamPay", level=1)
+doc.add_paragraph("CamPay centralise les encaissements MTN MoMo et Orange Money. L’application n’utilise aucun connecteur direct vers les deux opérateurs.")
+code("cd /var/www/hot-koki/source/hot-koki-api\nrunuser -u deploy -- php artisan optimize:clear\nrunuser -u deploy -- php artisan campay:check-env\nrunuser -u deploy -- php artisan campay:test-config\nrunuser -u deploy -- php artisan optimize\nsupervisorctl restart hot-koki-worker:*")
+note("Si campay:test-config renvoie HTTP 403, vérifier l’adresse IP publique et demander à CamPay l’activation explicite de l’application Demo ou Live. Ne jamais transmettre les clés API dans un chat.")
 
 doc.add_heading("20. Vérifications finales", level=1)
 code("systemctl is-active nginx php8.4-fpm mysql supervisor cron\nsupervisorctl status\nnginx -t\ncurl -I https://api-staging.hotkokichaud.digital\ncurl -i https://api-staging.hotkokichaud.digital/api/catalogue")
@@ -432,7 +428,7 @@ rows = [
     ("vendor/autoload.php absent", "composer install a échoué", "Corriger PHP puis relancer Composer avec deploy"),
     ("Flutter ne trouve pas l’APK", "Flavor non précisé", "Ajouter --flavor staging"),
     ("Catalogue hors ligne", "URL Flutter erronée", "Utiliser HTTPS et terminer l’URL par /api"),
-    ("Callback MTN refusé", "providerCallbackHost différent", "Recréer l’utilisateur sandbox avec le domaine stable"),
+    ("CamPay HTTP 403", "Application ou IP non autorisée", "Vérifier l’IP publique puis demander l’activation à CamPay"),
     ("Paiement reste en attente", "Worker ou scheduler arrêté", "Vérifier Supervisor, cron et les logs Laravel"),
 ]
 for values in rows:
@@ -454,7 +450,7 @@ numbered([
     "Créer api.hotkokichaud.digital et un environnement serveur distinct si possible.",
     "Créer une base de production distincte.",
     "Utiliser APP_ENV=production et APP_DEBUG=false.",
-    "Configurer les identifiants MTN et Orange de production, jamais ceux du sandbox.",
+    "Configurer les identifiants CamPay Live de production, jamais ceux de démonstration.",
     "Configurer un vrai SMTP et réactiver la vérification email.",
     "Mettre en place les listes blanches IP exigées par les opérateurs.",
     "Exécuter les tests d’intégration, l’audit de sécurité et les tests de restauration.",
@@ -472,6 +468,6 @@ for sec in doc.sections:
 doc.core_properties.title = "Guide complet de déploiement Hot Koki sur VPS"
 doc.core_properties.subject = "Déploiement Laravel 13 sur Ubuntu 24.04 et connexion Flutter"
 doc.core_properties.author = "Hot Koki Chaud"
-doc.core_properties.keywords = "Laravel, VPS, Ubuntu, Nginx, MySQL, Flutter, MTN MoMo"
+doc.core_properties.keywords = "Laravel, VPS, Ubuntu, Nginx, MySQL, Flutter, CamPay"
 doc.save(OUTPUT)
 print(OUTPUT)

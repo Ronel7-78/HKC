@@ -116,10 +116,6 @@ class SecurityCheckSecrets extends Command
             'APP_KEY' => config('app.key'),
             'DB_PASSWORD' => config('database.connections.'.config('database.default').'.password'),
             'MAIL_PASSWORD' => config('mail.mailers.smtp.password'),
-            'MTN_MOMO_SUBSCRIPTION_KEY' => config('services.mtn_momo.subscription_key'),
-            'MTN_MOMO_API_KEY' => config('services.mtn_momo.api_key'),
-            'ORANGE_MONEY_CLIENT_SECRET' => config('services.orange_money.client_secret'),
-            'ORANGE_MONEY_MERCHANT_KEY' => config('services.orange_money.merchant_key'),
             'CAMPAY_APP_USERNAME' => config('services.campay.username'),
             'CAMPAY_APP_PASSWORD' => config('services.campay.password'),
         ])->filter(fn ($value) => is_string($value) && mb_strlen($value) >= 12)->all();

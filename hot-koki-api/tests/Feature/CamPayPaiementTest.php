@@ -36,8 +36,6 @@ class CamPayPaiementTest extends TestCase
             'services.campay.currency' => 'XAF',
             'services.campay.demo_amount' => 10,
             'services.campay.poll_max_attempts' => 12,
-            'services.mtn_momo.enabled' => false,
-            'services.orange_money.enabled' => false,
         ]);
 
         Http::fake(function (Request $request) {

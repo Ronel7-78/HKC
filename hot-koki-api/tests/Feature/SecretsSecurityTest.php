@@ -31,16 +31,14 @@ class SecretsSecurityTest extends TestCase
         $this->assertArrayNotHasKey('reference_operateur', $json);
     }
 
-    public function test_seule_une_url_https_peut_etre_exposee_pour_un_paiement_orange(): void
+    public function test_aucune_url_de_paiement_externe_n_est_exposee_par_campay(): void
     {
         $paiement = new Paiement([
             'fournisseur' => Paiement::FOURNISSEUR_ORANGE_MONEY,
             'statut' => Paiement::STATUT_EN_ATTENTE,
-            'donnees_operateur' => ['payment_url' => 'javascript:alert(1)'],
+            'donnees_operateur' => ['payment_url' => 'https://paiement.example.test/session/123'],
         ]);
-        $this->assertNull($paiement->url_paiement);
 
-        $paiement->donnees_operateur = ['payment_url' => 'https://paiement.example.test/session/123'];
-        $this->assertSame('https://paiement.example.test/session/123', $paiement->url_paiement);
+        $this->assertNull($paiement->url_paiement);
     }
 }

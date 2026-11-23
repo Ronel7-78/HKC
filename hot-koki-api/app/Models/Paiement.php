@@ -16,8 +16,6 @@ class Paiement extends Model
 
     public const FOURNISSEUR_ORANGE_MONEY = 'orange_money';
 
-    public const PASSERELLE_DIRECTE = 'direct';
-
     public const PASSERELLE_CAMPAY = 'campay';
 
     public const STATUT_INITIE = 'initie';
@@ -62,13 +60,7 @@ class Paiement extends Model
 
     public function getModeTestAttribute(): bool
     {
-        if ($this->passerelle === self::PASSERELLE_CAMPAY) {
-            return strtoupper((string) config('services.campay.environment')) === 'DEV';
-        }
-
-        return $this->fournisseur === self::FOURNISSEUR_ORANGE_MONEY
-            ? config('services.orange_money.environment') === 'sandbox'
-            : config('services.mtn_momo.target_environment') === 'sandbox';
+        return strtoupper((string) config('services.campay.environment')) === 'DEV';
     }
 
     public function getUrlPaiementAttribute(): ?string
@@ -77,20 +69,7 @@ class Paiement extends Model
             return null;
         }
 
-        if ($this->fournisseur !== self::FOURNISSEUR_ORANGE_MONEY) {
-            return null;
-        }
-
-        $url = $this->donnees_operateur['payment_url'] ?? null;
-        if (! is_string($url)) {
-            return null;
-        }
-
-        $parsed = parse_url($url);
-
-        return ($parsed['scheme'] ?? null) === 'https' && ! empty($parsed['host'])
-            ? $url
-            : null;
+        return null;
     }
 
     protected static function booted(): void

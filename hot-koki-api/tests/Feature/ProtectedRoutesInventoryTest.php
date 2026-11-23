@@ -19,8 +19,6 @@ class ProtectedRoutesInventoryTest extends TestCase
         'api/login',
         'api/register',
         'api/reset-password',
-        'api/webhooks/mtn-momo/{transactionHash}',
-        'api/webhooks/orange-money',
     ];
 
     public function test_toute_route_api_non_publique_exige_sanctum(): void

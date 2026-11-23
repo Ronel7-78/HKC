@@ -1,15 +1,11 @@
 <?php
 
 use App\Jobs\VerifierPaiementCamPay;
-use App\Jobs\VerifierPaiementMtn;
-use App\Jobs\VerifierPaiementOrange;
 use App\Models\Client;
 use App\Models\EmailAuthCode;
 use App\Models\Paiement;
 use App\Models\User;
 use App\Services\Payments\CamPayService;
-use App\Services\Payments\MtnMomoService;
-use App\Services\Payments\OrangeMoneyService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -90,90 +86,6 @@ Artisan::command('k6:seed-order-clients {runId} {--count=100}', function () {
     $this->comment("Fichier de jetons cree : {$path}");
     $this->comment('Ne pas afficher, versionner ou partager ce fichier. Supprimez-le apres le test.');
 })->purpose('Creer des clients et jetons fictifs pour le test k6 de commandes staging');
-
-Artisan::command('mtn:test-config', function () {
-    try {
-        app(MtnMomoService::class)->testerConfiguration();
-        $this->info('Configuration MTN MoMo valide : jeton sandbox obtenu.');
-    } catch (Throwable $exception) {
-        $this->error($exception->getMessage());
-
-        return 1;
-    }
-
-    return 0;
-})->purpose('Valider la configuration MTN MoMo sans afficher les secrets');
-
-Artisan::command('mtn:check-env', function () {
-    $required = [
-        'MTN_MOMO_CALLBACK_BASE_URL' => 'callback_base_url',
-        'MTN_MOMO_SUBSCRIPTION_KEY' => 'subscription_key',
-        'MTN_MOMO_API_USER' => 'api_user',
-        'MTN_MOMO_API_KEY' => 'api_key',
-    ];
-
-    $missing = [];
-    foreach ($required as $environmentName => $configName) {
-        if (blank(config('services.mtn_momo.'.$configName))) {
-            $missing[] = $environmentName;
-        }
-    }
-
-    if ($missing !== []) {
-        $this->error('Configuration MTN incomplète. Variables à renseigner dans .env :');
-        foreach ($missing as $name) {
-            $this->line(' - '.$name);
-        }
-
-        return 1;
-    }
-
-    $this->info('Toutes les variables MTN requises sont présentes.');
-    $this->comment('Aucune valeur secrète n’a été affichée et aucun appel MTN n’a été effectué.');
-
-    return 0;
-})->purpose('Vérifier la présence des secrets MTN sans les afficher ni appeler MTN');
-
-Artisan::command('orange:test-config', function () {
-    try {
-        app(OrangeMoneyService::class)->testerConfiguration();
-        $this->info('Configuration Orange Money valide : jeton obtenu.');
-    } catch (Throwable $exception) {
-        $this->error($exception->getMessage());
-
-        return 1;
-    }
-
-    return 0;
-})->purpose('Valider la configuration Orange Money sans afficher les secrets');
-
-Artisan::command('orange:check-env', function () {
-    $required = [
-        'ORANGE_MONEY_CLIENT_ID' => 'client_id',
-        'ORANGE_MONEY_CLIENT_SECRET' => 'client_secret',
-        'ORANGE_MONEY_MERCHANT_KEY' => 'merchant_key',
-        'ORANGE_MONEY_CALLBACK_BASE_URL' => 'callback_base_url',
-        'ORANGE_MONEY_RETURN_URL' => 'return_url',
-        'ORANGE_MONEY_CANCEL_URL' => 'cancel_url',
-    ];
-    $missing = [];
-    foreach ($required as $environmentName => $configName) {
-        if (blank(config('services.orange_money.'.$configName))) {
-            $missing[] = $environmentName;
-        }
-    }
-    if ($missing !== []) {
-        $this->error('Configuration Orange Money incomplète. Variables à renseigner :');
-        foreach ($missing as $name) {
-            $this->line(' - '.$name);
-        }
-
-        return 1;
-    }
-    $this->info('Toutes les variables Orange Money requises sont présentes.');
-
-    return 0;
-})->purpose('Vérifier la présence des secrets Orange Money sans les afficher');
 
 Artisan::command('campay:check-env', function () {
     $required = [
@@ -281,44 +193,20 @@ Artisan::command('deploy:check', function () {
         $errors[] = 'MAIL_FROM_ADDRESS doit utiliser une adresse Hot Koki valide.';
     }
     $paymentGateway = config('payments.gateway');
-    if (! in_array($paymentGateway, [
-        Paiement::PASSERELLE_DIRECTE,
-        Paiement::PASSERELLE_CAMPAY,
-    ], true)) {
-        $errors[] = 'PAYMENT_GATEWAY doit valoir direct ou campay.';
+    if ($paymentGateway !== Paiement::PASSERELLE_CAMPAY) {
+        $errors[] = 'PAYMENT_GATEWAY doit valoir campay.';
     }
-    if ($paymentGateway === Paiement::PASSERELLE_CAMPAY) {
-        if (! config('services.campay.enabled')) {
-            $errors[] = 'CamPay doit être activé pour la passerelle sélectionnée.';
-        }
-        foreach (['base_url', 'username', 'password'] as $key) {
-            if (! config('services.campay.'.$key)) {
-                $errors[] = 'Configuration CamPay absente : '.$key.'.';
-            }
-        }
-    } else {
-        foreach (['base_url', 'subscription_key', 'api_user', 'api_key', 'callback_base_url'] as $key) {
-            if (! config('services.mtn_momo.'.$key)) {
-                $errors[] = 'Configuration MTN absente : '.$key.'.';
-            }
+    if (! config('services.campay.enabled')) {
+        $errors[] = 'CamPay doit être activé.';
+    }
+    foreach (['base_url', 'username', 'password'] as $key) {
+        if (! config('services.campay.'.$key)) {
+            $errors[] = 'Configuration CamPay absente : '.$key.'.';
         }
     }
     if ($environment === 'production') {
-        if ($paymentGateway === Paiement::PASSERELLE_CAMPAY
-            && strtoupper((string) config('services.campay.environment')) !== 'PROD') {
+        if (strtoupper((string) config('services.campay.environment')) !== 'LIVE') {
             $errors[] = 'CamPay DEV est interdit en production.';
-        }
-        if ($paymentGateway === Paiement::PASSERELLE_DIRECTE
-            && config('services.mtn_momo.target_environment') === 'sandbox') {
-            $errors[] = 'MTN sandbox est interdit en production.';
-        }
-        if ($paymentGateway === Paiement::PASSERELLE_DIRECTE
-            && ! config('services.mtn_momo.callback_allowed_ips')) {
-            $errors[] = 'Les IP de callback MTN doivent être autorisées en production.';
-        }
-        if (config('services.orange_money.enabled')
-            && config('services.orange_money.environment') === 'sandbox') {
-            $errors[] = 'Orange Money sandbox est interdit en production.';
         }
     }
 
@@ -351,42 +239,6 @@ Schedule::call(function () {
         ->pluck('id')
         ->each(fn (int $id) => VerifierPaiementCamPay::dispatch($id)->onQueue('paiements'));
 })->everyMinute()->name('campay-polling')->withoutOverlapping();
-
-Schedule::call(function () {
-    if (config('payments.gateway') !== Paiement::PASSERELLE_DIRECTE
-        || ! config('services.mtn_momo.enabled')) {
-        return;
-    }
-    Paiement::query()
-        ->where('passerelle', Paiement::PASSERELLE_DIRECTE)
-        ->where('fournisseur', Paiement::FOURNISSEUR_MTN_MOMO)
-        ->whereIn('statut', Paiement::STATUTS_ACTIFS)
-        ->where('tentatives_statut', '<', config('services.mtn_momo.poll_max_attempts'))
-        ->where(function ($query) {
-            $query->whereNull('prochaine_verification_le')
-                ->orWhere('prochaine_verification_le', '<=', now());
-        })
-        ->pluck('id')
-        ->each(fn (int $id) => VerifierPaiementMtn::dispatch($id)->onQueue('paiements'));
-})->everyMinute()->name('mtn-momo-polling')->withoutOverlapping();
-
-Schedule::call(function () {
-    if (config('payments.gateway') !== Paiement::PASSERELLE_DIRECTE
-        || ! config('services.orange_money.enabled')) {
-        return;
-    }
-    Paiement::query()
-        ->where('passerelle', Paiement::PASSERELLE_DIRECTE)
-        ->where('fournisseur', Paiement::FOURNISSEUR_ORANGE_MONEY)
-        ->whereIn('statut', Paiement::STATUTS_ACTIFS)
-        ->where('tentatives_statut', '<', config('services.orange_money.poll_max_attempts'))
-        ->where(function ($query) {
-            $query->whereNull('prochaine_verification_le')
-                ->orWhere('prochaine_verification_le', '<=', now());
-        })
-        ->pluck('id')
-        ->each(fn (int $id) => VerifierPaiementOrange::dispatch($id)->onQueue('paiements'));
-})->everyMinute()->name('orange-money-polling')->withoutOverlapping();
 
 Schedule::call(function () {
     EmailAuthCode::query()
